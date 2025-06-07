@@ -11,12 +11,10 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/app/update-password`
+      redirectTo: `${window.location.origin}/reset-password`
     });
     if (error) setMessage(error.message);
-    else {
-      setMessage('E-mail pro reset hesla byl odeslán. Zkontrolujte svou schránku.');
-    }
+    else setMessage('Email s odkazem pro reset hesla byl odeslán.');
   };
 
   return (
@@ -38,7 +36,7 @@ export default function ForgotPasswordPage() {
           Odeslat
         </button>
       </form>
-      {message && <p className="mt-4 text-center">{message}</p>}
+      {message && <p className="mt-4 text-center text-sm text-gray-700">{message}</p>}
     </div>
   );
 }
