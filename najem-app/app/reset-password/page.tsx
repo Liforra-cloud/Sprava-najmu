@@ -11,16 +11,27 @@ export default function ResetPasswordPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Ručně zpracujeme access_token z URL fragmentu a nastavíme session
+    if (typeof window === 'undefined') return;
     const hash = window.location.hash;
-    const params = new URLSearchParams(hash.substring(1));
+    if (!hash) return;
+
+    const params = new URLSearchParams(hash.slice(1));
     const access_token = params.get('access_token');
     const refresh_token = params.get('refresh_token');
-    if (access_token) {
-      supabase.auth.setSession({ access_token, refresh_token: refresh_token! })
+
+    if (access_token && refresh_token) {
+      supabase.auth
+        .setSession({ access_token, refresh_token })
         .then(({ error }) => {
-          if (error) setMessage(error.message);
-          else setMessage('Zadejte prosím nové heslo.');
+          if (error) {
+            setMessage(error.message);
+          } else {
+            // navíc explicitně nastavíme autorizační header
+            supabase.auth.setAuth(access_token);
+            setMessage('Zadejte prosím nové heslo.');
+            // zbavíme se fragmentu v URL, aby se při reloadu neparzovalo znovu
+            window.history.replaceState(null, '', window.location.pathname);
+          }
         });
     }
   }, []);
@@ -28,8 +39,9 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.auth.updateUser({ password });
-    if (error) setMessage(error.message);
-    else {
+    if (error) {
+      setMessage(error.message);
+    } else {
       setMessage('Heslo bylo úspěšně změněno!');
       router.push('/sign-in');
     }
