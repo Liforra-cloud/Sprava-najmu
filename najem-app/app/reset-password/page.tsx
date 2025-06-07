@@ -11,15 +11,18 @@ export default function ResetPasswordPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // zpracujeme token z URL fragmentu
-    supabase.auth.getSessionFromUrl().catch(err => setMessage(err.message));
-
-    const { subscription } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setMessage('Zadejte prosím nové heslo.');
-      }
-    });
-    return () => subscription.unsubscribe();
+    // Ručně zpracujeme access_token z URL fragmentu a nastavíme session
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.substring(1));
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+    if (access_token) {
+      supabase.auth.setSession({ access_token, refresh_token: refresh_token! })
+        .then(({ error }) => {
+          if (error) setMessage(error.message);
+          else setMessage('Zadejte prosím nové heslo.');
+        });
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +30,7 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
     if (error) setMessage(error.message);
     else {
-      setMessage('Heslo bylo úspěšně změněno! Přihlaste se prosím znovu.');
+      setMessage('Heslo bylo úspěšně změněno!');
       router.push('/sign-in');
     }
   };
