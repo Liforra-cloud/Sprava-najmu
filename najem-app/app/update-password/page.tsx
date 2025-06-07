@@ -21,7 +21,7 @@ export default function UpdatePasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { data, error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabase.auth.updateUser({ password });
     if (error) setMessage(error.message);
     else {
       setMessage('Heslo bylo úspěšně změněno!');
