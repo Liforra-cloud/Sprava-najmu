@@ -12,10 +12,18 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
+
     if (error) {
       setError(error.message);
     } else {
+      // Uložit do vlastní tabulky `profiles`
+      if (data.user) {
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          email: data.user.email,
+        });
+      }
       router.push('/login');
     }
   };
