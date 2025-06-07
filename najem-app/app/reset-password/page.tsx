@@ -40,7 +40,7 @@ export default function ResetPasswordPage() {
       setMessage(error.message);
     } else {
       setMessage('Heslo bylo úspěšně změněno!');
-      router.push('/sign-in');
+      router.push('/login');
     }
   };
 
