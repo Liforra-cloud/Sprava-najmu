@@ -1,53 +1,101 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import Link from 'next/link';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
-  const [success, setSuccess] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`, // nastavíme i reset page
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/app/update-password`
     });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setSuccess('Na email byl odeslán odkaz pro obnovení hesla.');
+    if (error) setMessage(error.message);
+    else {
+      setMessage('E-mail pro reset hesla byl odeslán. Zkontrolujte svou schránku.');
+      // případně router.push('/')
     }
   };
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-gray-50">
-      <form onSubmit={handleSubmit} className="bg-white p-8 shadow-lg rounded-xl w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-4 text-center">Zapomenuté heslo</h1>
+    <div className="max-w-md mx-auto mt-10 p-4">
+      <h1 className="text-2xl font-bold mb-4">Reset hesla</h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="email"
-          placeholder="Email"
-          className="w-full p-3 border rounded mb-4"
+          placeholder="Váš e-mail"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          className="w-full p-2 border rounded"
         />
-        {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-        {success && <p className="text-green-600 text-sm mb-2">{success}</p>}
-        <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700">
-          Odeslat odkaz pro reset
+        <button
+          type="submit"
+          className="w-full p-2 bg-blue-600 text-white rounded"
+        >
+          Odeslat
         </button>
-        <div className="text-sm text-center mt-4">
-          <Link href="/login" className="text-blue-600 hover:underline">
-            Zpět na přihlášení
-          </Link>
-        </div>
       </form>
-    </main>
+      {message && <p className="mt-4 text-center">{message}</p>}
+    </div>
+  );
+}
+
+// app/update-password/page.tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
+
+export default function UpdatePasswordPage() {
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const router = useRouter();
+
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setMessage('Prosím, zadejte nové heslo.');
+      }
+    });
+    return () => listener?.subscription.unsubscribe();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { data, error } = await supabase.auth.updateUser({ password });
+    if (error) setMessage(error.message);
+    else {
+      setMessage('Heslo bylo úspěšně změněno!');
+      router.push('/app/sign-in');
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto mt-10 p-4">
+      <h1 className="text-2xl font-bold mb-4">Nastavte nové heslo</h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <input
+          type="password"
+          placeholder="Nové heslo"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          className="w-full p-2 border rounded"
+        />
+        <button
+          type="submit"
+          className="w-full p-2 bg-green-600 text-white rounded"
+        >
+          Změnit heslo
+        </button>
+      </form>
+      {message && <p className="mt-4 text-center">{message}</p>}
+    </div>
   );
 }
