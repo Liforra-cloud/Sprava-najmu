@@ -1,14 +1,26 @@
 // app/api/properties/route.ts
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabaseClient';
 
 export async function GET() {
-  const properties = await prisma.property.findMany({ include: { units: true } });
-  return NextResponse.json(properties);
+  const { data, error } = await supabase
+    .from('properties')
+    .select('*');
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json(data);
 }
 
 export async function POST(request: Request) {
   const { name, address } = await request.json();
-  const newProp = await prisma.property.create({ data: { name, address } });
-  return NextResponse.json(newProp, { status: 201 });
+  const { data, error } = await supabase
+    .from('properties')
+    .insert([{ name, address }])
+    .select()
+    .single();
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json(data, { status: 201 });
 }
