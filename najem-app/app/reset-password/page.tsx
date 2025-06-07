@@ -26,10 +26,7 @@ export default function ResetPasswordPage() {
           if (error) {
             setMessage(error.message);
           } else {
-            // navíc explicitně nastavíme autorizační header
-            supabase.auth.setAuth(access_token);
             setMessage('Zadejte prosím nové heslo.');
-            // zbavíme se fragmentu v URL, aby se při reloadu neparzovalo znovu
             window.history.replaceState(null, '', window.location.pathname);
           }
         });
