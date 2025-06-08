@@ -1,33 +1,18 @@
 // app/api/properties/[id]/route.ts
-import { NextResponse, NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
+// GET handler pro detail property + embed units
 export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
-  const id = context.params.id
-
+  const { id } = params
   const { data, error } = await supabase
     .from('properties')
-    .select(`
-      id,
-      name,
-      address,
-      description,
-      date_added,
-      units(
-        id,
-        identifier,
-        floor,
-        disposition,
-        area,
-        occupancy_status,
-        monthly_rent,
-        deposit,
-        date_added
-      )
-    `)
+    .select(
+      `id, name, address, description, date_added, units(id, identifier, floor, disposition, area, occupancy_status, monthly_rent, deposit, date_added)`
+    )
     .eq('id', id)
     .single()
 
