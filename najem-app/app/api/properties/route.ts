@@ -13,10 +13,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { name, address } = await request.json();
+  const { name, address, property_type, description } = await request.json();
   const { data, error } = await supabase
     .from('properties')
-    .insert([{ name, address }])
+    .insert([{ name, address, property_type, description }])
     .select()
     .single();
   if (error) {
