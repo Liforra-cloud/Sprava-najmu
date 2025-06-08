@@ -8,15 +8,19 @@ interface Unit {
   id: string
   identifier: string
   floor: number | null
-  disposition: string | null
+  disposition: string
   area: number | null
-  occupancy_status: string
+  occupancy_status: string | null
   monthly_rent: number | null
   deposit: number | null
   date_added: string
   property: {
     name: string
-  } | null
+  }
+}
+
+interface RawUnit extends Omit<Unit, 'property'> {
+  property: { name: string }[] | { name: string }
 }
 
 export default function UnitsPage() {
@@ -27,30 +31,18 @@ export default function UnitsPage() {
     const fetchUnits = async () => {
       const { data, error } = await supabase
         .from('units')
-        .select(`
-          id,
-          identifier,
-          floor,
-          disposition,
-          area,
-          occupancy_status,
-          monthly_rent,
-          deposit,
-          date_added,
-          property:properties!units_property_id_fkey (
-            name
-          )
-        `)
+        .select(
+          'id, identifier, floor, disposition, area, occupancy_status, monthly_rent, deposit, date_added, property(name)'
+        )
 
       if (error) {
         console.error('Chyba při načítání jednotek:', error)
-      } else {
-        // Supabase vrací `property` jako pole => musíme si to vynutit jako objekt, nebo upravit typ
-        const normalizedData = (data as any[]).map((unit) => ({
+      } else if (data) {
+        const normalizedData = (data as RawUnit[]).map((unit) => ({
           ...unit,
           property: Array.isArray(unit.property) ? unit.property[0] : unit.property,
         }))
-        setUnits(normalizedData as Unit[])
+        setUnits(normalizedData)
       }
 
       setLoading(false)
@@ -59,10 +51,8 @@ export default function UnitsPage() {
     fetchUnits()
   }, [])
 
-  if (loading) return <div className="p-6">Načítání jednotek...</div>
-
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Jednotky</h1>
         <Link
@@ -73,37 +63,33 @@ export default function UnitsPage() {
         </Link>
       </div>
 
-      {units.length === 0 ? (
-        <p>Žádné jednotky zatím neexistují.</p>
+      {loading ? (
+        <p>Načítání...</p>
+      ) : units.length === 0 ? (
+        <p>Žádné jednotky nenalezeny.</p>
       ) : (
-        <table className="w-full table-auto border border-gray-300">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="border px-3 py-2 text-left">Nemovitost</th>
-              <th className="border px-3 py-2 text-left">Identifikátor</th>
-              <th className="border px-3 py-2 text-left">Dispozice</th>
-              <th className="border px-3 py-2 text-left">Podlaží</th>
-              <th className="border px-3 py-2 text-left">Výmera</th>
-              <th className="border px-3 py-2 text-left">Nájem</th>
-              <th className="border px-3 py-2 text-left">Kauce</th>
-              <th className="border px-3 py-2 text-left">Stav</th>
+        <table className="min-w-full table-auto border border-gray-300">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border p-2 text-left">Identifikátor</th>
+              <th className="border p-2 text-left">Nemovitost</th>
+              <th className="border p-2 text-left">Podlaží</th>
+              <th className="border p-2 text-left">Dispozice</th>
+              <th className="border p-2 text-left">Výmera</th>
+              <th className="border p-2 text-left">Nájem</th>
+              <th className="border p-2 text-left">Kauce</th>
             </tr>
           </thead>
           <tbody>
             {units.map((unit) => (
               <tr key={unit.id}>
-                <td className="border px-3 py-2">{unit.property?.name || '-'}</td>
-                <td className="border px-3 py-2">{unit.identifier}</td>
-                <td className="border px-3 py-2">{unit.disposition || '-'}</td>
-                <td className="border px-3 py-2">{unit.floor ?? '-'}</td>
-                <td className="border px-3 py-2">{unit.area ?? '-'} m²</td>
-                <td className="border px-3 py-2">
-                  {unit.monthly_rent ? `${unit.monthly_rent} Kč` : '-'}
-                </td>
-                <td className="border px-3 py-2">
-                  {unit.deposit ? `${unit.deposit} Kč` : '-'}
-                </td>
-                <td className="border px-3 py-2">{unit.occupancy_status}</td>
+                <td className="border p-2">{unit.identifier}</td>
+                <td className="border p-2">{unit.property?.name}</td>
+                <td className="border p-2">{unit.floor ?? '-'}</td>
+                <td className="border p-2">{unit.disposition}</td>
+                <td className="border p-2">{unit.area ?? '-'} m²</td>
+                <td className="border p-2">{unit.monthly_rent?.toLocaleString() ?? '-'} Kč</td>
+                <td className="border p-2">{unit.deposit?.toLocaleString() ?? '-'} Kč</td>
               </tr>
             ))}
           </tbody>
