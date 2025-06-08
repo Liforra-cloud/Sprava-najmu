@@ -89,6 +89,12 @@ export default function Page({ params }: { params: { id: string } }) {
       setProperty({ ...property!, address: updated.address })
       setSaveSuccess(true)
       setIsEditing(false)
+
+      // automaticky skryje hlášku po 3 sekundách
+      setTimeout(() => {
+        setSaveSuccess(false)
+      }, 3000)
+
     } catch (err) {
       console.error(err)
       alert('Nepodařilo se uložit změnu.')
@@ -160,4 +166,3 @@ export default function Page({ params }: { params: { id: string } }) {
     </div>
   )
 }
-
