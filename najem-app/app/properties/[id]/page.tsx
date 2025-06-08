@@ -3,7 +3,13 @@
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-export default async function Page({ params }: { params: { id: string } }) {
+export default async function Page({
+  params,
+  searchParams: _searchParams, // <- tuhle props sice nepotřebuješ, ale musíš ji mít
+}: {
+  params: { id: string }
+  searchParams: Record<string, string | string[] | undefined>
+}) {
   const { id } = params
 
   const { data: prop, error } = await supabase
