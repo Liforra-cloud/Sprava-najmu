@@ -13,14 +13,35 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { name, address, property_type, description } = await request.json();
-  const { data, error } = await supabase
+  const { name, address, description, unit } = await request.json();
+
+  // 1) vytvoříme nemovitost
+  const { data: prop, error: propError } = await supabase
     .from('properties')
-    .insert([{ name, address, property_type, description }])
+    .insert([{ name, address, description }])
     .select()
     .single();
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (propError) {
+    return NextResponse.json({ error: propError.message }, { status: 500 });
   }
-  return NextResponse.json(data, { status: 201 });
+
+  // 2) vytvoříme jednotku k této nemovitosti
+  const { data: unitData, error: unitError } = await supabase
+    .from('units')
+    .insert([{
+      property_id: prop.id,
+      identifier: unit.identifier,
+      floor: unit.floor,
+      disposition: unit.disposition,
+      area: unit.area,
+      occupancy_status: 'volné',
+      monthly_rent: unit.monthly_rent
+    }])
+    .select()
+    .single();
+  if (unitError) {
+    return NextResponse.json({ error: unitError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ property: prop, unit: unitData }, { status: 201 });
 }
