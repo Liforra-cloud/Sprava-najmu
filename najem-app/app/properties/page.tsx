@@ -9,7 +9,6 @@ type Property = {
   name: string
   address: string
   description?: string
-  date_added?: string
 }
 
 export default function PropertiesPage() {
@@ -55,18 +54,11 @@ export default function PropertiesPage() {
                 <p className="mt-2 text-gray-800">{prop.description}</p>
               )}
             </div>
-            <div className="flex flex-col gap-2">
-              <Link href={`/properties/${prop.id}/edit`}>
-                <button className="bg-blue-600 text-white px-3 py-1 rounded">
-                  Editovat
-                </button>
-              </Link>
-              <Link href={`/properties/${prop.id}`}>
-                <button className="bg-gray-200 text-gray-800 px-3 py-1 rounded">
-                  Detail
-                </button>
-              </Link>
-            </div>
+            <Link href={`/properties/${prop.id}`}>
+              <button className="bg-gray-200 text-gray-800 px-3 py-1 rounded">
+                Detail
+              </button>
+            </Link>
           </li>
         ))}
       </ul>
