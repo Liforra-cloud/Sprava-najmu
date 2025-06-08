@@ -3,9 +3,7 @@
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-type Params = { params: { id: string } }
-
-export default async function Page({ params }: Params) {
+export default async function Page({ params }: { params: { id: string } }) {
   const { id } = params
 
   const { data: prop, error } = await supabase
