@@ -3,7 +3,7 @@
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-interface PageProps {
+interface PropertyPageProps {
   params: {
     id: string
   }
@@ -30,7 +30,7 @@ interface Property {
   units: Unit[]
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params }: PropertyPageProps) {
   const { id } = params
 
   const { data: prop, error } = await supabase
