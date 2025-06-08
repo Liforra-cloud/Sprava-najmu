@@ -109,7 +109,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
       </div>
 
       {/* Obsah */}
-      <div className="flex-1 flex flex-col ml-0 md:ml-60">
+      <div className="flex-1 flex flex-col pl-0 md:pl-60">
         <div className="md:hidden bg-white border-b px-4 py-2 shadow-sm flex items-center justify-between">
           <button onClick={() => setIsOpen(true)} className="text-slate-800">
             <Menu size={24} />
@@ -118,7 +118,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         </div>
 
         {/* Obsah stránky */}
-        <main className="flex-1 p-3">{children}</main>
+        <main className="flex-1">{children}</main>
       </div>
     </div>
   )
