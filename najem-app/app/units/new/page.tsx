@@ -27,7 +27,9 @@ export default function NewUnitPage() {
         console.error('Chyba při načítání nemovitostí:', error)
       } else {
         setProperties(data || [])
-        if (data && data.length > 0) setPropertyId(data[0].id)
+        if (data && data.length > 0) {
+          setPropertyId(data[0].id)
+        }
       }
     }
     fetchProperties()
@@ -36,17 +38,24 @@ export default function NewUnitPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const { error } = await supabase.from('units').insert([
-      {
-        property_id: propertyId,
-        identifier,
-        floor,
-        disposition,
-        area,
-        monthly_rent: monthlyRent,
-        deposit
-      }
-    ])
+    if (!propertyId) {
+      alert('Musíte vybrat nemovitost.')
+      return
+    }
+
+    const newUnit = {
+      property_id: propertyId,
+      identifier,
+      floor: floor ?? null,
+      disposition,
+      area: area ?? null,
+      monthly_rent: monthlyRent ?? null,
+      deposit: deposit ?? null
+    }
+
+    console.log('Vkládám jednotku:', newUnit)
+
+    const { error } = await supabase.from('units').insert([newUnit])
 
     if (error) {
       console.error('Chyba při ukládání jednotky:', error)
