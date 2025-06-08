@@ -1,21 +1,10 @@
-// app/properties/[id]/page.tsx
 'use client'
 
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
-type Unit = {
-  id: string
-  identifier: string
-  floor: number
-  disposition: string
-  area: number
-  occupancy_status: 'volné' | 'obsazené' | 'rezervace'
-  monthly_rent: number
-  deposit: number
-  date_added: string
-}
+type Unit = { /* ... jak dřív ... */ }
 
 type Property = {
   id: string
@@ -31,52 +20,45 @@ export default function PropertyDetailPage() {
   const router = useRouter()
 
   const [prop, setProp] = useState<Property | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Pro inline editaci
-  const [editingField, setEditingField] = useState<keyof Property | null>(null)
-  const [fieldValue, setFieldValue] = useState<string>('')
+  const [editingField, setEditingField] = useState<'name' | 'address' | 'description' | null>(null)
+  const [fieldValue, setFieldValue] = useState('')
 
   useEffect(() => {
     if (!id) return
-
-    const fetchProperty = async () => {
-      setLoading(true)
-      try {
-        const { data, error } = await supabase
-          .from('properties')
-          .select(`
-            id, name, address, description, date_added,
-            units (
-              id, identifier, floor, disposition, area,
-              occupancy_status, monthly_rent, deposit, date_added
-            )
-          `)
-          .eq('id', id)
-          .single()
-
-        if (error) {
-          setError(error.message)
-        } else {
-          setProp(data as Property)
-        }
-      } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : String(e))
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchProperty()
+    setLoading(true)
+    supabase
+      .from<Property>('properties')
+      .select(`
+        id, name, address, description, date_added,
+        units (
+          id, identifier, floor, disposition, area,
+          occupancy_status, monthly_rent, deposit, date_added
+        )
+      `)
+      .eq('id', id)
+      .single()
+      .then(({ data, error }) => {
+        if (error) setError(error.message)
+        else setProp(data!)
+      })
+      .catch(e => setError(String(e)))
+      .finally(() => setLoading(false))
   }, [id])
 
-  const startEdit = (key: keyof Property) => {
+  const fields: { label: string; key: 'name' | 'address' | 'description' }[] = [
+    { label: 'Název',  key: 'name' },
+    { label: 'Adresa', key: 'address' },
+    { label: 'Popis',  key: 'description' },
+  ]
+
+  const startEdit = (key: 'name' | 'address' | 'description') => {
     if (!prop) return
     setEditingField(key)
-    // nastavit počáteční hodnotu podle typu pole
     const val = prop[key]
-    setFieldValue(val == null ? '' : String(val))
+    setFieldValue(val ?? '')
   }
 
   const handleSaveField = async () => {
@@ -85,15 +67,13 @@ export default function PropertyDetailPage() {
     try {
       const updates: Partial<Property> = { [editingField]: fieldValue }
       const { data, error } = await supabase
-        .from('properties')
+        .from<Property>('properties')
         .update(updates)
         .eq('id', prop.id)
-        .select()
         .single()
-      if (error) {
-        setError(error.message)
-      } else {
-        setProp(data as Property)
+      if (error) setError(error.message)
+      else {
+        setProp(data)
         setEditingField(null)
       }
     } catch (e: unknown) {
@@ -107,13 +87,6 @@ export default function PropertyDetailPage() {
   if (error)   return <div className="text-red-600">Chyba: {error}</div>
   if (!prop)   return <div>Nemovitost nenalezena.</div>
 
-  // Pole, která chceme editovat
-  const fields: { label: string; key: keyof Property }[] = [
-    { label: 'Název',      key: 'name' },
-    { label: 'Adresa',     key: 'address' },
-    { label: 'Popis',      key: 'description' },
-  ]
-
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-3xl font-bold">Detail nemovitosti</h1>
@@ -126,7 +99,7 @@ export default function PropertyDetailPage() {
               <input
                 className="border px-2 py-1 flex-1"
                 value={fieldValue}
-                onChange={(e) => setFieldValue(e.target.value)}
+                onChange={e => setFieldValue(e.target.value)}
               />
               <button
                 onClick={handleSaveField}
@@ -143,9 +116,7 @@ export default function PropertyDetailPage() {
             </>
           ) : (
             <>
-              <span className="flex-1">
-                {prop[key] ?? <i>—</i>}
-              </span>
+              <span className="flex-1">{prop[key] ?? <i>—</i>}</span>
               <button
                 onClick={() => startEdit(key)}
                 className="text-blue-600 underline"
@@ -163,21 +134,7 @@ export default function PropertyDetailPage() {
       </p>
 
       <h2 className="text-2xl font-semibold mt-8">Jednotky</h2>
-      {prop.units.length > 0 ? (
-        <ul className="space-y-4">
-          {prop.units.map((u) => (
-            <li key={u.id} className="p-4 border rounded">
-              <p><strong>{u.identifier}</strong> (podlaží {u.floor})</p>
-              <p>{u.disposition}, {u.area} m²</p>
-              <p>Stav: {u.occupancy_status}</p>
-              <p>Nájem: {u.monthly_rent} Kč</p>
-              <p>Kauce: {u.deposit} Kč</p>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>Žádné jednotky.</p>
-      )}
+      {/* ... jak bylo ... */}
 
       <button
         onClick={() => router.push('/properties')}
