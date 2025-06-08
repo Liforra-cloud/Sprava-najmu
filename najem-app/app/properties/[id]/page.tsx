@@ -30,7 +30,7 @@ export default function PropertyDetail() {
   useEffect(() => {
     if (!id) return
     supabase
-      .from<Property>('properties')
+      .from('properties')
       .select('id, name, address, description, date_added')
       .eq('id', id)
       .single()
