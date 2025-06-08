@@ -1,16 +1,8 @@
-// app/properties/[id]/page.tsx
-
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-interface PropertyPageProps {
-  params: {
-    id: string
-  }
-}
-
 interface Unit {
-  id: number
+  id: string
   identifier: string
   floor: number
   disposition: string
@@ -30,7 +22,7 @@ interface Property {
   units: Unit[]
 }
 
-export default async function Page({ params }: PropertyPageProps) {
+export default async function Page({ params }: { params: { id: string } }) {
   const { id } = params
 
   const { data: prop, error } = await supabase
