@@ -7,29 +7,27 @@ import { useRouter } from 'next/navigation';
 export default function NewPropertyPage() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
-  const [type, setType] = useState('');
+  const [propertyType, setPropertyType] = useState('');
   const [description, setDescription] = useState('');
-  const [error, setError] = useState('');
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     const res = await fetch('/api/properties', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        name, 
-        address, 
-        property_type: type, 
-        description 
-      }),
+      body: JSON.stringify({
+        name,
+        address,
+        property_type: propertyType,
+        description
+      })
     });
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || 'Chyba při ukládání nemovitosti');
-    } else {
+    if (res.ok) {
       router.push('/properties');
+    } else {
+      const { error } = await res.json();
+      alert(error || 'Chyba při ukládání nemovitosti');
     }
   };
 
@@ -60,8 +58,8 @@ export default function NewPropertyPage() {
         <div>
           <label className="block mb-1">Typ nemovitosti</label>
           <select
-            value={type}
-            onChange={e => setType(e.target.value)}
+            value={propertyType}
+            onChange={e => setPropertyType(e.target.value)}
             required
             className="w-full p-2 border rounded"
           >
@@ -80,22 +78,12 @@ export default function NewPropertyPage() {
             rows={4}
           />
         </div>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            className="flex-1 bg-blue-600 text-white p-2 rounded"
-          >
-            Uložit
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push('/properties')}
-            className="flex-1 bg-gray-300 text-gray-800 p-2 rounded"
-          >
-            Zrušit
-          </button>
-        </div>
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white p-2 rounded"
+        >
+          Uložit
+        </button>
       </form>
     </div>
   );
