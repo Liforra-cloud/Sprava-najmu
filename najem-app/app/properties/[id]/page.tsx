@@ -32,7 +32,12 @@ export default function Page({ params }: { params: { id: string } }) {
   const { id } = params
   const [property, setProperty] = useState<Property | null>(null)
   const [isEditing, setIsEditing] = useState(false)
-  const [editedAddress, setEditedAddress] = useState('')
+  const [editedData, setEditedData] = useState({
+    name: '',
+    address: '',
+    description: '',
+    date_added: ''
+  })
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
@@ -66,7 +71,12 @@ export default function Page({ params }: { params: { id: string } }) {
         notFound()
       } else {
         setProperty(prop)
-        setEditedAddress(prop.address)
+        setEditedData({
+          name: prop.name,
+          address: prop.address,
+          description: prop.description || '',
+          date_added: prop.date_added.split('T')[0]
+        })
       }
     }
 
@@ -81,16 +91,15 @@ export default function Page({ params }: { params: { id: string } }) {
       const res = await fetch(`/api/properties/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: editedAddress })
+        body: JSON.stringify(editedData)
       })
 
       if (!res.ok) throw new Error('Chyba při ukládání')
 
       const updated = await res.json()
-      setProperty({ ...property!, address: updated.address })
+      setProperty({ ...property!, ...updated })
       setSaveSuccess(true)
       setIsEditing(false)
-
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (err) {
       console.error(err)
@@ -104,29 +113,76 @@ export default function Page({ params }: { params: { id: string } }) {
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-3xl font-bold">{property.name}</h1>
-
       <div className="flex items-center space-x-2">
-        <strong>Adresa:</strong>
-        {isEditing ? (
-          <input
-            value={editedAddress}
-            onChange={(e) => setEditedAddress(e.target.value)}
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          <span>{property.address}</span>
-        )}
+        <h1 className="text-3xl font-bold">
+          {isEditing ? (
+            <input
+              value={editedData.name}
+              onChange={(e) =>
+                setEditedData((d) => ({ ...d, name: e.target.value }))
+              }
+              className="border px-2 py-1 rounded text-xl"
+            />
+          ) : (
+            property.name
+          )}
+        </h1>
         <button
           onClick={() => {
             setIsEditing(!isEditing)
             setSaveSuccess(false)
           }}
           className="text-blue-600 hover:text-blue-800"
-          title={isEditing ? 'Zrušit úpravu' : 'Upravit adresu'}
+          title={isEditing ? 'Zrušit úpravu' : 'Upravit informace'}
         >
           {isEditing ? <X size={18} /> : <Pencil size={18} />}
         </button>
+      </div>
+
+      <div>
+        <strong>Adresa:</strong>{' '}
+        {isEditing ? (
+          <input
+            value={editedData.address}
+            onChange={(e) =>
+              setEditedData((d) => ({ ...d, address: e.target.value }))
+            }
+            className="border px-2 py-1 rounded"
+          />
+        ) : (
+          property.address
+        )}
+      </div>
+
+      <div>
+        <strong>Popis:</strong>{' '}
+        {isEditing ? (
+          <textarea
+            value={editedData.description}
+            onChange={(e) =>
+              setEditedData((d) => ({ ...d, description: e.target.value }))
+            }
+            className="border px-2 py-1 rounded w-full"
+          />
+        ) : (
+          property.description || '—'
+        )}
+      </div>
+
+      <div>
+        <strong>Přidáno:</strong>{' '}
+        {isEditing ? (
+          <input
+            type="date"
+            value={editedData.date_added}
+            onChange={(e) =>
+              setEditedData((d) => ({ ...d, date_added: e.target.value }))
+            }
+            className="border px-2 py-1 rounded"
+          />
+        ) : (
+          new Date(property.date_added).toLocaleDateString()
+        )}
       </div>
 
       {isEditing && (
@@ -135,16 +191,13 @@ export default function Page({ params }: { params: { id: string } }) {
           disabled={isSaving}
           className="mt-2 px-4 py-1 bg-blue-600 text-white rounded"
         >
-          {isSaving ? 'Ukládám...' : 'Uložit'}
+          {isSaving ? 'Ukládám...' : 'Uložit změny'}
         </button>
       )}
 
       {saveSuccess && (
-        <p className="text-green-600 font-medium">✅ Adresa byla uložena.</p>
+        <p className="text-green-600 font-medium">✅ Změny byly uloženy.</p>
       )}
-
-      <p><strong>Popis:</strong> {property.description || '—'}</p>
-      <p><strong>Přidáno:</strong> {new Date(property.date_added).toLocaleDateString()}</p>
 
       <h2 className="text-2xl font-semibold mt-4">Jednotky</h2>
       <ul className="space-y-2">
