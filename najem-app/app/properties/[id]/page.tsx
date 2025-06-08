@@ -3,21 +3,22 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-// Server komponenta detailu nemovitosti
-export default async function Page({ params, searchParams }: any) {
-  // params.id je string
+export default async function Page({
+  params,
+  _searchParams,
+}: {
+  params: { id: string }
+  _searchParams: { [key: string]: string | string[] | undefined }
+}) {
   const id = params.id
 
-  // Načti záznam z DB
   const { data: property, error } = await supabase
     .from('properties')
     .select('id, name, address, description, date_added')
     .eq('id', id)
     .single()
 
-  if (error || !property) {
-    notFound()
-  }
+  if (error || !property) notFound()
 
   return (
     <div className="max-w-2xl mx-auto mt-10 p-6 border rounded shadow">
