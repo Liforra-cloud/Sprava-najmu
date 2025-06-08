@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabaseClient'
 
 interface Unit {
   id: string
@@ -14,7 +14,7 @@ interface Unit {
   monthly_rent: number | null
   deposit: number | null
   date_added: string
-  properties: {
+  property: {
     name: string
   } | null
 }
@@ -37,7 +37,7 @@ export default function UnitsPage() {
           monthly_rent,
           deposit,
           date_added,
-          properties (
+          property:properties (
             name
           )
         `)
@@ -54,10 +54,12 @@ export default function UnitsPage() {
     fetchUnits()
   }, [])
 
+  if (loading) return <div className="p-6">Načítání jednotek...</div>
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Seznam jednotek</h1>
+        <h1 className="text-2xl font-bold">Jednotky</h1>
         <Link
           href="/units/new"
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
@@ -66,41 +68,41 @@ export default function UnitsPage() {
         </Link>
       </div>
 
-      {loading ? (
-        <p>Načítání...</p>
-      ) : units.length === 0 ? (
-        <p>Žádné jednotky</p>
+      {units.length === 0 ? (
+        <p>Žádné jednotky zatím neexistují.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white border border-gray-200 shadow-sm rounded">
-            <thead>
-              <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
-                <th className="p-3 border-b">Nemovitost</th>
-                <th className="p-3 border-b">Identifikátor</th>
-                <th className="p-3 border-b">Podlaží</th>
-                <th className="p-3 border-b">Dispozice</th>
-                <th className="p-3 border-b">Výmera (m²)</th>
-                <th className="p-3 border-b">Nájem (Kč)</th>
-                <th className="p-3 border-b">Kauce (Kč)</th>
-                <th className="p-3 border-b">Stav</th>
+        <table className="w-full table-auto border border-gray-300">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="border px-3 py-2 text-left">Nemovitost</th>
+              <th className="border px-3 py-2 text-left">Identifikátor</th>
+              <th className="border px-3 py-2 text-left">Dispozice</th>
+              <th className="border px-3 py-2 text-left">Podlaží</th>
+              <th className="border px-3 py-2 text-left">Výmera</th>
+              <th className="border px-3 py-2 text-left">Nájem</th>
+              <th className="border px-3 py-2 text-left">Kauce</th>
+              <th className="border px-3 py-2 text-left">Stav</th>
+            </tr>
+          </thead>
+          <tbody>
+            {units.map((unit) => (
+              <tr key={unit.id}>
+                <td className="border px-3 py-2">{unit.property?.name || '-'}</td>
+                <td className="border px-3 py-2">{unit.identifier}</td>
+                <td className="border px-3 py-2">{unit.disposition || '-'}</td>
+                <td className="border px-3 py-2">{unit.floor ?? '-'}</td>
+                <td className="border px-3 py-2">{unit.area ?? '-'} m²</td>
+                <td className="border px-3 py-2">
+                  {unit.monthly_rent ? `${unit.monthly_rent} Kč` : '-'}
+                </td>
+                <td className="border px-3 py-2">
+                  {unit.deposit ? `${unit.deposit} Kč` : '-'}
+                </td>
+                <td className="border px-3 py-2">{unit.occupancy_status}</td>
               </tr>
-            </thead>
-            <tbody>
-              {units.map((unit) => (
-                <tr key={unit.id} className="text-sm hover:bg-gray-50">
-                  <td className="p-3 border-b">{unit.properties?.name ?? 'Neznámá nemovitost'}</td>
-                  <td className="p-3 border-b">{unit.identifier}</td>
-                  <td className="p-3 border-b">{unit.floor ?? '-'}</td>
-                  <td className="p-3 border-b">{unit.disposition ?? '-'}</td>
-                  <td className="p-3 border-b">{unit.area ?? '-'}</td>
-                  <td className="p-3 border-b">{unit.monthly_rent ?? '-'}</td>
-                  <td className="p-3 border-b">{unit.deposit ?? '-'}</td>
-                  <td className="p-3 border-b">{unit.occupancy_status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   )
