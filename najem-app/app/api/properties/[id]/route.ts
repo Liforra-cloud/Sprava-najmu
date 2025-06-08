@@ -2,48 +2,32 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
-// GET single property by ID
-export async function GET(request: Request) {
-  // vyextrahujeme id z URL: /api/properties/{id}
-  const url = new URL(request.url)
-  const parts = url.pathname.split('/')
-  const id = parts[parts.indexOf('properties') + 1]
-
+export async function GET({ params }: { params: { id: string } }) {
   const { data, error } = await supabase
     .from('properties')
-    .select('*')
-    .eq('id', id)
+    .select(`
+      id,
+      name,
+      address,
+      description,
+      date_added,
+      units(
+        id,
+        identifier,
+        floor,
+        disposition,
+        area,
+        occupancy_status,
+        monthly_rent,
+        deposit,
+        date_added
+      )
+    `)
+    .eq('id', params.id)
     .single()
 
-  if (error || !data) {
-    return NextResponse.json(
-      { error: error?.message || 'Nemovitost nenalezena' },
-      { status: 404 }
-    )
-  }
-  return NextResponse.json(data)
-}
-
-// PUT update property by ID
-export async function PUT(request: Request) {
-  // vyextrahujeme id z URL
-  const url = new URL(request.url)
-  const parts = url.pathname.split('/')
-  const id = parts[parts.indexOf('properties') + 1]
-
-  const { name, address, description } = await request.json()
-  const { data, error } = await supabase
-    .from('properties')
-    .update({ name, address, description })
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error || !data) {
-    return NextResponse.json(
-      { error: error?.message || 'Aktualizace selhala' },
-      { status: 500 }
-    )
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
   return NextResponse.json(data)
 }
