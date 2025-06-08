@@ -3,9 +3,11 @@
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
+// ESLint: searchParams sice potřebujeme pro typ, ale nevyužíváme ho:
+/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
 export default async function Page({
   params,
-  searchParams: _searchParams, // <- tuhle props sice nepotřebuješ, ale musíš ji mít
+  searchParams: _searchParams,
 }: {
   params: { id: string }
   searchParams: Record<string, string | string[] | undefined>
