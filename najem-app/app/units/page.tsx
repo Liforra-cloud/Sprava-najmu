@@ -37,7 +37,7 @@ export default function UnitsPage() {
           monthly_rent,
           deposit,
           date_added,
-          property:properties (
+          property:properties!units_property_id_fkey (
             name
           )
         `)
