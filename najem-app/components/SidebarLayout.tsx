@@ -29,7 +29,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     { href: '/', label: 'Dashboard' },
     { href: '/properties', label: 'Nemovitosti' },
     { href: '/properties/new', label: 'Přidat nemovitost' },
-    { href: '/test', label: 'Test' },
+    { href: '/units', label: 'Jednotky' },
+    { href: '/units/new', label: 'Přidat jednotku' },
   ]
 
   return (
