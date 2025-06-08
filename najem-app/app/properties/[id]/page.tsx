@@ -3,7 +3,6 @@
 
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
 
 type Unit = {
   id: string
