@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
 // Typ pro data nemovitosti
-type Property = {
+interface Property {
   id: string
   name: string
   address: string
@@ -12,23 +12,21 @@ type Property = {
   date_added?: string
 }
 
-// Definice props, jak je očekává Next.js App Router
+// Props, které Next.js očekává pro dynamickou stránku
 interface PageProps {
   params: {
     id: string
   }
 }
 
-// Server‑komponenta pro detail nemovitosti
+// Server-komponenta pro detail nemovitosti
 export default async function Page({ params }: PageProps) {
-  // Načteme záznam z databáze přímo přes Supabase klienta
   const { data: property, error } = await supabase
-    .from('properties')
+    .from<Property>('properties')
     .select('id, name, address, description, date_added')
     .eq('id', params.id)
     .single()
 
-  // Pokud chybí, vrátíme 404
   if (error || !property) {
     notFound()
   }
