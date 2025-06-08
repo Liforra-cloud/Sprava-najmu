@@ -14,9 +14,9 @@ interface Unit {
   monthly_rent: number | null
   deposit: number | null
   date_added: string
-  property: {
+  properties: {
     name: string
-  }
+  } | null
 }
 
 export default function UnitsPage() {
@@ -37,7 +37,7 @@ export default function UnitsPage() {
           monthly_rent,
           deposit,
           date_added,
-          property (
+          properties (
             name
           )
         `)
@@ -45,20 +45,18 @@ export default function UnitsPage() {
       if (error) {
         console.error('Chyba při načítání jednotek:', error)
       } else {
-        // Oprav typovou chybu přetypováním na očekávanou strukturu
-        setUnits(data as unknown as Unit[])
+        setUnits(data as Unit[])
       }
+
       setLoading(false)
     }
 
     fetchUnits()
   }, [])
 
-  if (loading) return <p>Načítám jednotky...</p>
-
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex justify-between items-center">
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Seznam jednotek</h1>
         <Link
           href="/units/new"
@@ -68,24 +66,41 @@ export default function UnitsPage() {
         </Link>
       </div>
 
-      {units.length === 0 ? (
-        <p>Žádné jednotky nenalezeny.</p>
+      {loading ? (
+        <p>Načítání...</p>
+      ) : units.length === 0 ? (
+        <p>Žádné jednotky</p>
       ) : (
-        <ul className="space-y-3">
-          {units.map((unit) => (
-            <li key={unit.id} className="border rounded p-4 shadow-sm">
-              <p><strong>Nemovitost:</strong> {unit.property?.name || 'Neznámá'}</p>
-              <p><strong>Identifikátor:</strong> {unit.identifier}</p>
-              <p><strong>Podlaží:</strong> {unit.floor ?? '—'}</p>
-              <p><strong>Dispozice:</strong> {unit.disposition ?? '—'}</p>
-              <p><strong>Výmera:</strong> {unit.area ? `${unit.area} m²` : '—'}</p>
-              <p><strong>Stav obsazenosti:</strong> {unit.occupancy_status}</p>
-              <p><strong>Nájem:</strong> {unit.monthly_rent ? `${unit.monthly_rent} Kč` : '—'}</p>
-              <p><strong>Kauce:</strong> {unit.deposit ? `${unit.deposit} Kč` : '—'}</p>
-              <p><strong>Přidáno:</strong> {new Date(unit.date_added).toLocaleDateString()}</p>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white border border-gray-200 shadow-sm rounded">
+            <thead>
+              <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
+                <th className="p-3 border-b">Nemovitost</th>
+                <th className="p-3 border-b">Identifikátor</th>
+                <th className="p-3 border-b">Podlaží</th>
+                <th className="p-3 border-b">Dispozice</th>
+                <th className="p-3 border-b">Výmera (m²)</th>
+                <th className="p-3 border-b">Nájem (Kč)</th>
+                <th className="p-3 border-b">Kauce (Kč)</th>
+                <th className="p-3 border-b">Stav</th>
+              </tr>
+            </thead>
+            <tbody>
+              {units.map((unit) => (
+                <tr key={unit.id} className="text-sm hover:bg-gray-50">
+                  <td className="p-3 border-b">{unit.properties?.name ?? 'Neznámá nemovitost'}</td>
+                  <td className="p-3 border-b">{unit.identifier}</td>
+                  <td className="p-3 border-b">{unit.floor ?? '-'}</td>
+                  <td className="p-3 border-b">{unit.disposition ?? '-'}</td>
+                  <td className="p-3 border-b">{unit.area ?? '-'}</td>
+                  <td className="p-3 border-b">{unit.monthly_rent ?? '-'}</td>
+                  <td className="p-3 border-b">{unit.deposit ?? '-'}</td>
+                  <td className="p-3 border-b">{unit.occupancy_status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )
