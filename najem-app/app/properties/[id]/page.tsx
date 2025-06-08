@@ -36,31 +36,26 @@ export default function PropertyDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    const load = async () => {
-      setLoading(true)
-      try {
-        const { data, error } = await supabase
-          .from<'properties', Property>('properties')
-          .select(`
-            id, name, address, description, date_added,
-            units (
-              id, identifier, floor, disposition, area,
-              occupancy_status, monthly_rent, deposit, date_added
-            )
-          `)
-          .eq('id', id)
-          .single()
-
+    setLoading(true)
+    supabase
+      .from('properties')              // bez generického typu
+      .select(`
+        id, name, address, description, date_added,
+        units (
+          id, identifier, floor, disposition, area,
+          occupancy_status, monthly_rent, deposit, date_added
+        )
+      `)
+      .eq('id', id)
+      .single()
+      .then(({ data, error }) => {
         if (error) setError(error.message)
-        else setProp(data)
-      } catch (e: unknown) {
-        if (e instanceof Error) setError(e.message)
-        else setError(String(e))
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+        else setProp(data as Property) // ruční přetypování
+      })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : String(e))
+      })
+      .finally(() => setLoading(false))
   }, [id])
 
   if (loading) return <div>Načítám...</div>
