@@ -2,155 +2,77 @@
 'use client'
 
 import { useParams, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { useEffect, useState } from 'react'
 
-type Property = {
+type Unit = {
+  id: string
+  identifier: string
+  floor: number
+  disposition: string
+  area: number
+  occupancy_status: string
+  monthly_rent: number
+  deposit: number
+  date_added: string
+}
+
+type PropertyWithUnits = {
   id: string
   name: string
   address: string
   description?: string
   date_added?: string
+  units: Unit[]
 }
 
 export default function PropertyDetail() {
   const { id } = useParams()
   const router = useRouter()
-  const [property, setProperty] = useState<Property | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [prop, setProp] = useState<PropertyWithUnits | null>(null)
   const [error, setError] = useState('')
-
-  // Inline edit state
-  const [editingField, setEditingField] = useState<keyof Property | null>(null)
-  const [values, setValues] = useState<Partial<Property>>({})
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!id) return
-    async function fetchData() {
-      try {
-        const { data, error } = await supabase
-          .from('properties')
-          .select('id, name, address, description, date_added')
-          .eq('id', id)
-          .single()
-        if (error || !data) {
-          setError(error?.message || 'Nemovitost nenalezena')
-        } else {
-          setProperty(data)
-          setValues({ name: data.name, address: data.address, description: data.description })
-        }
-      } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message)
-        } else {
-          setError(String(err))
-        }
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
+    fetch(`/api/properties/${id}`)
+      .then(res => res.json())
+      .then((data: PropertyWithUnits) => {
+        if (data.error) throw new Error(data.error)
+        setProp(data)
+      })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
   }, [id])
 
   if (loading) return <p className="p-6">Načítám…</p>
-  if (error) return <p className="text-red-600 p-6">{error}</p>
-  if (!property) return null
-
-  const handleChange = (field: keyof Property, value: string) => {
-    setValues(prev => ({ ...prev, [field]: value }))
-  }
-
-  const saveAll = async () => {
-    if (!id) return
-    setError('')
-    const { data, error } = await supabase
-      .from('properties')
-      .update({
-        name: values.name,
-        address: values.address,
-        description: values.description
-      })
-      .eq('id', id)
-      .select()
-      .single()
-    if (error) {
-      setError(error.message)
-    } else {
-      setProperty(data)
-      setEditingField(null)
-    }
-  }
+  if (error)  return <p className="p-6 text-red-600">{error}</p>
+  if (!prop)  return null
 
   return (
-    <div className="max-w-2xl mx-auto mt-10 p-6 border rounded shadow">
-      <h1 className="text-3xl font-bold mb-6">Detail / Editace nemovitosti</h1>
+    <div className="max-w-3xl mx-auto p-6">
+      <h1 className="text-3xl font-bold">{prop.name}</h1>
+      <p className="text-gray-600">{prop.address}</p>
+      {prop.description && <p className="mt-2">{prop.description}</p>}
+      {prop.date_added && (
+        <p className="text-sm text-gray-500">
+          Přidáno: {new Date(prop.date_added).toLocaleDateString('cs-CZ')}
+        </p>
+      )}
 
-      {/* Název */}
-      <div className="mb-4">
-        <label className="block font-semibold mb-1">Název</label>
-        {editingField === 'name' ? (
-          <input
-            className="w-full p-2 border rounded"
-            value={values.name || ''}
-            onChange={e => handleChange('name', e.target.value)}
-            onBlur={() => setEditingField(null)}
-            autoFocus
-          />
-        ) : (
-          <div className="flex justify-between items-center">
-            <span>{property.name}</span>
-            <button onClick={() => setEditingField('name')} className="text-blue-600 ml-2">✏️</button>
-          </div>
-        )}
-      </div>
-
-      {/* Adresa */}
-      <div className="mb-4">
-        <label className="block font-semibold mb-1">Adresa</label>
-        {editingField === 'address' ? (
-          <input
-            className="w-full p-2 border rounded"
-            value={values.address || ''}
-            onChange={e => handleChange('address', e.target.value)}
-            onBlur={() => setEditingField(null)}
-            autoFocus
-          />
-        ) : (
-          <div className="flex justify-between items-center">
-            <span>{property.address}</span>
-            <button onClick={() => setEditingField('address')} className="text-blue-600 ml-2">✏️</button>
-          </div>
-        )}
-      </div>
-
-      {/* Popis */}
-      <div className="mb-4">
-        <label className="block font-semibold mb-1">Popis</label>
-        {editingField === 'description' ? (
-          <textarea
-            className="w-full p-2 border rounded"
-            rows={3}
-            value={values.description || ''}
-            onChange={e => handleChange('description', e.target.value)}
-            onBlur={() => setEditingField(null)}
-            autoFocus
-          />
-        ) : (
-          <div className="flex justify-between items-start">
-            <span>{property.description || <i>není vyplněno</i>}</span>
-            <button onClick={() => setEditingField('description')} className="text-blue-600 ml-2">✏️</button>
-          </div>
-        )}
-      </div>
-
-      <div className="flex gap-2 mt-6">
-        <button onClick={saveAll} className="bg-green-600 text-white px-4 py-2 rounded">
-          Uložit změny
-        </button>
-        <button onClick={() => router.push('/properties')} className="bg-gray-200 px-4 py-2 rounded">
-          Zrušit
-        </button>
-      </div>
+      <h2 className="mt-8 text-2xl font-semibold">Jednotky</h2>
+      <ul className="mt-4 space-y-4">
+        {prop.units.map(u => (
+          <li key={u.id} className="p-4 border rounded">
+            <strong>{u.identifier}</strong> (podlaží {u.floor})<br/>
+            Dispozice: {u.disposition}<br/>
+            Plocha: {u.area} m²<br/>
+            Stav: {u.occupancy_status}<br/>
+            Nájem: {u.monthly_rent} Kč<br/>
+            Kauce: {u.deposit} Kč<br/>
+            Přidáno: {new Date(u.date_added).toLocaleDateString('cs-CZ')}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
