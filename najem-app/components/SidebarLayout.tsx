@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Home,
   PlusSquare,
@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu
 } from 'lucide-react'
+import { supabase } from '@/lib/supabaseClient'
 
 const navItems = [
   { href: '/properties', label: 'Nemovitosti', icon: <Home size={18} /> },
@@ -17,21 +18,37 @@ const navItems = [
 ]
 
 const accountItems = [
-  { href: '/profile', label: 'Profil', icon: <User size={18} /> },
-  { href: '/logout', label: 'Odhlásit', icon: <LogOut size={18} /> }
+  { href: '/profile', label: 'Profil', icon: <User size={18} /> }
 ]
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
-  // Zde můžeš později načíst přihlášeného uživatele ze Supabase
-  const userEmail = 'user@example.com'
+  useEffect(() => {
+    const fetchUser = async () => {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser()
+      if (!error && user) {
+        setUserEmail(user.email)
+      }
+    }
+    fetchUser()
+  }, [])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className={`fixed z-20 inset-y-0 left-0 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-200 ease-in-out bg-slate-800 w-64 text-white`}>
+      <div className={`fixed z-20 inset-y-0 left-0 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-200 ease-in-out bg-slate-800 w-52 text-white`}>
         <div className="flex items-center justify-between md:justify-center px-4 py-4 border-b border-slate-700">
           <span className="text-lg font-semibold">Správa nájmů</span>
           <button onClick={() => setIsOpen(false)} className="md:hidden text-white">
@@ -39,7 +56,6 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           </button>
         </div>
 
-        {/* Navigace */}
         <nav className="mt-4 space-y-1">
           {navItems.map(({ href, label, icon }) => (
             <Link
@@ -75,17 +91,28 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             </Link>
           ))}
 
+          {/* Odhlásit */}
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 mt-1 text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-150 w-full text-left"
+          >
+            <LogOut size={18} />
+            <span>Odhlásit</span>
+          </button>
+
           {/* Přihlášený uživatel */}
-          <div className="text-xs text-slate-400 px-4 mt-6">
-            Přihlášen jako:
-            <br />
-            <span className="text-white font-medium">{userEmail}</span>
-          </div>
+          {userEmail && (
+            <div className="text-xs text-slate-400 px-4 mt-6">
+              Přihlášen jako:
+              <br />
+              <span className="text-white font-medium">{userEmail}</span>
+            </div>
+          )}
         </nav>
       </div>
 
       {/* Obsah */}
-      <div className="flex-1 flex flex-col ml-0 md:ml-64">
+      <div className="flex-1 flex flex-col ml-0 md:ml-52">
         {/* Topbar (mobil) */}
         <div className="md:hidden bg-white border-b px-4 py-2 shadow-sm flex items-center justify-between">
           <button onClick={() => setIsOpen(true)} className="text-slate-800">
@@ -94,8 +121,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           <span className="font-medium">Správa nájmů</span>
         </div>
 
-        {/* Page content */}
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        {/* Obsah stránky */}
+        <main className="flex-1 p-3 md:p-4">{children}</main>
       </div>
     </div>
   )
