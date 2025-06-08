@@ -50,15 +50,10 @@ export async function PATCH(request: NextRequest) {
 
   const updates = await request.json()
 
-  const { data, error } = await supabase
-    .from('properties')
-    .update(updates)
-    .eq('id', id)
-    .single()
+if (error || !data) {
+  return NextResponse.json({ error: error?.message || 'Unknown error' }, { status: 500 })
+}
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
+return NextResponse.json(data, { status: 200 })
 
-  return NextResponse.json(data)
 }
