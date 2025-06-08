@@ -33,6 +33,7 @@ export default function Page({ params }: { params: { id: string } }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedAddress, setEditedAddress] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -73,21 +74,27 @@ export default function Page({ params }: { params: { id: string } }) {
 
   const handleSave = async () => {
     setIsSaving(true)
-    const res = await fetch(`/api/properties/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ address: editedAddress })
-    })
+    setSaveSuccess(false)
 
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/properties/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: editedAddress })
+      })
+
+      if (!res.ok) throw new Error('Chyba při ukládání')
+
       const updated = await res.json()
       setProperty({ ...property!, address: updated.address })
+      setSaveSuccess(true)
       setIsEditing(false)
+    } catch (err) {
+      console.error(err)
+      alert('Nepodařilo se uložit změnu.')
+    } finally {
+      setIsSaving(false)
     }
-
-    setIsSaving(false)
   }
 
   if (!property) return <p>Načítání...</p>
@@ -108,7 +115,10 @@ export default function Page({ params }: { params: { id: string } }) {
           <span>{property.address}</span>
         )}
         <button
-          onClick={() => setIsEditing(!isEditing)}
+          onClick={() => {
+            setIsEditing(!isEditing)
+            setSaveSuccess(false)
+          }}
           className="ml-2 text-blue-600 underline"
         >
           {isEditing ? 'Zrušit' : 'Editovat'}
@@ -121,8 +131,12 @@ export default function Page({ params }: { params: { id: string } }) {
           disabled={isSaving}
           className="mt-2 px-4 py-1 bg-blue-600 text-white rounded"
         >
-          {isSaving ? 'Ukládání...' : 'Uložit'}
+          {isSaving ? 'Ukládám...' : 'Uložit'}
         </button>
+      )}
+
+      {saveSuccess && (
+        <p className="text-green-600 font-medium">✅ Adresa byla uložena.</p>
       )}
 
       <p><strong>Popis:</strong> {property.description || '—'}</p>
@@ -133,16 +147,4 @@ export default function Page({ params }: { params: { id: string } }) {
         {property.units?.map((unit: Unit) => (
           <li key={unit.id} className="border p-4 rounded">
             <p><strong>Identifikátor:</strong> {unit.identifier}</p>
-            <p><strong>Podlaží:</strong> {unit.floor}</p>
-            <p><strong>Dispozice:</strong> {unit.disposition}</p>
-            <p><strong>Rozloha:</strong> {unit.area} m²</p>
-            <p><strong>Stav obsazenosti:</strong> {unit.occupancy_status}</p>
-            <p><strong>Nájem:</strong> {unit.monthly_rent} Kč</p>
-            <p><strong>Kauce:</strong> {unit.deposit} Kč</p>
-            <p><strong>Přidáno:</strong> {new Date(unit.date_added).toLocaleDateString()}</p>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
+            <p><strong>Podlaží:</strong> {un
