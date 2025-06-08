@@ -16,11 +16,18 @@ export default function PropertiesPage() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
 
-  useEffect(() => {
-    fetch('/api/properties')
-      .then(res => res.json())
-      .then((data: Property[]) => setList(data));
-  }, []);
+ useEffect(() => {
+  fetch('/api/properties')
+    .then(async res => {
+      const json = await res.json();
+      if (!res.ok) {
+        console.error('API error:', json.error);
+        setList([]);          // nebo ukázat zprávu uživateli
+      } else {
+        setList(json);
+      }
+    });
+}, []);
 
   const add = async () => {
     const res = await fetch('/api/properties', {
