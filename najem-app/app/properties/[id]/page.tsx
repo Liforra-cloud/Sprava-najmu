@@ -147,4 +147,17 @@ export default function Page({ params }: { params: { id: string } }) {
         {property.units?.map((unit: Unit) => (
           <li key={unit.id} className="border p-4 rounded">
             <p><strong>Identifikátor:</strong> {unit.identifier}</p>
-            <p><strong>Podlaží:</strong> {un
+            <p><strong>Podlaží:</strong> {unit.floor}</p>
+            <p><strong>Dispozice:</strong> {unit.disposition}</p>
+            <p><strong>Rozloha:</strong> {unit.area} m²</p>
+            <p><strong>Stav obsazenosti:</strong> {unit.occupancy_status}</p>
+            <p><strong>Nájem:</strong> {unit.monthly_rent} Kč</p>
+            <p><strong>Kauce:</strong> {unit.deposit} Kč</p>
+            <p><strong>Přidáno:</strong> {new Date(unit.date_added).toLocaleDateString()}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
