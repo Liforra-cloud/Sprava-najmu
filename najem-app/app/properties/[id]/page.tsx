@@ -3,6 +3,7 @@
 import { notFound } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { Pencil, X } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,11 +91,7 @@ export default function Page({ params }: { params: { id: string } }) {
       setSaveSuccess(true)
       setIsEditing(false)
 
-      // automaticky skryje hlášku po 3 sekundách
-      setTimeout(() => {
-        setSaveSuccess(false)
-      }, 3000)
-
+      setTimeout(() => setSaveSuccess(false), 3000)
     } catch (err) {
       console.error(err)
       alert('Nepodařilo se uložit změnu.')
@@ -109,8 +106,8 @@ export default function Page({ params }: { params: { id: string } }) {
     <div className="space-y-6 p-6">
       <h1 className="text-3xl font-bold">{property.name}</h1>
 
-      <div>
-        <strong>Adresa:</strong>{' '}
+      <div className="flex items-center space-x-2">
+        <strong>Adresa:</strong>
         {isEditing ? (
           <input
             value={editedAddress}
@@ -125,9 +122,10 @@ export default function Page({ params }: { params: { id: string } }) {
             setIsEditing(!isEditing)
             setSaveSuccess(false)
           }}
-          className="ml-2 text-blue-600 underline"
+          className="text-blue-600 hover:text-blue-800"
+          title={isEditing ? 'Zrušit úpravu' : 'Upravit adresu'}
         >
-          {isEditing ? 'Zrušit' : 'Editovat'}
+          {isEditing ? <X size={18} /> : <Pencil size={18} />}
         </button>
       </div>
 
