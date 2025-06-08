@@ -3,26 +3,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-// Typ pro data nemovitosti
-interface Property {
-  id: string
-  name: string
-  address: string
-  description?: string
-  date_added?: string
-}
-
-// Props, které Next.js očekává pro dynamickou stránku
-interface PageProps {
-  params: {
-    id: string
-  }
-}
-
-// Server-komponenta pro detail nemovitosti
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params }: { params: { id: string } }) {
   const { data: property, error } = await supabase
-    .from<Property>('properties')
+    .from('properties')
     .select('id, name, address, description, date_added')
     .eq('id', params.id)
     .single()
