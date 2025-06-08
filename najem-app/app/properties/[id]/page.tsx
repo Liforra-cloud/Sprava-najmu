@@ -1,7 +1,7 @@
 // app/properties/[id]/page.tsx
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -26,8 +26,9 @@ type Property = {
   units: Unit[]
 }
 
-export default function PropertyDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params
+export default function PropertyDetailPage() {
+  const params = useParams()
+  const id = params?.id
   const router = useRouter()
 
   const [prop, setProp] = useState<Property | null>(null)
@@ -39,8 +40,8 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
     setLoading(true)
     supabase
-      .from('properties') // ⬅️ tady NE <Property>
-      .select<Property>(`
+      .from('properties')
+      .select(`
         id,
         name,
         address,
@@ -57,7 +58,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
           deposit,
           date_added
         )
-      `)               // ⬅️ případně sem můžeš dát <Property>
+      `)
       .eq('id', id)
       .single()
       .then(({ data, error }) => {
@@ -105,7 +106,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       <div className="mt-6">
         <button
           onClick={() => router.push('/properties')}
-          className="bg-gray-200 px-4 py-2 rounded mr-2"
+          className="bg-gray-200 px-4 py-2 rounded"
         >
           Zpět na seznam
         </button>
