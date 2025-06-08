@@ -1,8 +1,12 @@
 // app/api/properties/[id]/route.ts
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
-export async function GET({ params }: { params: { id: string } }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const id = params.id
   const { data, error } = await supabase
     .from('properties')
     .select(`
@@ -23,7 +27,7 @@ export async function GET({ params }: { params: { id: string } }) {
         date_added
       )
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (error) {
