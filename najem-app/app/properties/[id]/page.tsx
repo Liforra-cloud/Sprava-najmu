@@ -9,6 +9,27 @@ interface PageProps {
   }
 }
 
+interface Unit {
+  id: number
+  identifier: string
+  floor: number
+  disposition: string
+  area: number
+  occupancy_status: string
+  monthly_rent: number
+  deposit: number
+  date_added: string
+}
+
+interface Property {
+  id: string
+  name: string
+  address: string
+  description: string | null
+  date_added: string
+  units: Unit[]
+}
+
 export default async function Page({ params }: PageProps) {
   const { id } = params
 
@@ -33,7 +54,7 @@ export default async function Page({ params }: PageProps) {
       )
     `)
     .eq('id', id)
-    .single()
+    .single<Property>()
 
   if (error || !prop) {
     console.error(error)
@@ -49,7 +70,7 @@ export default async function Page({ params }: PageProps) {
 
       <h2 className="text-2xl font-semibold mt-4">Jednotky</h2>
       <ul className="space-y-2">
-        {prop.units?.map((unit: any) => (
+        {prop.units?.map((unit: Unit) => (
           <li key={unit.id} className="border p-4 rounded">
             <p><strong>Identifikátor:</strong> {unit.identifier}</p>
             <p><strong>Podlaží:</strong> {unit.floor}</p>
