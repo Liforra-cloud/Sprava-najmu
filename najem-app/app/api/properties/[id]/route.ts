@@ -1,9 +1,10 @@
 // app/api/properties/[id]/route.ts
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
+// GET single property by ID
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   const { id } = params
@@ -13,14 +14,15 @@ export async function GET(
     .eq('id', id)
     .single()
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 404 })
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message || 'Property not found' }, { status: 404 })
   }
   return NextResponse.json(data)
 }
 
+// PUT update property by ID
 export async function PUT(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   const { id } = params
@@ -32,8 +34,8 @@ export async function PUT(
     .select()
     .single()
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message || 'Update failed' }, { status: 500 })
   }
   return NextResponse.json(data)
 }
