@@ -27,7 +27,7 @@ type Property = {
 }
 
 export default function PropertyDetailPage() {
-  const { id } = useParams() || {}
+  const { id } = useParams() ?? {}
   const router = useRouter()
 
   const [prop, setProp] = useState<Property | null>(null)
@@ -36,26 +36,35 @@ export default function PropertyDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    setLoading(true)
-    supabase
-      .from('properties')              // bez generického typu
-      .select(`
-        id, name, address, description, date_added,
-        units (
-          id, identifier, floor, disposition, area,
-          occupancy_status, monthly_rent, deposit, date_added
-        )
-      `)
-      .eq('id', id)
-      .single()
-      .then(({ data, error }) => {
-        if (error) setError(error.message)
-        else setProp(data as Property) // ruční přetypování
-      })
-      .catch((e: unknown) => {
+
+    const fetchProperty = async () => {
+      setLoading(true)
+      try {
+        const { data, error } = await supabase
+          .from('properties')    // bez generického typu
+          .select(`
+            id, name, address, description, date_added,
+            units (
+              id, identifier, floor, disposition, area,
+              occupancy_status, monthly_rent, deposit, date_added
+            )
+          `)
+          .eq('id', id)
+          .single()
+
+        if (error) {
+          setError(error.message)
+        } else {
+          setProp(data as Property) // ruční přetypování
+        }
+      } catch (e: unknown) {
         setError(e instanceof Error ? e.message : String(e))
-      })
-      .finally(() => setLoading(false))
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProperty()
   }, [id])
 
   if (loading) return <div>Načítám...</div>
