@@ -48,12 +48,9 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className={`fixed z-20 inset-y-0 left-0 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-200 ease-in-out bg-slate-800 w-60 text-white`}>
-        <div className="flex items-center justify-between md:justify-center px-4 py-4 border-b border-slate-700">
-          <span className="text-lg font-semibold text-center">Správa nájmů</span>
-          <button onClick={() => setIsOpen(false)} className="md:hidden text-white">
-            ✕
-          </button>
+      <div className="w-60 bg-slate-800 text-white flex flex-col">
+        <div className="flex items-center justify-center px-4 py-4 border-b border-slate-700">
+          <span className="text-lg font-semibold">Správa nájmů</span>
         </div>
 
         <nav className="mt-4 space-y-1">
@@ -66,7 +63,6 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   ? 'bg-slate-700 border-green-400 text-white font-semibold'
                   : 'border-transparent text-slate-300 hover:bg-slate-700 hover:text-white'
               }`}
-              onClick={() => setIsOpen(false)}
             >
               {icon}
               <span>{label}</span>
@@ -74,6 +70,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           ))}
 
           <p className="text-xs text-slate-400 mt-6 mb-1 px-4 uppercase tracking-wide">Účet</p>
+
           {accountItems.map(({ href, label, icon }) => (
             <Link
               key={href}
@@ -83,7 +80,6 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   ? 'bg-slate-700 border-green-400 text-white font-semibold'
                   : 'border-transparent text-slate-300 hover:bg-slate-700 hover:text-white'
               }`}
-              onClick={() => setIsOpen(false)}
             >
               {icon}
               <span>{label}</span>
@@ -108,18 +104,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         </nav>
       </div>
 
-      {/* Obsah */}
-      <div className="flex-1 flex flex-col pl-0 md:pl-60">
-        <div className="md:hidden bg-white border-b px-4 py-2 shadow-sm flex items-center justify-between">
-          <button onClick={() => setIsOpen(true)} className="text-slate-800">
-            <Menu size={24} />
-          </button>
-          <span className="font-medium">Správa nájmů</span>
-        </div>
-
-        {/* Obsah stránky */}
-        <main className="flex-1">{children}</main>
-      </div>
+      {/* Obsah stránky (hned vedle) */}
+      <main className="flex-1">{children}</main>
     </div>
   )
 }
