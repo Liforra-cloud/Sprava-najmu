@@ -3,19 +3,12 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-// Definice param a searchParams podle očekávání Next.js
-interface Props {
-  params: { id: string }
-  searchParams: { [key: string]: string | string[] | undefined }
-}
-
 export default async function Page(props: any) {
-  const { id } = props.params;
- {
+  const { id } = props.params
   const { data: property, error } = await supabase
     .from('properties')
-    .select('id, name, address, description, date_added')
-    .eq('id', params.id)
+    .select('id,name,address,description,date_added')
+    .eq('id', id)
     .single()
 
   if (error || !property) {
