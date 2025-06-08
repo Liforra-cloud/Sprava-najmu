@@ -1,8 +1,11 @@
 // app/api/properties/[id]/route.ts
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
-export async function GET({ params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   const { id } = params
   const { data, error } = await supabase
     .from('properties')
@@ -16,7 +19,10 @@ export async function GET({ params }: { params: { id: string } }) {
   return NextResponse.json(data)
 }
 
-export async function PUT({ params, request }: { params: { id: string }; request: Request }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   const { id } = params
   const { name, address, description } = await request.json()
   const { data, error } = await supabase
