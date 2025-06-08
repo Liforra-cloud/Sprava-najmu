@@ -17,17 +17,19 @@ model User {
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  leases    Lease[]
+  // leases field removed because no corresponding userId in Lease table
 }
 
 model Property {
-  id         String   @id @default(uuid())
-  name       String
-  address    String
-  units      Unit[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           String    @id @default(uuid())
+  name         String
+  address      String
+  property_type String
+  description   String?  
+  date_added    DateTime  @default(now())
+  units        Unit[]
 }
+
 
 model Unit {
   id          String   @id @default(uuid())
