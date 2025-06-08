@@ -3,12 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
 export async function GET(request: NextRequest) {
-  // Z URL vytáhneme id nemovitosti
   const url = new URL(request.url)
-  const segments = url.pathname.split('/')
-  const id = segments[segments.length - 1]
+  const id = url.pathname.split('/').pop()
 
-  // Načteme property a její units
   const { data, error } = await supabase
     .from('properties')
     .select(`
@@ -29,6 +26,23 @@ export async function GET(request: NextRequest) {
         date_added
       )
     `)
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  return NextResponse.json(data)
+}
+
+export async function PATCH(request: NextRequest) {
+  const url = new URL(request.url)
+  const id = url.pathname.split('/').pop()
+  const updates = await request.json()
+
+  const { data, error } = await supabase
+    .from('properties')
+    .update(updates)
     .eq('id', id)
     .single()
 
