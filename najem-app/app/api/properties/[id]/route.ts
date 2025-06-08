@@ -1,13 +1,13 @@
 // app/api/properties/[id]/route.ts
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
 // GET handler: načte detail nemovitosti včetně jednotek
 export async function GET(
-  request: Request,
-  context: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
-  const { id } = context.params
+  const { id } = params
 
   const { data, error } = await supabase
     .from('properties')
