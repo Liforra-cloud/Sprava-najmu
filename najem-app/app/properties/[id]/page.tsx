@@ -1,150 +1,111 @@
 'use client'
-
-import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-type Unit = {
+interface Unit {
   id: string
   identifier: string
   floor: number
   disposition: string
   area: number
-  occupancy_status: 'volné' | 'obsazené' | 'rezervace'
+  occupancy_status: string
   monthly_rent: number
   deposit: number
   date_added: string
 }
 
-type Property = {
+interface Property {
   id: string
   name: string
   address: string
-  description: string | null
+  description: string
   date_added: string
   units: Unit[]
 }
 
-export default function PropertyDetailPage() {
-  const { id } = useParams() ?? {}
-  const router = useRouter()
+interface Props {
+  params: { id: string }
+}
 
+export default function PropertyPage({ params: { id } }: Props) {
+  const router = useRouter()
   const [prop, setProp] = useState<Property | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [editingField, setEditingField] = useState<'name' | 'address' | 'description' | null>(null)
-  const [fieldValue, setFieldValue] = useState('')
-
   useEffect(() => {
-    if (!id) return
-    setLoading(true)
-    supabase
-      .from<Property>('properties')
-      .select(`
-        id, name, address, description, date_added,
-        units (
-          id, identifier, floor, disposition, area,
-          occupancy_status, monthly_rent, deposit, date_added
-        )
-      `)
-      .eq('id', id)
-      .single()
-      .then(({ data, error }) => {
-        if (error) setError(error.message)
-        else setProp(data!)
-      })
-      .catch(e => setError(String(e)))
-      .finally(() => setLoading(false))
+    async function load() {
+      setLoading(true)
+      try {
+        const { data, error } = await supabase
+          .from('properties')
+          .select(`
+            id,
+            name,
+            address,
+            description,
+            date_added,
+            units (
+              id,
+              identifier,
+              floor,
+              disposition,
+              area,
+              occupancy_status,
+              monthly_rent,
+              deposit,
+              date_added
+            )
+          `)
+          .eq('id', id)
+          .single()
+
+        if (error) {
+          setError(error.message)
+        } else {
+          setProp(data)
+        }
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : String(e))
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (id) load()
   }, [id])
 
-  const fields: { label: string; key: 'name' | 'address' | 'description' }[] = [
-    { label: 'Název',  key: 'name' },
-    { label: 'Adresa', key: 'address' },
-    { label: 'Popis',  key: 'description' },
-  ]
-
-  const startEdit = (key: 'name' | 'address' | 'description') => {
-    if (!prop) return
-    setEditingField(key)
-    const val = prop[key]
-    setFieldValue(val ?? '')
-  }
-
-  const handleSaveField = async () => {
-    if (!prop || !editingField) return
-    setLoading(true)
-    try {
-      const updates: Partial<Property> = { [editingField]: fieldValue }
-      const { data, error } = await supabase
-        .from<Property>('properties')
-        .update(updates)
-        .eq('id', prop.id)
-        .single()
-      if (error) setError(error.message)
-      else {
-        setProp(data)
-        setEditingField(null)
-      }
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (loading) return <div>Načítám...</div>
-  if (error)   return <div className="text-red-600">Chyba: {error}</div>
-  if (!prop)   return <div>Nemovitost nenalezena.</div>
+  if (loading) return <p>Načítám…</p>
+  if (error)   return <p className="text-red-600">Chyba: {error}</p>
+  if (!prop)   return <p>Nemovitost nenalezena</p>
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-3xl font-bold">Detail nemovitosti</h1>
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold">{prop.name}</h1>
+      <p><strong>Adresa:</strong> {prop.address}</p>
+      <p><strong>Popis:</strong> {prop.description || '–'}</p>
+      <p><strong>Datum vložení:</strong> {new Date(prop.date_added).toLocaleDateString()}</p>
 
-      {fields.map(({ label, key }) => (
-        <div key={key} className="flex items-center space-x-4">
-          <span className="w-32 font-semibold">{label}:</span>
-          {editingField === key ? (
-            <>
-              <input
-                className="border px-2 py-1 flex-1"
-                value={fieldValue}
-                onChange={e => setFieldValue(e.target.value)}
-              />
-              <button
-                onClick={handleSaveField}
-                className="bg-green-500 text-white px-3 py-1 rounded"
-              >
-                Uložit
-              </button>
-              <button
-                onClick={() => setEditingField(null)}
-                className="bg-gray-300 px-3 py-1 rounded"
-              >
-                Zrušit
-              </button>
-            </>
-          ) : (
-            <>
-              <span className="flex-1">{prop[key] ?? <i>—</i>}</span>
-              <button
-                onClick={() => startEdit(key)}
-                className="text-blue-600 underline"
-              >
-                Editovat
-              </button>
-            </>
-          )}
-        </div>
-      ))}
-
-      <p>
-        <span className="w-32 font-semibold inline-block">Datum zařazení:</span>
-        {new Date(prop.date_added).toLocaleDateString()}
-      </p>
-
-      <h2 className="text-2xl font-semibold mt-8">Jednotky</h2>
-      {/* ... jak bylo ... */}
+      <h2 className="mt-6 text-xl font-semibold">Jednotky</h2>
+      {prop.units.length === 0 
+        ? <p>Žádné jednotky.</p>
+        : (
+          <ul className="space-y-2">
+            {prop.units.map(u => (
+              <li key={u.id} className="border p-4 rounded">
+                <p><strong>Číslo:</strong> {u.identifier}</p>
+                <p><strong>Podlaží:</strong> {u.floor}</p>
+                <p><strong>Dispozice:</strong> {u.disposition}</p>
+                <p><strong>Plocha:</strong> {u.area} m²</p>
+                <p><strong>Stav:</strong> {u.occupancy_status}</p>
+                <p><strong>Nájem:</strong> {u.monthly_rent} Kč</p>
+                <p><strong>Kauce:</strong> {u.deposit} Kč</p>
+              </li>
+            ))}
+          </ul>
+        )
+      }
 
       <button
         onClick={() => router.push('/properties')}
