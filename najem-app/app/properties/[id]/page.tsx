@@ -1,8 +1,9 @@
 // app/properties/[id]/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 
 type Unit = {
   id: string
@@ -10,7 +11,7 @@ type Unit = {
   floor: number
   disposition: string
   area: number
-  occupancy_status: string
+  occupancy_status: 'volné' | 'obsazené' | 'rezervace'
   monthly_rent: number
   deposit: number
   date_added: string
@@ -26,62 +27,94 @@ type Property = {
 }
 
 export default function PropertyDetailPage() {
-  const { id } = useParams()
   const router = useRouter()
-  const [prop, setProp] = useState<Property|null>(null)
-  const [editingKey, setEditingKey] = useState<keyof Property|null>(null)
+  const { id } = useParams()
+
+  const [prop, setProp] = useState<Property | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [editingKey, setEditingKey] = useState<Exclude<keyof Property, 'units'> | null>(null)
   const [draftValue, setDraftValue] = useState<string>('')
 
   useEffect(() => {
-    fetch(`/api/properties/${id}`)
-      .then(res => res.json())
-      .then(setProp)
+    if (!id) return
+    setLoading(true)
+    supabase
+      .from<Property>('properties')
+      .select(`
+        id,
+        name,
+        address,
+        description,
+        date_added,
+        units (
+          id,
+          identifier,
+          floor,
+          disposition,
+          area,
+          occupancy_status,
+          monthly_rent,
+          deposit,
+          date_added
+        )
+      `)
+      .eq('id', id)
+      .single()
+      .then(({ data, error }) => {
+        if (error) setError(error.message)
+        else setProp(data)
+      })
+      .finally(() => setLoading(false))
   }, [id])
 
-  if (!prop) return <div>Načítám…</div>
-
-  async function saveField() {
-    if (!editingKey) return
-    const payload = { [editingKey]: draftValue }
-    const res = await fetch(`/api/properties/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const updated: Property = await res.json()
-    setProp(updated)
+  const saveField = async (key: Exclude<keyof Property, 'units'>) => {
+    if (!prop) return
+    setLoading(true)
+    const updates = { [key]: draftValue }
+    const { error } = await supabase
+      .from('properties')
+      .update(updates)
+      .eq('id', prop.id)
+    if (error) setError(error.message)
+    else setProp({ ...prop, [key]: draftValue })
     setEditingKey(null)
+    setLoading(false)
   }
 
-  function renderField<
-    K extends keyof Property
-  >(label: string, key: K) {
+  function renderField<K extends Exclude<keyof Property, 'units'>>(
+    label: string,
+    key: K
+  ) {
+    if (!prop) return null
     return (
       <div className="mb-4">
         <strong>{label}: </strong>
         {editingKey === key ? (
           <>
             <input
-              className="border px-2 py-1"
+              className="border px-2 py-1 rounded mr-2"
               value={draftValue}
               onChange={e => setDraftValue(e.target.value)}
             />
             <button
-              className="ml-2 bg-blue-600 text-white px-3 py-1 rounded"
-              onClick={saveField}
+              className="bg-blue-600 text-white px-4 py-1 rounded mr-2"
+              onClick={() => saveField(key)}
+              disabled={loading}
             >
               Uložit
             </button>
             <button
-              className="ml-2 bg-gray-300 px-3 py-1 rounded"
+              className="bg-gray-200 px-4 py-1 rounded"
               onClick={() => setEditingKey(null)}
+              disabled={loading}
             >
               Zrušit
             </button>
           </>
         ) : (
           <>
-            <span>{prop[key]}</span>
+            <span>{String(prop[key])}</span>
             <button
               className="ml-2 text-sm text-blue-600"
               onClick={() => {
@@ -97,10 +130,14 @@ export default function PropertyDetailPage() {
     )
   }
 
+  if (loading) return <div className="p-6">Načítání...</div>
+  if (error) return <div className="p-6 text-red-600">Chyba: {error}</div>
+  if (!prop) return <div className="p-6">Nemovitost nenalezena.</div>
+
   return (
     <div className="p-6">
       <button
-        className="mb-4 text-gray-600"
+        className="mb-4 text-sm text-gray-600"
         onClick={() => router.push('/properties')}
       >
         ← Zpět na seznam
@@ -116,17 +153,11 @@ export default function PropertyDetailPage() {
       <ul className="space-y-2">
         {prop.units.map(u => (
           <li key={u.id} className="p-4 border rounded">
-            <div><strong>Číslo:</strong> {u.identifier}</div>
-            <div><strong>Podlaží:</strong> {u.floor}</div>
-            <div><strong>Dispozice:</strong> {u.disposition}</div>
-            <div><strong>Plocha:</strong> {u.area} m²</div>
-            <div><strong>Stav:</strong> {u.occupancy_status}</div>
-            <div><strong>Nájem:</strong> {u.monthly_rent} Kč</div>
-            <div><strong>Kauce:</strong> {u.deposit} Kč</div>
+            <strong>{u.identifier}</strong> — {u.disposition}, {u.area} m²,{' '}
+            {u.occupancy_status}, nájem {u.monthly_rent} Kč, kauce {u.deposit} Kč
           </li>
         ))}
       </ul>
     </div>
   )
 }
-
