@@ -4,7 +4,17 @@ import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
-type Unit = { /* ... jak dřív ... */ }
+type Unit = {
+  id: string
+  identifier: string
+  floor: number
+  disposition: string
+  area: number
+  occupancy_status: 'volné' | 'obsazené' | 'rezervace'
+  monthly_rent: number
+  deposit: number
+  date_added: string
+}
 
 type Property = {
   id: string
