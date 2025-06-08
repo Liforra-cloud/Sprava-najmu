@@ -1,3 +1,5 @@
+// app/properties/[id]/page.tsx
+
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
