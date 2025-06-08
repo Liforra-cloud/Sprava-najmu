@@ -3,15 +3,16 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-export default async function Page({
-  params,
-}: {
-  params: { id: string }
-}) {
+// Server komponenta detailu nemovitosti
+export default async function Page({ params, searchParams }: any) {
+  // params.id je string
+  const id = params.id
+
+  // Načti záznam z DB
   const { data: property, error } = await supabase
     .from('properties')
     .select('id, name, address, description, date_added')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (error || !property) {
