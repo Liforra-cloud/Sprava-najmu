@@ -3,7 +3,6 @@
 
 import { useParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
 
 type Property = {
@@ -40,7 +39,10 @@ export default function PropertyDetail() {
     return (
       <div className="p-6">
         <p className="text-red-600 mb-4">{error}</p>
-        <button onClick={() => router.push('/properties')} className="px-4 py-2 bg-gray-200 rounded">
+        <button
+          onClick={() => router.push('/properties')}
+          className="px-4 py-2 bg-gray-200 rounded"
+        >
           Zpět na seznam
         </button>
       </div>
@@ -61,11 +63,12 @@ export default function PropertyDetail() {
           Přidáno: {new Date(property.date_added).toLocaleDateString('cs-CZ')}
         </p>
       )}
-      <div className="flex gap-2">
-        <button onClick={() => router.push('/properties')} className="px-4 py-2 bg-gray-200 rounded">
-          Zpět na seznam
-        </button>
-      </div>
+      <button
+        onClick={() => router.push('/properties')}
+        className="px-4 py-2 bg-gray-200 rounded"
+      >
+        Zpět na seznam
+      </button>
     </div>
   )
 }
