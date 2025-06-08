@@ -39,7 +39,7 @@ export default function PropertyDetail() {
           setProperty(data)
           setValues({ name: data.name, address: data.address, description: data.description })
         }
-      } catch (err: any) {
+      } catch (err) {
         setError(err.message)
       } finally {
         setLoading(false)
