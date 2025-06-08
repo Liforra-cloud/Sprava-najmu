@@ -2,64 +2,35 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
-// Ručně definovaný typ pro Properties místo importu z Prisma (klientský kód nesmí importovat @prisma/client)
 type Property = {
   id: string;
   name: string;
   address: string;
-  units: { id: string; identifier: string }[];
 };
 
 export default function PropertiesPage() {
   const [list, setList] = useState<Property[]>([]);
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
 
- useEffect(() => {
-  fetch('/api/properties')
-    .then(async res => {
-      const json = await res.json();
-      if (!res.ok) {
-        console.error('API error:', json.error);
-        setList([]);          // nebo ukázat zprávu uživateli
-      } else {
-        setList(json);
-      }
-    });
-}, []);
-
-  const add = async () => {
-    const res = await fetch('/api/properties', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, address }),
-    });
-    const created: Property = await res.json();
-    setList(prev => [...prev, created]);
-    setName('');
-    setAddress('');
-  };
+  useEffect(() => {
+    fetch('/api/properties')
+      .then(async res => {
+        const json = await res.json();
+        if (res.ok) setList(json);
+        else setList([]);
+      });
+  }, []);
 
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold mb-4">Nemovitosti</h1>
-      <div className="mb-6 flex gap-2">
-        <input
-          className="border p-2 flex-1"
-          placeholder="Název"
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
-        <input
-          className="border p-2 flex-1"
-          placeholder="Adresa"
-          value={address}
-          onChange={e => setAddress(e.target.value)}
-        />
-        <button className="bg-blue-600 text-white px-4" onClick={add}>
-          Přidat
-        </button>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-bold">Nemovitosti</h1>
+        <Link href="/properties/new">
+          <button className="bg-green-600 text-white px-4 py-2 rounded">
+            Přidat nemovitost
+          </button>
+        </Link>
       </div>
       <ul className="space-y-2">
         {list.map(prop => (
