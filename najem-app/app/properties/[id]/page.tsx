@@ -40,7 +40,7 @@ export default function PropertyDetailPage() {
       setLoading(true)
       try {
         const { data, error } = await supabase
-          .from<Property>('properties')
+          .from<'properties', Property>('properties')
           .select(`
             id, name, address, description, date_added,
             units (
