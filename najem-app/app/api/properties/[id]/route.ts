@@ -1,4 +1,5 @@
 // app/api/properties/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -33,11 +34,11 @@ export async function GET(request: NextRequest) {
     .eq('id', id)
     .single()
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message || 'Property not found' }, { status: 500 })
   }
 
-  return NextResponse.json(data)
+  return NextResponse.json(data, { status: 200 })
 }
 
 export async function PATCH(request: NextRequest) {
@@ -50,10 +51,16 @@ export async function PATCH(request: NextRequest) {
 
   const updates = await request.json()
 
-if (error || !data) {
-  return NextResponse.json({ error: error?.message || 'Unknown error' }, { status: 500 })
-}
+  const { data, error } = await supabase
+    .from('properties')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
 
-return NextResponse.json(data, { status: 200 })
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message || 'Failed to update property' }, { status: 500 })
+  }
 
+  return NextResponse.json(data, { status: 200 })
 }
