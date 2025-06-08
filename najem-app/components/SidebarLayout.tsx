@@ -1,40 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import {
-  Home,
-  PlusSquare,
-  User,
-  LogOut,
-  Menu
-} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-
-const navItems = [
-  { href: '/properties', label: 'Nemovitosti', icon: <Home size={18} /> },
-  { href: '/properties/new', label: 'Přidat nemovitost', icon: <PlusSquare size={18} /> }
-]
-
-const accountItems = [
-  { href: '/profile', label: 'Profil', icon: <User size={18} /> }
-]
+import { LogOut } from 'lucide-react'
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const router = useRouter()
-  const [isOpen, setIsOpen] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchUser = async () => {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser()
+      const { data: { user }, error } = await supabase.auth.getUser()
       if (!error && user) {
-        setUserEmail(user.email ?? 'Neznámý uživatel')
+        setUserEmail(user.email ?? null)
       }
     }
     fetchUser()
@@ -42,70 +22,48 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
+    window.location.href = '/login'
   }
 
+  const navItems = [
+    { href: '/', label: 'Dashboard' },
+    { href: '/properties', label: 'Nemovitosti' },
+    { href: '/properties/new', label: 'Přidat nemovitost' },
+    { href: '/test', label: 'Test' },
+  ]
+
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="w-60 bg-slate-800 text-white flex flex-col">
-        <div className="flex items-center justify-center px-4 py-4 border-b border-slate-700">
-          <span className="text-lg font-semibold">Správa nájmů</span>
+    <div className="flex h-screen w-screen">
+      <aside className="w-64 bg-gray-100 border-r border-gray-300 p-4 flex flex-col justify-between">
+        <div className="space-y-4">
+          <h1 className="text-xl font-bold">Správa nájmu</h1>
+          <nav className="space-y-2">
+            {navItems.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`block px-3 py-2 rounded transition ${
+                  pathname === href ? 'bg-blue-600 text-white' : 'text-gray-800 hover:bg-gray-200'
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
         </div>
-
-        <nav className="mt-4 space-y-1">
-          {navItems.map(({ href, label, icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 px-4 py-2 transition-all duration-150 rounded-r-md border-l-4 text-sm ${
-                pathname === href
-                  ? 'bg-slate-700 border-green-400 text-white font-semibold'
-                  : 'border-transparent text-slate-300 hover:bg-slate-700 hover:text-white'
-              }`}
-            >
-              {icon}
-              <span>{label}</span>
-            </Link>
-          ))}
-
-          <p className="text-xs text-slate-400 mt-6 mb-1 px-4 uppercase tracking-wide">Účet</p>
-
-          {accountItems.map(({ href, label, icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 px-4 py-2 transition-all duration-150 rounded-r-md border-l-4 text-sm ${
-                pathname === href
-                  ? 'bg-slate-700 border-green-400 text-white font-semibold'
-                  : 'border-transparent text-slate-300 hover:bg-slate-700 hover:text-white'
-              }`}
-            >
-              {icon}
-              <span>{label}</span>
-            </Link>
-          ))}
-
+        <div className="mt-4 text-sm text-gray-700">
+          {userEmail && <div className="mb-2 truncate">{userEmail}</div>}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-2 mt-1 text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-150 w-full text-left text-sm"
+            className="flex items-center gap-2 text-red-600 hover:underline"
           >
-            <LogOut size={18} />
-            <span>Odhlásit</span>
+            <LogOut className="w-4 h-4" />
+            Odhlásit se
           </button>
+        </div>
+      </aside>
 
-          {userEmail && (
-            <div className="text-xs text-slate-400 px-4 mt-6">
-              Přihlášen jako:
-              <br />
-              <span className="text-white font-medium break-words">{userEmail}</span>
-            </div>
-          )}
-        </nav>
-      </div>
-
-      {/* Obsah stránky (hned vedle) */}
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 overflow-y-auto p-6">{children}</main>
     </div>
   )
 }
