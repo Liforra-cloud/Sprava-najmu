@@ -1,25 +1,10 @@
 // app/api/properties/[id]/route.ts
 import { NextResponse } from 'next/server'
 
-
-// GET handler: načte detail nemovitosti včetně jednotek
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  // params je Promise, proto await
-  const { id } = await params
-
-  const { data, error } = await supabase
-    .from('properties')
-    .select(
-      `id, name, address, description, date_added, units(id, identifier, floor, disposition, area, occupancy_status, monthly_rent, deposit, date_added)`
-    )
-    .eq('id', id)
-    .single()
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-  return NextResponse.json(data)
+  // jen vrátíme id, abychom ověřili signaturu
+  return NextResponse.json({ ok: true, id: params.id })
 }
