@@ -1,10 +1,10 @@
 // app/api/properties/[id]/route.ts
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 
 export async function GET(
-  request: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  // jen vrátíme id, abychom ověřili signaturu
+  // tímhle ověříme, že handler funguje
   return NextResponse.json({ ok: true, id: params.id })
 }
