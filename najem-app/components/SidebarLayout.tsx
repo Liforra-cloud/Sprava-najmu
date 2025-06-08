@@ -27,15 +27,15 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const [isOpen, setIsOpen] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser()
-      if (!error && user) {
-        setUserEmail(user.email)
-      }
+useEffect(() => {
+  const fetchUser = async () => {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+    if (!error && user) {
+      setUserEmail(user.email ?? 'Neznámý uživatel')
+    }
     }
     fetchUser()
   }, [])
