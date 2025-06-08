@@ -45,7 +45,12 @@ export default function UnitsPage() {
       if (error) {
         console.error('Chyba při načítání jednotek:', error)
       } else {
-        setUnits(data as Unit[])
+        // Supabase vrací `property` jako pole => musíme si to vynutit jako objekt, nebo upravit typ
+        const normalizedData = (data as any[]).map((unit) => ({
+          ...unit,
+          property: Array.isArray(unit.property) ? unit.property[0] : unit.property,
+        }))
+        setUnits(normalizedData as Unit[])
       }
 
       setLoading(false)
