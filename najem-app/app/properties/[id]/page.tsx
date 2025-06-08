@@ -5,8 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
-// Typ pro data nemovitosti
-interface Property {
+type Property = {
   id: string
   name: string
   address: string
@@ -21,14 +20,13 @@ export default function PropertyDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Stav inline editace: které pole se upravuje
+  // Stav inline editace
   const [editingField, setEditingField] = useState<keyof Property | null>(null)
-  // Lokální hodnoty pro editovaná pole
   const [values, setValues] = useState<Partial<Property>>({})
 
-  // Načtení dat
   useEffect(() => {
     if (!id) return
+    // Načítáme data a ukončujeme loading po .then a .catch
     supabase
       .from('properties')
       .select('id, name, address, description, date_added')
@@ -42,10 +40,18 @@ export default function PropertyDetail() {
           setValues({ name: data.name, address: data.address, description: data.description })
         }
       })
-      .finally(() => setLoading(false))
+      .catch(err => {
+        setError(err.message)
+      })
+      .then(() => {
+        setLoading(false)
+      })
   }, [id])
 
-  // Handlery
+  if (loading) return <p className="p-6">Načítám…</p>
+  if (error) return <p className="text-red-600 p-6">{error}</p>
+  if (!property) return null
+
   const handleChange = (field: keyof Property, value: string) => {
     setValues(prev => ({ ...prev, [field]: value }))
   }
@@ -70,10 +76,6 @@ export default function PropertyDetail() {
       setEditingField(null)
     }
   }
-
-  if (loading) return <p className="p-6">Načítám…</p>
-  if (error) return <p className="text-red-600 p-6">{error}</p>
-  if (!property) return null
 
   return (
     <div className="max-w-2xl mx-auto mt-10 p-6 border rounded shadow">
