@@ -2,12 +2,16 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
-// GET single property by ID
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  const { id } = params
+/**
+ * GET single property
+ * - Removed invalid second parameter
+ * - Parse `id` manually from request URL
+ */
+export async function GET(request: Request) {
+  const url = new URL(request.url)
+  const segments = url.pathname.split('/')
+  const id = segments[segments.indexOf('properties') + 1]
+
   const { data, error } = await supabase
     .from('properties')
     .select('*')
@@ -15,17 +19,21 @@ export async function GET(
     .single()
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message || 'Property not found' }, { status: 404 })
+    return NextResponse.json({ error: error?.message || 'Nemovitost nenalezena' }, { status: 404 })
   }
   return NextResponse.json(data)
 }
 
-// PUT update property by ID
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  const { id } = params
+/**
+ * PUT update property
+ * - Removed invalid second parameter
+ * - Parse `id` manually from request URL
+ */
+export async function PUT(request: Request) {
+  const url = new URL(request.url)
+  const segments = url.pathname.split('/')
+  const id = segments[segments.indexOf('properties') + 1]
+
   const { name, address, description } = await request.json()
   const { data, error } = await supabase
     .from('properties')
@@ -35,7 +43,7 @@ export async function PUT(
     .single()
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message || 'Update failed' }, { status: 500 })
+    return NextResponse.json({ error: error?.message || 'Aktualizace selhala' }, { status: 500 })
   }
   return NextResponse.json(data)
 }
