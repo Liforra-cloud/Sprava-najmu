@@ -1,8 +1,8 @@
 // app/properties/[id]/page.tsx
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 
 type Unit = {
   id: string
@@ -16,75 +16,117 @@ type Unit = {
   date_added: string
 }
 
-type PropertyWithUnits = {
+type Property = {
   id: string
   name: string
   address: string
-  description?: string
-  date_added?: string
+  description: string
+  date_added: string
   units: Unit[]
 }
 
-export default function PropertyDetail() {
+export default function PropertyDetailPage() {
   const { id } = useParams()
   const router = useRouter()
-  const [prop, setProp] = useState<PropertyWithUnits | null>(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [prop, setProp] = useState<Property|null>(null)
+  const [editingKey, setEditingKey] = useState<keyof Property|null>(null)
+  const [draftValue, setDraftValue] = useState<string>('')
 
   useEffect(() => {
-    if (!id) return
-    async function load() {
-      try {
-        const res = await fetch(`/api/properties/${id}`)
-        const data = await res.json()
-        if (data.error) throw new Error(data.error)
-        setProp(data)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err))
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+    fetch(`/api/properties/${id}`)
+      .then(res => res.json())
+      .then(setProp)
   }, [id])
 
-  if (loading) return <p className="p-6">Načítám…</p>
-  if (error) return <p className="p-6 text-red-600">{error}</p>
-  if (!prop) return null
+  if (!prop) return <div>Načítám…</div>
+
+  async function saveField() {
+    if (!editingKey) return
+    const payload = { [editingKey]: draftValue }
+    const res = await fetch(`/api/properties/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const updated: Property = await res.json()
+    setProp(updated)
+    setEditingKey(null)
+  }
+
+  function renderField<
+    K extends keyof Property
+  >(label: string, key: K) {
+    return (
+      <div className="mb-4">
+        <strong>{label}: </strong>
+        {editingKey === key ? (
+          <>
+            <input
+              className="border px-2 py-1"
+              value={draftValue}
+              onChange={e => setDraftValue(e.target.value)}
+            />
+            <button
+              className="ml-2 bg-blue-600 text-white px-3 py-1 rounded"
+              onClick={saveField}
+            >
+              Uložit
+            </button>
+            <button
+              className="ml-2 bg-gray-300 px-3 py-1 rounded"
+              onClick={() => setEditingKey(null)}
+            >
+              Zrušit
+            </button>
+          </>
+        ) : (
+          <>
+            <span>{prop[key]}</span>
+            <button
+              className="ml-2 text-sm text-blue-600"
+              onClick={() => {
+                setEditingKey(key)
+                setDraftValue(String(prop[key]))
+              }}
+            >
+              Editovat
+            </button>
+          </>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <h1 className="text-3xl font-bold">{prop.name}</h1>
-      <p className="text-gray-600">{prop.address}</p>
-      {prop.description && <p className="mt-2">{prop.description}</p>}
-      {prop.date_added && (
-        <p className="text-sm text-gray-500">
-          Přidáno: {new Date(prop.date_added).toLocaleDateString('cs-CZ')}
-        </p>
-      )}
+    <div className="p-6">
+      <button
+        className="mb-4 text-gray-600"
+        onClick={() => router.push('/properties')}
+      >
+        ← Zpět na seznam
+      </button>
+      <h1 className="text-2xl font-bold mb-6">Detail nemovitosti</h1>
 
-      <h2 className="mt-8 text-2xl font-semibold">Jednotky</h2>
-      <ul className="mt-4 space-y-4">
+      {renderField('Název', 'name')}
+      {renderField('Adresa', 'address')}
+      {renderField('Popis', 'description')}
+      {renderField('Datum zařazení', 'date_added')}
+
+      <h2 className="text-xl font-semibold mt-8 mb-4">Jednotky</h2>
+      <ul className="space-y-2">
         {prop.units.map(u => (
           <li key={u.id} className="p-4 border rounded">
-            <strong>{u.identifier}</strong> (podlaží {u.floor})<br/>
-            Dispozice: {u.disposition}<br/>
-            Plocha: {u.area} m²<br/>
-            Stav: {u.occupancy_status}<br/>
-            Nájem: {u.monthly_rent} Kč<br/>
-            Kauce: {u.deposit} Kč<br/>
-            Přidáno: {new Date(u.date_added).toLocaleDateString('cs-CZ')}
+            <div><strong>Číslo:</strong> {u.identifier}</div>
+            <div><strong>Podlaží:</strong> {u.floor}</div>
+            <div><strong>Dispozice:</strong> {u.disposition}</div>
+            <div><strong>Plocha:</strong> {u.area} m²</div>
+            <div><strong>Stav:</strong> {u.occupancy_status}</div>
+            <div><strong>Nájem:</strong> {u.monthly_rent} Kč</div>
+            <div><strong>Kauce:</strong> {u.deposit} Kč</div>
           </li>
         ))}
       </ul>
-
-      <button
-        onClick={() => router.push('/properties')}
-        className="mt-6 bg-gray-200 px-4 py-2 rounded"
-      >
-        Zpět na seznam
-      </button>
     </div>
   )
 }
+
