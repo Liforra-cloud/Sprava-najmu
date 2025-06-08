@@ -3,10 +3,11 @@ import { NextResponse, NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabaseClient'
 
 export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
-  const id = params.id
+  const id = context.params.id
+
   const { data, error } = await supabase
     .from('properties')
     .select(`
