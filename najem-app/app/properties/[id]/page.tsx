@@ -1,7 +1,7 @@
-// app/properties/[id]/page.tsx
-
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
+
+export const dynamic = 'force-dynamic'
 
 interface Unit {
   id: string
