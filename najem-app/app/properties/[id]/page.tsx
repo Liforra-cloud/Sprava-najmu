@@ -1,7 +1,7 @@
 // app/properties/[id]/page.tsx
 'use client'
 
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -21,27 +21,26 @@ type Property = {
   id: string
   name: string
   address: string
-  description: string
+  description?: string
   date_added: string
   units: Unit[]
 }
 
-export default function PropertyDetailPage() {
+export default function PropertyDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params
   const router = useRouter()
-  const { id } = useParams()
 
   const [prop, setProp] = useState<Property | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [editingKey, setEditingKey] = useState<Exclude<keyof Property, 'units'> | null>(null)
-  const [draftValue, setDraftValue] = useState<string>('')
 
   useEffect(() => {
     if (!id) return
+
     setLoading(true)
     supabase
-      .from<Property>('properties')
-      .select(`
+      .from('properties') // ⬅️ tady NE <Property>
+      .select<Property>(`
         id,
         name,
         address,
@@ -58,106 +57,59 @@ export default function PropertyDetailPage() {
           deposit,
           date_added
         )
-      `)
+      `)               // ⬅️ případně sem můžeš dát <Property>
       .eq('id', id)
       .single()
       .then(({ data, error }) => {
         if (error) setError(error.message)
         else setProp(data)
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        setLoading(false)
+      })
   }, [id])
 
-  const saveField = async (key: Exclude<keyof Property, 'units'>) => {
-    if (!prop) return
-    setLoading(true)
-    const updates = { [key]: draftValue }
-    const { error } = await supabase
-      .from('properties')
-      .update(updates)
-      .eq('id', prop.id)
-    if (error) setError(error.message)
-    else setProp({ ...prop, [key]: draftValue })
-    setEditingKey(null)
-    setLoading(false)
-  }
-
-  function renderField<K extends Exclude<keyof Property, 'units'>>(
-    label: string,
-    key: K
-  ) {
-    if (!prop) return null
-    return (
-      <div className="mb-4">
-        <strong>{label}: </strong>
-        {editingKey === key ? (
-          <>
-            <input
-              className="border px-2 py-1 rounded mr-2"
-              value={draftValue}
-              onChange={e => setDraftValue(e.target.value)}
-            />
-            <button
-              className="bg-blue-600 text-white px-4 py-1 rounded mr-2"
-              onClick={() => saveField(key)}
-              disabled={loading}
-            >
-              Uložit
-            </button>
-            <button
-              className="bg-gray-200 px-4 py-1 rounded"
-              onClick={() => setEditingKey(null)}
-              disabled={loading}
-            >
-              Zrušit
-            </button>
-          </>
-        ) : (
-          <>
-            <span>{String(prop[key])}</span>
-            <button
-              className="ml-2 text-sm text-blue-600"
-              onClick={() => {
-                setEditingKey(key)
-                setDraftValue(String(prop[key]))
-              }}
-            >
-              Editovat
-            </button>
-          </>
-        )}
-      </div>
-    )
-  }
-
-  if (loading) return <div className="p-6">Načítání...</div>
-  if (error) return <div className="p-6 text-red-600">Chyba: {error}</div>
-  if (!prop) return <div className="p-6">Nemovitost nenalezena.</div>
+  if (loading) return <div>Načítám...</div>
+  if (error)   return <div className="text-red-600">Chyba: {error}</div>
+  if (!prop)   return <div>Nemovitost nenalezena.</div>
 
   return (
     <div className="p-6">
-      <button
-        className="mb-4 text-sm text-gray-600"
-        onClick={() => router.push('/properties')}
-      >
-        ← Zpět na seznam
-      </button>
-      <h1 className="text-2xl font-bold mb-6">Detail nemovitosti</h1>
+      <h1 className="text-2xl font-bold mb-4">{prop.name}</h1>
+      <p className="mb-2"><strong>Adresa:</strong> {prop.address}</p>
+      {prop.description && (
+        <p className="mb-4"><strong>Popis:</strong> {prop.description}</p>
+      )}
+      <p className="mb-6"><strong>Datum zařazení:</strong> {new Date(prop.date_added).toLocaleDateString()}</p>
 
-      {renderField('Název', 'name')}
-      {renderField('Adresa', 'address')}
-      {renderField('Popis', 'description')}
-      {renderField('Datum zařazení', 'date_added')}
+      <h2 className="text-xl font-semibold mb-3">Jednotky</h2>
+      {prop.units.length === 0 ? (
+        <p>Žádné jednotky.</p>
+      ) : (
+        <ul className="space-y-2">
+          {prop.units.map(unit => (
+            <li key={unit.id} className="p-4 border rounded">
+              <p><strong>Číslo jednotky:</strong> {unit.identifier}</p>
+              <p><strong>Podlaží:</strong> {unit.floor}</p>
+              <p><strong>Dispozice:</strong> {unit.disposition}</p>
+              <p><strong>Plocha:</strong> {unit.area} m²</p>
+              <p><strong>Stav:</strong> {unit.occupancy_status}</p>
+              <p><strong>Nájem:</strong> {unit.monthly_rent} Kč</p>
+              <p><strong>Kauce:</strong> {unit.deposit} Kč</p>
+              <p><strong>Přidáno:</strong> {new Date(unit.date_added).toLocaleDateString()}</p>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <h2 className="text-xl font-semibold mt-8 mb-4">Jednotky</h2>
-      <ul className="space-y-2">
-        {prop.units.map(u => (
-          <li key={u.id} className="p-4 border rounded">
-            <strong>{u.identifier}</strong> — {u.disposition}, {u.area} m²,{' '}
-            {u.occupancy_status}, nájem {u.monthly_rent} Kč, kauce {u.deposit} Kč
-          </li>
-        ))}
-      </ul>
+      <div className="mt-6">
+        <button
+          onClick={() => router.push('/properties')}
+          className="bg-gray-200 px-4 py-2 rounded mr-2"
+        >
+          Zpět na seznam
+        </button>
+      </div>
     </div>
   )
 }
