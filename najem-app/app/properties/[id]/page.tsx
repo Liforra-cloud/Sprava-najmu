@@ -20,32 +20,32 @@ export default function PropertyDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Stav inline editace
+  // Inline edit state
   const [editingField, setEditingField] = useState<keyof Property | null>(null)
   const [values, setValues] = useState<Partial<Property>>({})
 
   useEffect(() => {
     if (!id) return
-    // Načítáme data a ukončujeme loading po .then a .catch
-    supabase
-      .from('properties')
-      .select('id, name, address, description, date_added')
-      .eq('id', id)
-      .single()
-      .then(({ data, error }) => {
+    async function fetchData() {
+      try {
+        const { data, error } = await supabase
+          .from('properties')
+          .select('id, name, address, description, date_added')
+          .eq('id', id)
+          .single()
         if (error || !data) {
           setError(error?.message || 'Nemovitost nenalezena')
         } else {
           setProperty(data)
           setValues({ name: data.name, address: data.address, description: data.description })
         }
-      })
-      .catch(err => {
+      } catch (err: any) {
         setError(err.message)
-      })
-      .then(() => {
+      } finally {
         setLoading(false)
-      })
+      }
+    }
+    fetchData()
   }, [id])
 
   if (loading) return <p className="p-6">Načítám…</p>
@@ -61,7 +61,7 @@ export default function PropertyDetail() {
     setError('')
     const { data, error } = await supabase
       .from('properties')
-      .update({ 
+      .update({
         name: values.name,
         address: values.address,
         description: values.description
