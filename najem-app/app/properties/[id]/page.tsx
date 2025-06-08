@@ -3,6 +3,9 @@ import { supabase } from '@/lib/supabaseClient'
 
 export const dynamic = 'force-dynamic'
 
+export async function generateStaticParams() {
+  return []
+}
 interface Unit {
   id: string
   identifier: string
