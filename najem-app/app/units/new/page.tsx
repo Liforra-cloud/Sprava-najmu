@@ -25,7 +25,7 @@ export default function NewUnitPage() {
   const [description, setDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Načíst seznam nemovitostí pro výběr
+  // Načte properties pro select
   useEffect(() => {
     fetch('/api/properties')
       .then(res => res.json())
