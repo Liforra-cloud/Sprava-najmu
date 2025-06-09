@@ -7,7 +7,7 @@ import { useRouter, useParams } from "next/navigation";
 export default function EditUnitPage() {
   const router = useRouter();
   const params = useParams();
-  const { id } = params;
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [form, setForm] = useState({
     property_id: "",
@@ -85,7 +85,9 @@ export default function EditUnitPage() {
         </label>
         <button type="submit">Uložit změny</button>
       </form>
-      <button onClick={handleDelete} style={{ color: "red", marginTop: 12 }}>Smazat jednotku</button>
+      <button onClick={handleDelete} style={{ color: "red", marginTop: 12 }}>
+        Smazat jednotku
+      </button>
     </main>
   );
 }
