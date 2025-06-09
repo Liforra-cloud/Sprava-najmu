@@ -1,21 +1,20 @@
+// app/layout.tsx
+
 import './globals.css'
 import { ReactNode } from 'react'
 import SidebarLayout from '@/components/SidebarLayout'
-import { supabaseServerClient } from '@/lib/supabaseServerClient'
 
 export const metadata = {
   title: 'Správa nájmů',
   description: 'Aplikace pro správu nemovitostí a nájmů',
 }
 
-export default async function RootLayout({ children }: { children: ReactNode }) {
-  const supabase = supabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
+// Toto použij jen pro chráněné stránky! (ne pro /login, /register)
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="cs">
       <body>
-        <SidebarLayout userEmail={user?.email ?? null}>
+        <SidebarLayout>
           {children}
         </SidebarLayout>
       </body>
