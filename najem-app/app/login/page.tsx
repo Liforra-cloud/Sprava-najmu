@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +19,8 @@ export default function LoginPage() {
     });
 
     if (res.ok) {
-      router.push('/');
+      // Vynutí plné načtení aplikace včetně cookies/session
+      window.location.href = '/';
     } else {
       const errorData = await res.json();
       setError(errorData.error);
