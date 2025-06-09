@@ -1,3 +1,5 @@
+// components/SidebarLayout.tsx
+
 import Link from 'next/link'
 import { LogOut } from 'lucide-react'
 
@@ -8,8 +10,6 @@ export default function SidebarLayout({
   children: React.ReactNode
   userEmail: string | null
 }) {
-  // handleLogout by měl být také serverově, ale pro základ může zůstat client logout/redirect
-
   const navItems = [
     { href: '/', label: 'Dashboard' },
     { href: '/properties', label: 'Nemovitosti' },
@@ -28,10 +28,7 @@ export default function SidebarLayout({
               <Link
                 key={href}
                 href={href}
-                className={`block px-3 py-2 rounded transition ${
-                  // active link logic...
-                  ''
-                }`}
+                className={`block px-3 py-2 rounded transition`}
               >
                 {label}
               </Link>
@@ -40,7 +37,6 @@ export default function SidebarLayout({
         </div>
         <div className="mt-4 text-sm text-gray-700">
           {userEmail && <div className="mb-2 truncate">{userEmail}</div>}
-          {/* Logout button může být client-side, nebo můžeš řešit server action pro odhlášení */}
           <form action="/api/logout" method="POST">
             <button className="flex items-center gap-2 text-red-600 hover:underline">
               <LogOut className="w-4 h-4" />
