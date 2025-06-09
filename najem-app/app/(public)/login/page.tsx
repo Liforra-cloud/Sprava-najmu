@@ -18,10 +18,9 @@ export default function LoginPage() {
       body: JSON.stringify({ email, password }),
     });
 
-    if (res.ok) {
-      // Vynutí plné načtení aplikace včetně cookies/session
-      window.location.href = '/';
-    } else {
+   if (res.ok) {
+  window.location.href = '/dashboard'; // <--- změna
+} else {
       const errorData = await res.json();
       setError(errorData.error);
     }
