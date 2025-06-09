@@ -52,12 +52,29 @@ export async function PATCH(request: NextRequest) {
   }
 
   const supabase = supabaseRouteClient()
+
+  // Zjisti session uživatele
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ error: 'Nepřihlášený uživatel' }, { status: 401 })
+  }
+
   const updates = await request.json()
 
+  // Updatujeme pouze pro konkrétní id a user_id
   const { data, error } = await supabase
     .from('properties')
-    .update(updates)
+    .update({
+      name: updates.name,
+      address: updates.address,
+      description: updates.description,
+      date_added: updates.date_added,
+    })
     .eq('id', id)
+    .eq('user_id', session.user.id) // Tohle je klíčové pro správný update!
     .select()
     .single()
 
