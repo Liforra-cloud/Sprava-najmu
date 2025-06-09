@@ -1,9 +1,9 @@
 // app/api/properties/route.ts
 import { NextResponse } from 'next/server'
-import { supabaseServerClient } from '@/lib/supabaseServerClient'
+import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
 export async function GET() {
-  const supabase = supabaseServerClient()
+  const supabase = supabaseRouteClient()
 
   const {
     data: { session },
