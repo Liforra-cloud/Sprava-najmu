@@ -22,6 +22,9 @@ export async function POST(request: Request) {
     description
   } = body;
 
+  // Debug log
+  console.log('property_id z frontendu:', property_id);
+
   // 1. Ověř, že property_id existuje!
   const { data: property, error: propertyError } = await supabase
     .from('properties')
@@ -29,9 +32,16 @@ export async function POST(request: Request) {
     .eq('id', property_id)
     .single();
 
-  if (!property || propertyError) {
+  if (propertyError) {
     return NextResponse.json(
-      { error: 'Nemovitost nebyla nalezena. Nejprve založ nemovitost, ke které chceš jednotku přiřadit.' },
+      { error: 'Chyba při ověřování nemovitosti: ' + propertyError.message },
+      { status: 500 }
+    );
+  }
+
+  if (!property) {
+    return NextResponse.json(
+      { error: 'Nemovitost nebyla nalezena. Nejprve založ nemovitost, ke které chceš jednotku přiřadit. property_id=' + property_id },
       { status: 400 }
     );
   }
