@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServerClient } from '@/lib/supabaseServerClient';
+import { supabaseRouteClient } from '@/lib/supabaseRouteClient';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { email, password } = body;
-  const supabase = supabaseServerClient();
+  const supabase = supabaseRouteClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
@@ -15,6 +15,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 401 });
   }
 
-  // Session cookies už helper nastaví automaticky přes supabaseServerClient
+  // Session cookies helper nastaví automaticky!
   return NextResponse.json({ user: data.user });
 }
