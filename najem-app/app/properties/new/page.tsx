@@ -15,9 +15,31 @@ export default function NewPropertyPage() {
     e.preventDefault()
     setIsSubmitting(true)
 
+    // Získání přihlášeného uživatele
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession()
+
+    if (sessionError || !session?.user) {
+      alert('Nelze zjistit přihlášeného uživatele.')
+      setIsSubmitting(false)
+      return
+    }
+
+    const user_id = session.user.id
+
+    // Vložení nemovitosti s user_id
     const { data, error } = await supabase
       .from('properties')
-      .insert([{ name, address, description: description || null }])
+      .insert([
+        {
+          name,
+          address,
+          description: description || null,
+          user_id, // přidání user_id
+        },
+      ])
       .select()
       .single()
 
