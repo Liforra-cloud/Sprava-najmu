@@ -1,155 +1,109 @@
 // app/units/new/page.tsx
 
-"use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+'use client'
 
-export default function AddUnitPage() {
-  const router = useRouter();
-  const [form, setForm] = useState({
-    unit_number: "",
-    floor: "",
-    area: "",
-    description: ""
-  });
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+export default function NewUnitPage() {
+  const router = useRouter()
+  const [unitNumber, setUnitNumber] = useState('')
+  const [floor, setFloor] = useState('')
+  const [area, setArea] = useState('')
+  const [description, setDescription] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await fetch("/api/units", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form)
-    });
-    router.push("/units");
-  };
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    const res = await fetch('/api/units', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        unit_number: unitNumber,
+        floor,
+        area,
+        description,
+      }),
+    })
+
+    if (res.ok) {
+      router.push('/units')
+    } else {
+      const errorData = await res.json()
+      alert(errorData.error || 'Nepodařilo se přidat jednotku.')
+    }
+
+    setIsSubmitting(false)
+  }
 
   return (
-    <div
-      style={{
-        maxWidth: 600,
-        margin: "40px auto",
-        background: "#fff",
-        borderRadius: 16,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-        padding: 40,
-      }}
-    >
-      <h1
-        style={{
-          fontSize: 36,
-          fontWeight: 800,
-          marginBottom: 32,
-          letterSpacing: "-0.03em",
-        }}
-      >
-        Přidat jednotku
-      </h1>
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: 24 }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <label htmlFor="unit_number" style={{ fontWeight: 700, fontSize: 18 }}>
+    <div className="max-w-xl mx-auto mt-10 p-6 bg-white shadow rounded">
+      <h1 className="text-2xl font-bold mb-4">Přidat jednotku</h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="unit_number" className="block text-sm font-medium text-gray-700">
             Číslo jednotky
           </label>
           <input
-            name="unit_number"
             id="unit_number"
-            value={form.unit_number}
-            onChange={handleChange}
-            placeholder="Např. 1A, 2.05, Byt 3"
+            type="text"
             required
-            style={{
-              padding: "16px 12px",
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              fontSize: 18,
-              background: "#fafbfc",
-            }}
+            value={unitNumber}
+            onChange={(e) => setUnitNumber(e.target.value)}
+            placeholder="Např. 1A, 2.05, Byt 3"
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <label htmlFor="floor" style={{ fontWeight: 700, fontSize: 18 }}>
+        <div>
+          <label htmlFor="floor" className="block text-sm font-medium text-gray-700">
             Patro
           </label>
           <input
-            name="floor"
             id="floor"
-            value={form.floor}
-            onChange={handleChange}
+            type="text"
+            value={floor}
+            onChange={(e) => setFloor(e.target.value)}
             placeholder="Např. 2"
-            style={{
-              padding: "16px 12px",
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              fontSize: 18,
-              background: "#fafbfc",
-            }}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <label htmlFor="area" style={{ fontWeight: 700, fontSize: 18 }}>
+        <div>
+          <label htmlFor="area" className="block text-sm font-medium text-gray-700">
             Plocha (m²)
           </label>
           <input
-            name="area"
             id="area"
-            value={form.area}
-            onChange={handleChange}
+            type="text"
+            value={area}
+            onChange={(e) => setArea(e.target.value)}
             placeholder="Např. 56"
-            style={{
-              padding: "16px 12px",
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              fontSize: 18,
-              background: "#fafbfc",
-            }}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <label htmlFor="description" style={{ fontWeight: 700, fontSize: 18 }}>
+        <div>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
             Popis (volitelný)
           </label>
           <textarea
-            name="description"
             id="description"
-            value={form.description}
-            onChange={handleChange}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             placeholder="Např. Byt s balkonem, nově vymalováno..."
-            style={{
-              padding: "16px 12px",
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              fontSize: 18,
-              background: "#fafbfc",
-              resize: "vertical",
-              minHeight: 60,
-            }}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+            rows={3}
           />
         </div>
         <button
           type="submit"
-          style={{
-            marginTop: 8,
-            padding: "18px 0",
-            fontSize: 20,
-            fontWeight: 700,
-            color: "#fff",
-            background: "#2563eb",
-            borderRadius: 8,
-            border: "none",
-            cursor: "pointer",
-            width: "100%",
-            transition: "background 0.15s",
-          }}
+          disabled={isSubmitting}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
         >
-          Přidat jednotku
+          {isSubmitting ? 'Ukládám...' : 'Přidat jednotku'}
         </button>
       </form>
     </div>
-  );
+  )
 }
