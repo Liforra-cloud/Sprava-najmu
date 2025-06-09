@@ -8,33 +8,54 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// GET: všechny jednotky
 export async function GET() {
-  // Načtení všech jednotek pro přihlášeného uživatele
-  // (v reálné appce použít session, tady pro ukázku neřeším autorizaci)
   const { data, error } = await supabase
     .from("units")
-    .select("*");
+    .select("*")
+    .order("identifier", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json(data);
 }
 
+// POST: vytvořit novou jednotku
 export async function POST(request: Request) {
   const body = await request.json();
-
-  // Zde by bylo lepší validovat vstupní data!
-  const { property_id, unit_number, floor, area, description, user_id } = body;
+  const {
+    property_id,
+    identifier,
+    floor,
+    disposition,
+    area,
+    occupancy_status,
+    monthly_rent,
+    deposit,
+    description
+  } = body;
 
   const { data, error } = await supabase
     .from("units")
     .insert([
-      { property_id, unit_number, floor, area, description, user_id }
+      {
+        property_id,
+        identifier,
+        floor,
+        disposition,
+        area,
+        occupancy_status,
+        monthly_rent,
+        deposit,
+        description
+      }
     ])
-    .select();
+    .select()
+    .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  return NextResponse.json(data[0]);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json(data);
 }
-
