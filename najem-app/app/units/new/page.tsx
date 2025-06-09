@@ -29,35 +29,89 @@ export default function AddUnitPage() {
   };
 
   return (
-    <main style={{ maxWidth: 500, margin: "0 auto" }}>
-      <h1 style={{ marginBottom: 24 }}>Přidat jednotku</h1>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label htmlFor="property_id">ID nemovitosti (property_id):</label>
-          <input name="property_id" id="property_id" value={form.property_id} onChange={handleChange} required />
+    <div style={{
+      maxWidth: 600,
+      margin: "40px auto",
+      background: "#fff",
+      borderRadius: 12,
+      boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+      padding: 32
+    }}>
+      <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 32 }}>Přidat jednotku</h1>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <label htmlFor="property_id" style={{ fontWeight: 600 }}>ID nemovitosti (property_id)</label>
+          <input
+            name="property_id"
+            id="property_id"
+            value={form.property_id}
+            onChange={handleChange}
+            placeholder="Např. 82fdbbfd-... (nebo automatický výběr)"
+            required
+            style={{ padding: 12, borderRadius: 8, border: "1px solid #eee", fontSize: 16 }}
+          />
         </div>
         <div style={{ display: "flex", gap: 16 }}>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="unit_number">Číslo jednotky:</label>
-            <input name="unit_number" id="unit_number" value={form.unit_number} onChange={handleChange} required />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+            <label htmlFor="unit_number" style={{ fontWeight: 600 }}>Číslo jednotky</label>
+            <input
+              name="unit_number"
+              id="unit_number"
+              value={form.unit_number}
+              onChange={handleChange}
+              placeholder="Např. 1A, 2.05, Byt 3"
+              required
+              style={{ padding: 12, borderRadius: 8, border: "1px solid #eee", fontSize: 16 }}
+            />
           </div>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="floor">Patro:</label>
-            <input name="floor" id="floor" value={form.floor} onChange={handleChange} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+            <label htmlFor="floor" style={{ fontWeight: 600 }}>Patro</label>
+            <input
+              name="floor"
+              id="floor"
+              value={form.floor}
+              onChange={handleChange}
+              placeholder="Např. 2"
+              style={{ padding: 12, borderRadius: 8, border: "1px solid #eee", fontSize: 16 }}
+            />
           </div>
         </div>
         <div style={{ display: "flex", gap: 16 }}>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="area">Plocha (m²):</label>
-            <input name="area" id="area" value={form.area} onChange={handleChange} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+            <label htmlFor="area" style={{ fontWeight: 600 }}>Plocha (m²)</label>
+            <input
+              name="area"
+              id="area"
+              value={form.area}
+              onChange={handleChange}
+              placeholder="Např. 56"
+              style={{ padding: 12, borderRadius: 8, border: "1px solid #eee", fontSize: 16 }}
+            />
           </div>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="description">Popis:</label>
-            <textarea name="description" id="description" value={form.description} onChange={handleChange} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+            <label htmlFor="description" style={{ fontWeight: 600 }}>Popis (volitelný)</label>
+            <textarea
+              name="description"
+              id="description"
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Např. Byt s balkonem, nově vymalováno..."
+              style={{ padding: 12, borderRadius: 8, border: "1px solid #eee", fontSize: 16, resize: "vertical", minHeight: 48 }}
+            />
           </div>
         </div>
-        <button type="submit" style={{ marginTop: 16, padding: "8px 16px" }}>Přidat jednotku</button>
+        <button type="submit" style={{
+          marginTop: 8,
+          padding: "14px 0",
+          fontSize: 18,
+          fontWeight: 600,
+          color: "#fff",
+          background: "#2563eb",
+          borderRadius: 8,
+          border: "none",
+          cursor: "pointer"
+        }}>Přidat jednotku</button>
       </form>
-    </main>
+    </div>
   );
 }
