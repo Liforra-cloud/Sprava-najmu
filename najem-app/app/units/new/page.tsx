@@ -18,6 +18,7 @@ export default function NewUnitPage() {
   const [deposit, setDeposit] = useState<number | null>(null)
   const [propertyId, setPropertyId] = useState('')
   const [properties, setProperties] = useState<Property[]>([])
+  const [success, setSuccess] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -27,9 +28,7 @@ export default function NewUnitPage() {
         console.error('Chyba při načítání nemovitostí:', error)
       } else {
         setProperties(data || [])
-        if (data && data.length > 0) {
-          setPropertyId(data[0].id)
-        }
+        if (data && data.length > 0) setPropertyId(data[0].id)
       }
     }
     fetchProperties()
@@ -38,36 +37,48 @@ export default function NewUnitPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!propertyId) {
-      alert('Musíte vybrat nemovitost.')
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      alert('Nepodařilo se zjistit uživatele.')
       return
     }
 
-    const newUnit = {
-      property_id: propertyId,
-      identifier,
-      floor: floor ?? null,
-      disposition,
-      area: area ?? null,
-      monthly_rent: monthlyRent ?? null,
-      deposit: deposit ?? null
-    }
-
-    console.log('Vkládám jednotku:', newUnit)
-
-    const { error } = await supabase.from('units').insert([newUnit])
+    const { error } = await supabase.from('units').insert([
+      {
+        property_id: propertyId,
+        identifier,
+        floor,
+        disposition,
+        area,
+        monthly_rent: monthlyRent,
+        deposit,
+        user_id: user.id, // <- důležité!
+      },
+    ])
 
     if (error) {
       console.error('Chyba při ukládání jednotky:', error)
       alert('Nepodařilo se přidat jednotku.')
     } else {
-      router.push('/units')
+      setSuccess(true)
+      setTimeout(() => router.push('/units'), 2000)
     }
   }
 
   return (
     <div className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Přidat jednotku</h1>
+
+      {success && (
+        <p className="mb-4 text-green-600 font-medium">
+          ✅ Jednotka byla úspěšně přidána.
+        </p>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block font-medium">Nemovitost</label>
@@ -75,6 +86,7 @@ export default function NewUnitPage() {
             value={propertyId}
             onChange={(e) => setPropertyId(e.target.value)}
             className="w-full border p-2 rounded"
+            required
           >
             {properties.map((prop) => (
               <option key={prop.id} value={prop.id}>
