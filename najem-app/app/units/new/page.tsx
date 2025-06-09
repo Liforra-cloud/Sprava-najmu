@@ -42,8 +42,8 @@ export default function NewUnitPage() {
       error: userError,
     } = await supabase.auth.getUser()
 
-    if (userError || !user) {
-      alert('Nepodařilo se zjistit uživatele.')
+    if (!user || userError) {
+      alert('Nelze přidat jednotku – nejste přihlášen.')
       return
     }
 
@@ -56,7 +56,7 @@ export default function NewUnitPage() {
         area,
         monthly_rent: monthlyRent,
         deposit,
-        user_id: user.id, // <- důležité!
+        user_id: user.id,
       },
     ])
 
@@ -65,20 +65,15 @@ export default function NewUnitPage() {
       alert('Nepodařilo se přidat jednotku.')
     } else {
       setSuccess(true)
-      setTimeout(() => router.push('/units'), 2000)
+      setTimeout(() => {
+        router.push('/units')
+      }, 2000)
     }
   }
 
   return (
     <div className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Přidat jednotku</h1>
-
-      {success && (
-        <p className="mb-4 text-green-600 font-medium">
-          ✅ Jednotka byla úspěšně přidána.
-        </p>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block font-medium">Nemovitost</label>
@@ -172,6 +167,10 @@ export default function NewUnitPage() {
         >
           Uložit jednotku
         </button>
+
+        {success && (
+          <p className="text-green-600 mt-2">✅ Jednotka byla úspěšně přidána.</p>
+        )}
       </form>
     </div>
   )
