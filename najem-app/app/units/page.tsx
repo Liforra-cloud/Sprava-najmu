@@ -1,10 +1,20 @@
 // app/units/page.tsx
-"use client";
 
+"use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
+type Unit = {
+  id: string;
+  property_id: string;
+  unit_number: string;
+  floor: string;
+  area: string;
+  description: string;
+};
+
 export default function UnitsPage() {
-  const [units, setUnits] = useState<any[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
 
   useEffect(() => {
     fetch("/api/units")
@@ -13,16 +23,17 @@ export default function UnitsPage() {
   }, []);
 
   return (
-    <div>
+    <main>
       <h1>Jednotky</h1>
-      <a href="/units/add">Přidat jednotku</a>
+      <Link href="/units/new">Přidat jednotku</Link>
       <ul>
         {units.map((unit) => (
           <li key={unit.id}>
-            <strong>{unit.unit_number}</strong> – {unit.floor}. patro, {unit.area} m², {unit.description}
+            <strong>{unit.unit_number}</strong> – {unit.floor}. patro, {unit.area} m², {unit.description}{" "}
+            <Link href={`/units/${unit.id}`}>Editovat</Link>
           </li>
         ))}
       </ul>
-    </div>
+    </main>
   );
 }
