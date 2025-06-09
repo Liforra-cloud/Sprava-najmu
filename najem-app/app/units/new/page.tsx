@@ -2,16 +2,35 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+
+const OCCUPANCY_STATUS = [
+  { value: 'volné', label: 'Volné' },
+  { value: 'obsazené', label: 'Obsazené' },
+  { value: 'pronajato', label: 'Pronajato' },
+]
 
 export default function NewUnitPage() {
   const router = useRouter()
-  const [unitNumber, setUnitNumber] = useState('')
+  const [properties, setProperties] = useState<{ id: string; name: string }[]>([])
+  const [propertyId, setPropertyId] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [floor, setFloor] = useState('')
+  const [disposition, setDisposition] = useState('')
   const [area, setArea] = useState('')
+  const [occupancyStatus, setOccupancyStatus] = useState('volné')
+  const [monthlyRent, setMonthlyRent] = useState('')
+  const [deposit, setDeposit] = useState('')
   const [description, setDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Načíst seznam nemovitostí pro výběr
+  useEffect(() => {
+    fetch('/api/properties')
+      .then(res => res.json())
+      .then(data => setProperties(data))
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,9 +41,14 @@ export default function NewUnitPage() {
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        unit_number: unitNumber,
-        floor,
-        area,
+        property_id: propertyId,
+        identifier,
+        floor: floor ? Number(floor) : null,
+        disposition,
+        area: area ? Number(area) : null,
+        occupancy_status: occupancyStatus,
+        monthly_rent: monthlyRent ? Number(monthlyRent) : null,
+        deposit: deposit ? Number(deposit) : null,
         description,
       }),
     })
@@ -44,16 +68,33 @@ export default function NewUnitPage() {
       <h1 className="text-2xl font-bold mb-4">Přidat jednotku</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="unit_number" className="block text-sm font-medium text-gray-700">
-            Číslo jednotky
+          <label htmlFor="property_id" className="block text-sm font-medium text-gray-700">
+            Nemovitost
+          </label>
+          <select
+            id="property_id"
+            required
+            value={propertyId}
+            onChange={e => setPropertyId(e.target.value)}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          >
+            <option value="">Vyberte nemovitost</option>
+            {properties.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="identifier" className="block text-sm font-medium text-gray-700">
+            Označení jednotky
           </label>
           <input
-            id="unit_number"
+            id="identifier"
             type="text"
             required
-            value={unitNumber}
-            onChange={(e) => setUnitNumber(e.target.value)}
-            placeholder="Např. 1A, 2.05, Byt 3"
+            value={identifier}
+            onChange={e => setIdentifier(e.target.value)}
+            placeholder="Např. Byt 1A"
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
         </div>
@@ -63,10 +104,23 @@ export default function NewUnitPage() {
           </label>
           <input
             id="floor"
-            type="text"
+            type="number"
             value={floor}
-            onChange={(e) => setFloor(e.target.value)}
+            onChange={e => setFloor(e.target.value)}
             placeholder="Např. 2"
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="disposition" className="block text-sm font-medium text-gray-700">
+            Dispozice (např. 2+kk)
+          </label>
+          <input
+            id="disposition"
+            type="text"
+            value={disposition}
+            onChange={e => setDisposition(e.target.value)}
+            placeholder="Např. 2+kk"
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
         </div>
@@ -76,10 +130,54 @@ export default function NewUnitPage() {
           </label>
           <input
             id="area"
-            type="text"
+            type="number"
+            step="0.01"
             value={area}
-            onChange={(e) => setArea(e.target.value)}
-            placeholder="Např. 56"
+            onChange={e => setArea(e.target.value)}
+            placeholder="Např. 56.2"
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="occupancy_status" className="block text-sm font-medium text-gray-700">
+            Stav obsazenosti
+          </label>
+          <select
+            id="occupancy_status"
+            value={occupancyStatus}
+            onChange={e => setOccupancyStatus(e.target.value)}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          >
+            {OCCUPANCY_STATUS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="monthly_rent" className="block text-sm font-medium text-gray-700">
+            Měsíční nájem (Kč)
+          </label>
+          <input
+            id="monthly_rent"
+            type="number"
+            step="0.01"
+            value={monthlyRent}
+            onChange={e => setMonthlyRent(e.target.value)}
+            placeholder="Např. 14500"
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="deposit" className="block text-sm font-medium text-gray-700">
+            Kauce (Kč)
+          </label>
+          <input
+            id="deposit"
+            type="number"
+            step="0.01"
+            value={deposit}
+            onChange={e => setDeposit(e.target.value)}
+            placeholder="Např. 20000"
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
         </div>
@@ -90,8 +188,8 @@ export default function NewUnitPage() {
           <textarea
             id="description"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Např. Byt s balkonem, nově vymalováno..."
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Např. Byt s lodžií, nová kuchyňská linka…"
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
             rows={3}
           />
