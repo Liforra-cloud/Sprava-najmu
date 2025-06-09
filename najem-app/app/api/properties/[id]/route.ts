@@ -1,7 +1,7 @@
 // app/api/properties/[id]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabaseClient'
+import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: 'Missing ID in request' }, { status: 400 })
   }
+
+  const supabase = supabaseRouteClient()
 
   const { data, error } = await supabase
     .from('properties')
@@ -49,6 +51,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Missing ID in request' }, { status: 400 })
   }
 
+  const supabase = supabaseRouteClient()
   const updates = await request.json()
 
   const { data, error } = await supabase
