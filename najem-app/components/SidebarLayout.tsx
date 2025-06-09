@@ -1,29 +1,14 @@
-'use client'
-
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
 import { LogOut } from 'lucide-react'
 
-export default function SidebarLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser()
-      if (!error && user) {
-        setUserEmail(user.email ?? null)
-      }
-    }
-    fetchUser()
-  }, [])
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/login'
-  }
+export default function SidebarLayout({
+  children,
+  userEmail,
+}: {
+  children: React.ReactNode
+  userEmail: string | null
+}) {
+  // handleLogout by měl být také serverově, ale pro základ může zůstat client logout/redirect
 
   const navItems = [
     { href: '/', label: 'Dashboard' },
@@ -44,7 +29,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                 key={href}
                 href={href}
                 className={`block px-3 py-2 rounded transition ${
-                  pathname === href ? 'bg-blue-600 text-white' : 'text-gray-800 hover:bg-gray-200'
+                  // active link logic...
+                  ''
                 }`}
               >
                 {label}
@@ -54,16 +40,15 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         </div>
         <div className="mt-4 text-sm text-gray-700">
           {userEmail && <div className="mb-2 truncate">{userEmail}</div>}
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-red-600 hover:underline"
-          >
-            <LogOut className="w-4 h-4" />
-            Odhlásit se
-          </button>
+          {/* Logout button může být client-side, nebo můžeš řešit server action pro odhlášení */}
+          <form action="/api/logout" method="POST">
+            <button className="flex items-center gap-2 text-red-600 hover:underline">
+              <LogOut className="w-4 h-4" />
+              Odhlásit se
+            </button>
+          </form>
         </div>
       </aside>
-
       <main className="flex-1 overflow-y-auto p-6">{children}</main>
     </div>
   )
