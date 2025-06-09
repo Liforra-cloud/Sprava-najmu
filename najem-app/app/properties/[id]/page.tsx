@@ -1,8 +1,9 @@
+// app/properties/[id]/page.tsx
+
 'use client'
 
 import { notFound } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
 import { Pencil, X } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -43,43 +44,20 @@ export default function Page({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     const fetchProperty = async () => {
-      const { data: prop, error } = await supabase
-        .from('properties')
-        .select(`
-          id,
-          name,
-          address,
-          description,
-          date_added,
-          units (
-            id,
-            identifier,
-            floor,
-            disposition,
-            area,
-            occupancy_status,
-            monthly_rent,
-            deposit,
-            date_added
-          )
-        `)
-        .eq('id', id)
-        .single<Property>()
-
-      if (error || !prop) {
-        console.error(error)
+      const res = await fetch(`/api/properties/${id}`, { credentials: 'include' })
+      if (!res.ok) {
         notFound()
-      } else {
-        setProperty(prop)
-        setEditedData({
-          name: prop.name,
-          address: prop.address,
-          description: prop.description || '',
-          date_added: prop.date_added.split('T')[0]
-        })
+        return
       }
+      const prop = await res.json()
+      setProperty(prop)
+      setEditedData({
+        name: prop.name,
+        address: prop.address,
+        description: prop.description || '',
+        date_added: prop.date_added?.split('T')[0] || ''
+      })
     }
-
     fetchProperty()
   }, [id])
 
@@ -91,6 +69,7 @@ export default function Page({ params }: { params: { id: string } }) {
       const res = await fetch(`/api/properties/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(editedData)
       })
 
