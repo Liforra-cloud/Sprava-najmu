@@ -1,10 +1,4 @@
-// app/dashboard/layout.tsx
-
-import { ReactNode } from 'react'
-import { redirect } from 'next/navigation'
-import { supabaseServerClient } from '@/lib/supabaseServerClient'
-import SidebarLayout from '@/components/SidebarLayout'
-
+// app/dashboard/page.tsx
 
 export default function DashboardPage() {
   return (
@@ -15,4 +9,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
