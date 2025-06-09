@@ -12,7 +12,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="cs">
       <body>
-        <h1 style={{color: 'red', background: 'yellow'}}>ROOT LAYOUT DEBUG</h1>
         {children}
       </body>
     </html>
