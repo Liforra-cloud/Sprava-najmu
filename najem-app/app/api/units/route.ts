@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export async function GET(request: Request) {
+export async function GET() {
   // Načtení všech jednotek pro přihlášeného uživatele
   // (v reálné appce použít session, tady pro ukázku neřeším autorizaci)
   const { data, error } = await supabase
