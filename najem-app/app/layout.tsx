@@ -2,21 +2,18 @@
 
 import './globals.css'
 import { ReactNode } from 'react'
-import SidebarLayout from '@/components/SidebarLayout'
 
 export const metadata = {
   title: 'Správa nájmů',
   description: 'Aplikace pro správu nemovitostí a nájmů',
 }
 
-// Toto použij jen pro chráněné stránky! (ne pro /login, /register)
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="cs">
       <body>
-        <SidebarLayout>
-          {children}
-        </SidebarLayout>
+        <h1 style={{color: 'red', background: 'yellow'}}>ROOT LAYOUT DEBUG</h1>
+        {children}
       </body>
     </html>
   )
