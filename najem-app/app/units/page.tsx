@@ -1,109 +1,67 @@
+// app/units/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabaseClient'
 
-interface Unit {
+type unit = {
   id: string
-  identifier: string
-  floor: number | null
-  disposition: string
-  area: number | null
-  occupancy_status: string | null
-  monthly_rent: number | null
-  deposit: number | null
-  date_added: string
-  property: {
-    name: string
-  } | null
+  name: string
+  address: string
+  description?: string
 }
 
-interface RawUnit extends Omit<Unit, 'property'> {
-  property: { name: string }[] // Supabase může vracet jako pole
-}
-
-export default function UnitsPage() {
-  const [units, setUnits] = useState<Unit[]>([])
-  const [loading, setLoading] = useState(true)
+export default function unitsPage() {
+  const [list, setList] = useState<unit[]>([])
+  const [error, setError] = useState<string>('')
 
   useEffect(() => {
-    const fetchUnits = async () => {
-      const { data, error } = await supabase
-        .from('units')
-        .select(`
-          id,
-          identifier,
-          floor,
-          disposition,
-          area,
-          occupancy_status,
-          monthly_rent,
-          deposit,
-          date_added,
-          property(name)
-        `)
-
-      if (error) {
-        console.error('Chyba při načítání jednotek:', error)
-      } else if (data) {
-        const normalized = (data as RawUnit[]).map((unit) => ({
-          ...unit,
-          property: Array.isArray(unit.property) ? unit.property[0] : unit.property,
-        }))
-        setUnits(normalized)
-      }
-
-      setLoading(false)
-    }
-
-    fetchUnits()
+    fetch('/api/units')
+      .then(async res => {
+        const json = await res.json()
+        if (res.ok && Array.isArray(json)) {
+          setList(json)
+        } else {
+          throw new Error(json.error || 'Chyba při načítání')
+        }
+      })
+      .catch(err => setError(err.message))
   }, [])
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Jednotky</h1>
-        <Link
-          href="/units/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-        >
-          Přidat jednotku
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-3xl font-bold">Nemovitosti</h1>
+        <Link href="/units/new">
+          <button className="bg-green-600 text-white px-4 py-2 rounded">
+            Přidat nemovitost
+          </button>
         </Link>
       </div>
 
-      {loading ? (
-        <p>Načítání...</p>
-      ) : units.length === 0 ? (
-        <p>Žádné jednotky nenalezeny.</p>
-      ) : (
-        <table className="min-w-full table-auto border border-gray-300">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border p-2 text-left">Identifikátor</th>
-              <th className="border p-2 text-left">Nemovitost</th>
-              <th className="border p-2 text-left">Podlaží</th>
-              <th className="border p-2 text-left">Dispozice</th>
-              <th className="border p-2 text-left">Výmera</th>
-              <th className="border p-2 text-left">Nájem</th>
-              <th className="border p-2 text-left">Kauce</th>
-            </tr>
-          </thead>
-          <tbody>
-            {units.map((unit) => (
-              <tr key={unit.id}>
-                <td className="border p-2">{unit.identifier}</td>
-                <td className="border p-2">{unit.property?.name ?? '-'}</td>
-                <td className="border p-2">{unit.floor ?? '-'}</td>
-                <td className="border p-2">{unit.disposition}</td>
-                <td className="border p-2">{unit.area ?? '-'} m²</td>
-                <td className="border p-2">{unit.monthly_rent?.toLocaleString() ?? '-'} Kč</td>
-                <td className="border p-2">{unit.deposit?.toLocaleString() ?? '-'} Kč</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      {error && <p className="text-red-600 mb-4">{error}</p>}
+
+      <ul className="space-y-4">
+        {list.map(prop => (
+          <li
+            key={prop.id}
+            className="p-4 border rounded flex justify-between items-start"
+          >
+            <div>
+              <h2 className="font-bold text-xl">{prop.name}</h2>
+              <p className="text-sm text-gray-600">{prop.address}</p>
+              {prop.description && (
+                <p className="mt-2 text-gray-800">{prop.description}</p>
+              )}
+            </div>
+            <Link href={`/units/${prop.id}`}>
+              <button className="bg-gray-200 text-gray-800 px-3 py-1 rounded">
+                Detail
+              </button>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
