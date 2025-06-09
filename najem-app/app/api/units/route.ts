@@ -19,34 +19,43 @@ export async function POST(request: Request) {
     occupancy_status,
     monthly_rent,
     deposit,
-    description
+    description,
   } = body;
 
-  // Debug log
-  console.log('property_id z frontendu:', property_id);
+  // Debug: vypiš co dostáváš z frontendu
+  console.log("property_id z frontendu:", property_id);
 
-  // 1. Ověř, že property_id existuje!
-  const { data: property, error: propertyError } = await supabase
-    .from('properties')
-    .select('id')
-    .eq('id', property_id)
-    .single();
+  // Načti VŠECHNA id z tabulky properties pro extrémní debug
+  const { data: propertyList, error: propertyListError } = await supabase
+    .from("properties")
+    .select("id");
 
-  if (propertyError) {
+  console.log("Seznam všech id z properties:", propertyList);
+  if (propertyListError) {
     return NextResponse.json(
-      { error: 'Chyba při ověřování nemovitosti: ' + propertyError.message },
+      { error: "Chyba při čtení tabulky properties: " + propertyListError.message },
       { status: 500 }
     );
   }
 
-  if (!property) {
+  // Porovnej přesně property_id z frontendu s těmi v DB
+  const exists = propertyList.some((p: any) => String(p.id) === String(property_id));
+  console.log("exists:", exists);
+
+  if (!exists) {
     return NextResponse.json(
-      { error: 'Nemovitost nebyla nalezena. Nejprve založ nemovitost, ke které chceš jednotku přiřadit. property_id=' + property_id },
+      {
+        error:
+          "Nemovitost nebyla nalezena (ani přes přímé porovnání). property_id=" +
+          property_id +
+          ". Všechny id v DB: " +
+          propertyList.map((p: any) => p.id).join(", "),
+      },
       { status: 400 }
     );
   }
 
-  // 2. Uložení jednotky pokračuje až po kontrole property_id
+  // Pokud existuje, proveď insert do units
   const { data, error } = await supabase
     .from("units")
     .insert([
@@ -60,7 +69,7 @@ export async function POST(request: Request) {
         monthly_rent,
         deposit,
         description,
-      }
+      },
     ])
     .select()
     .single();
@@ -68,5 +77,6 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
   return NextResponse.json(data);
 }
