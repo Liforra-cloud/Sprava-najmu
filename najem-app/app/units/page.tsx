@@ -19,6 +19,10 @@ interface Unit {
   } | null
 }
 
+interface RawUnit extends Omit<Unit, 'property'> {
+  property: { name: string }[] // Supabase může vracet jako pole
+}
+
 export default function UnitsPage() {
   const [units, setUnits] = useState<Unit[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,15 +41,17 @@ export default function UnitsPage() {
           monthly_rent,
           deposit,
           date_added,
-          property (
-            name
-          )
+          property(name)
         `)
 
       if (error) {
         console.error('Chyba při načítání jednotek:', error)
       } else if (data) {
-        setUnits(data)
+        const normalized = (data as RawUnit[]).map((unit) => ({
+          ...unit,
+          property: Array.isArray(unit.property) ? unit.property[0] : unit.property,
+        }))
+        setUnits(normalized)
       }
 
       setLoading(false)
