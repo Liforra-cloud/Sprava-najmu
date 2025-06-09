@@ -29,30 +29,34 @@ export default function AddUnitPage() {
   };
 
   return (
-    <main>
-      <h1>Přidat jednotku</h1>
-      <form onSubmit={handleSubmit}>
-        <label>
-          ID nemovitosti (property_id):
-          <input name="property_id" value={form.property_id} onChange={handleChange} required />
-        </label>
-        <label>
-          Číslo jednotky:
-          <input name="unit_number" value={form.unit_number} onChange={handleChange} required />
-        </label>
-        <label>
-          Patro:
-          <input name="floor" value={form.floor} onChange={handleChange} />
-        </label>
-        <label>
-          Plocha (m²):
-          <input name="area" value={form.area} onChange={handleChange} />
-        </label>
-        <label>
-          Popis:
-          <textarea name="description" value={form.description} onChange={handleChange} />
-        </label>
-        <button type="submit">Přidat jednotku</button>
+    <main style={{ maxWidth: 500, margin: "0 auto" }}>
+      <h1 style={{ marginBottom: 24 }}>Přidat jednotku</h1>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label htmlFor="property_id">ID nemovitosti (property_id):</label>
+          <input name="property_id" id="property_id" value={form.property_id} onChange={handleChange} required />
+        </div>
+        <div style={{ display: "flex", gap: 16 }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+            <label htmlFor="unit_number">Číslo jednotky:</label>
+            <input name="unit_number" id="unit_number" value={form.unit_number} onChange={handleChange} required />
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+            <label htmlFor="floor">Patro:</label>
+            <input name="floor" id="floor" value={form.floor} onChange={handleChange} />
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 16 }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+            <label htmlFor="area">Plocha (m²):</label>
+            <input name="area" id="area" value={form.area} onChange={handleChange} />
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+            <label htmlFor="description">Popis:</label>
+            <textarea name="description" id="description" value={form.description} onChange={handleChange} />
+          </div>
+        </div>
+        <button type="submit" style={{ marginTop: 16, padding: "8px 16px" }}>Přidat jednotku</button>
       </form>
     </main>
   );
