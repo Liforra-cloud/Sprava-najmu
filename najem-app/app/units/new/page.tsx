@@ -25,7 +25,7 @@ export default function NewUnitPage() {
   const [description, setDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Načte properties pro select
+  // Načíst properties pro select
   useEffect(() => {
     fetch('/api/properties')
       .then(res => res.json())
@@ -36,12 +36,22 @@ export default function NewUnitPage() {
     e.preventDefault()
     setIsSubmitting(true)
 
+    // Debug: vypiš propertyId
+    console.log('propertyId:', propertyId)
+
+    // Kontrola propertyId (musí být zvolená)
+    if (!propertyId) {
+      alert('Nejprve vyber nemovitost.')
+      setIsSubmitting(false)
+      return
+    }
+
     const res = await fetch('/api/units', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        property_id: propertyId,
+        property_id: propertyId, // POZOR: opravdu UUID!
         identifier,
         floor: floor ? Number(floor) : null,
         disposition,
@@ -53,11 +63,11 @@ export default function NewUnitPage() {
       }),
     })
 
+    const data = await res.json()
     if (res.ok) {
       router.push('/units')
     } else {
-      const errorData = await res.json()
-      alert(errorData.error || 'Nepodařilo se přidat jednotku.')
+      alert(data.error || 'Nepodařilo se přidat jednotku.')
     }
 
     setIsSubmitting(false)
@@ -79,8 +89,10 @@ export default function NewUnitPage() {
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           >
             <option value="">Vyberte nemovitost</option>
-            {properties.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+            {properties.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
             ))}
           </select>
         </div>
