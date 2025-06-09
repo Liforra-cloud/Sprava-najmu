@@ -3,6 +3,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// Typ pro property (můžeš upravit podle své struktury)
+type Property = { id: string };
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -25,7 +28,7 @@ export async function POST(request: Request) {
   // Debug: vypiš co dostáváš z frontendu
   console.log("property_id z frontendu:", property_id);
 
-  // Načti VŠECHNA id z tabulky properties pro extrémní debug
+  // Načti všechna id z tabulky properties
   const { data: propertyList, error: propertyListError } = await supabase
     .from("properties")
     .select("id");
@@ -38,8 +41,8 @@ export async function POST(request: Request) {
     );
   }
 
-  // Porovnej přesně property_id z frontendu s těmi v DB
-  const exists = propertyList.some((p: any) => String(p.id) === String(property_id));
+  // Typování propertyList
+  const exists = (propertyList as Property[]).some((p) => String(p.id) === String(property_id));
   console.log("exists:", exists);
 
   if (!exists) {
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
           "Nemovitost nebyla nalezena (ani přes přímé porovnání). property_id=" +
           property_id +
           ". Všechny id v DB: " +
-          propertyList.map((p: any) => p.id).join(", "),
+          (propertyList as Property[]).map((p) => p.id).join(", "),
       },
       { status: 400 }
     );
