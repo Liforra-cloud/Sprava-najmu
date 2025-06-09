@@ -16,11 +16,7 @@ interface Unit {
   date_added: string
   property: {
     name: string
-  }
-}
-
-interface RawUnit extends Omit<Unit, 'property'> {
-  property: { name: string }[] | { name: string }
+  } | null
 }
 
 export default function UnitsPage() {
@@ -31,18 +27,25 @@ export default function UnitsPage() {
     const fetchUnits = async () => {
       const { data, error } = await supabase
         .from('units')
-        .select(
-          'id, identifier, floor, disposition, area, occupancy_status, monthly_rent, deposit, date_added, property(name)'
-        )
+        .select(`
+          id,
+          identifier,
+          floor,
+          disposition,
+          area,
+          occupancy_status,
+          monthly_rent,
+          deposit,
+          date_added,
+          property (
+            name
+          )
+        `)
 
       if (error) {
         console.error('Chyba při načítání jednotek:', error)
       } else if (data) {
-        const normalizedData = (data as RawUnit[]).map((unit) => ({
-          ...unit,
-          property: Array.isArray(unit.property) ? unit.property[0] : unit.property,
-        }))
-        setUnits(normalizedData)
+        setUnits(data)
       }
 
       setLoading(false)
@@ -84,7 +87,7 @@ export default function UnitsPage() {
             {units.map((unit) => (
               <tr key={unit.id}>
                 <td className="border p-2">{unit.identifier}</td>
-                <td className="border p-2">{unit.property?.name}</td>
+                <td className="border p-2">{unit.property?.name ?? '-'}</td>
                 <td className="border p-2">{unit.floor ?? '-'}</td>
                 <td className="border p-2">{unit.disposition}</td>
                 <td className="border p-2">{unit.area ?? '-'} m²</td>
