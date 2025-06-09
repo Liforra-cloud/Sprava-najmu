@@ -1,5 +1,6 @@
 // app/api/properties/route.ts
-import { NextResponse } from 'next/server'
+
+import { NextRequest, NextResponse } from 'next/server'
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
 export async function GET() {
@@ -17,6 +18,40 @@ export async function GET() {
     .from('properties')
     .select('id, name, address, description')
     .eq('user_id', session.user.id)
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json(data)
+}
+
+// Přidej tento POST handler:
+export async function POST(request: NextRequest) {
+  const supabase = supabaseRouteClient()
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (!session) {
+    return NextResponse.json({ error: 'Nelze zjistit přihlášeného uživatele.' }, { status: 401 })
+  }
+
+  const { name, address, description } = await request.json()
+
+  const { data, error } = await supabase
+    .from('properties')
+    .insert([
+      {
+        name,
+        address,
+        description,
+        user_id: session.user.id,
+      },
+    ])
+    .select()
+    .single()
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
