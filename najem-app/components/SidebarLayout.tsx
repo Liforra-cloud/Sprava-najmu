@@ -1,15 +1,21 @@
 // components/SidebarLayout.tsx
 
+import { redirect } from 'next/navigation'
+import { supabaseServerClient } from '@/lib/supabaseServerClient'
 import Link from 'next/link'
 import { LogOut } from 'lucide-react'
 
-export default function SidebarLayout({
-  children,
-  userEmail,
-}: {
-  children: React.ReactNode
-  userEmail: string | null
-}) {
+export default async function SidebarLayout({ children }: { children: React.ReactNode }) {
+  // Načti uživatele serverově
+  const supabase = supabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Pokud není user, redirect na login
+  if (!user) {
+    redirect('/login')
+  }
+
+  // Zbytek sidebaru jako dřív – user je zaručeně přihlášen
   const navItems = [
     { href: '/', label: 'Dashboard' },
     { href: '/properties', label: 'Nemovitosti' },
@@ -28,7 +34,7 @@ export default function SidebarLayout({
               <Link
                 key={href}
                 href={href}
-                className={`block px-3 py-2 rounded transition`}
+                className="block px-3 py-2 rounded transition"
               >
                 {label}
               </Link>
@@ -36,7 +42,7 @@ export default function SidebarLayout({
           </nav>
         </div>
         <div className="mt-4 text-sm text-gray-700">
-          {userEmail && <div className="mb-2 truncate">{userEmail}</div>}
+          {user.email && <div className="mb-2 truncate">{user.email}</div>}
           <form action="/api/logout" method="POST">
             <button className="flex items-center gap-2 text-red-600 hover:underline">
               <LogOut className="w-4 h-4" />
