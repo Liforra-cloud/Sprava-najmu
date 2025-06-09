@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     .single()
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message || 'Property not found' }, { status: 500 })
+    return NextResponse.json({ error: error?.message || 'unit not found' }, { status: 500 })
   }
 
   return NextResponse.json(data, { status: 200 })
@@ -79,7 +79,7 @@ export async function PATCH(request: NextRequest) {
     .single()
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message || 'Failed to update property' }, { status: 500 })
+    return NextResponse.json({ error: error?.message || 'Failed to update unit' }, { status: 500 })
   }
 
   return NextResponse.json(data, { status: 200 })
