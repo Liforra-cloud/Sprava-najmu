@@ -1,198 +1,91 @@
 // app/units/[id]/page.tsx
 
-'use client'
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 
-import { notFound } from 'next/navigation'
-import { useState, useEffect } from 'react'
-import { Pencil, X } from 'lucide-react'
+export default function EditUnitPage() {
+  const router = useRouter();
+  const params = useParams();
+  const { id } = params;
 
-export const dynamic = 'force-dynamic'
-
-interface Unit {
-  id: string
-  identifier: string
-  floor: number
-  disposition: string
-  area: number
-  occupancy_status: string
-  monthly_rent: number
-  deposit: number
-  date_added: string
-}
-
-interface unit {
-  id: string
-  name: string
-  address: string
-  description: string | null
-  date_added: string
-  units: Unit[]
-}
-
-export default function Page({ params }: { params: { id: string } }) {
-  const { id } = params
-  const [unit, setunit] = useState<unit | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedData, setEditedData] = useState({
-    name: '',
-    address: '',
-    description: '',
-    date_added: ''
-  })
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [form, setForm] = useState({
+    property_id: "",
+    unit_number: "",
+    floor: "",
+    area: "",
+    description: ""
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchunit = async () => {
-      const res = await fetch(`/api/units/${id}`, { credentials: 'include' })
-      if (!res.ok) {
-        notFound()
-        return
+    async function fetchUnit() {
+      const res = await fetch(`/api/units/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setForm({
+          property_id: data.property_id || "",
+          unit_number: data.unit_number || "",
+          floor: data.floor || "",
+          area: data.area || "",
+          description: data.description || ""
+        });
       }
-      const prop = await res.json()
-      setunit(prop)
-      setEditedData({
-        name: prop.name,
-        address: prop.address,
-        description: prop.description || '',
-        date_added: prop.date_added?.split('T')[0] || ''
-      })
+      setLoading(false);
     }
-    fetchunit()
-  }, [id])
+    if (id) fetchUnit();
+  }, [id]);
 
-  const handleSave = async () => {
-    setIsSaving(true)
-    setSaveSuccess(false)
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-    try {
-      const res = await fetch(`/api/units/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(editedData)
-      })
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await fetch(`/api/units/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form)
+    });
+    router.push("/units");
+  };
 
-      if (!res.ok) throw new Error('Chyba při ukládání')
-
-      const updated = await res.json()
-      setunit({ ...unit!, ...updated })
-      setSaveSuccess(true)
-      setIsEditing(false)
-      setTimeout(() => setSaveSuccess(false), 3000)
-    } catch (err) {
-      console.error(err)
-      alert('Nepodařilo se uložit změnu.')
-    } finally {
-      setIsSaving(false)
+  const handleDelete = async () => {
+    if (confirm("Opravdu smazat tuto jednotku?")) {
+      await fetch(`/api/units/${id}`, { method: "DELETE" });
+      router.push("/units");
     }
-  }
+  };
 
-  if (!unit) return <p>Načítání...</p>
+  if (loading) return <div>Načítání...</div>;
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center space-x-2">
-        <h1 className="text-3xl font-bold">
-          {isEditing ? (
-            <input
-              value={editedData.name}
-              onChange={(e) =>
-                setEditedData((d) => ({ ...d, name: e.target.value }))
-              }
-              className="border px-2 py-1 rounded text-xl"
-            />
-          ) : (
-            unit.name
-          )}
-        </h1>
-        <button
-          onClick={() => {
-            setIsEditing(!isEditing)
-            setSaveSuccess(false)
-          }}
-          className="text-blue-600 hover:text-blue-800"
-          title={isEditing ? 'Zrušit úpravu' : 'Upravit informace'}
-        >
-          {isEditing ? <X size={18} /> : <Pencil size={18} />}
-        </button>
-      </div>
-
-      <div>
-        <strong>Adresa:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.address}
-            onChange={(e) =>
-              setEditedData((d) => ({ ...d, address: e.target.value }))
-            }
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          unit.address
-        )}
-      </div>
-
-      <div>
-        <strong>Popis:</strong>{' '}
-        {isEditing ? (
-          <textarea
-            value={editedData.description}
-            onChange={(e) =>
-              setEditedData((d) => ({ ...d, description: e.target.value }))
-            }
-            className="border px-2 py-1 rounded w-full"
-          />
-        ) : (
-          unit.description || '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Přidáno:</strong>{' '}
-        {isEditing ? (
-          <input
-            type="date"
-            value={editedData.date_added}
-            onChange={(e) =>
-              setEditedData((d) => ({ ...d, date_added: e.target.value }))
-            }
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          new Date(unit.date_added).toLocaleDateString()
-        )}
-      </div>
-
-      {isEditing && (
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="mt-2 px-4 py-1 bg-blue-600 text-white rounded"
-        >
-          {isSaving ? 'Ukládám...' : 'Uložit změny'}
-        </button>
-      )}
-
-      {saveSuccess && (
-        <p className="text-green-600 font-medium">✅ Změny byly uloženy.</p>
-      )}
-
-      <h2 className="text-2xl font-semibold mt-4">Jednotky</h2>
-      <ul className="space-y-2">
-        {unit.units?.map((unit: Unit) => (
-          <li key={unit.id} className="border p-4 rounded">
-            <p><strong>Identifikátor:</strong> {unit.identifier}</p>
-            <p><strong>Podlaží:</strong> {unit.floor}</p>
-            <p><strong>Dispozice:</strong> {unit.disposition}</p>
-            <p><strong>Rozloha:</strong> {unit.area} m²</p>
-            <p><strong>Stav obsazenosti:</strong> {unit.occupancy_status}</p>
-            <p><strong>Nájem:</strong> {unit.monthly_rent} Kč</p>
-            <p><strong>Kauce:</strong> {unit.deposit} Kč</p>
-            <p><strong>Přidáno:</strong> {new Date(unit.date_added).toLocaleDateString()}</p>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
+    <main>
+      <h1>Editace jednotky</h1>
+      <form onSubmit={handleSubmit}>
+        <label>
+          ID nemovitosti (property_id):
+          <input name="property_id" value={form.property_id} onChange={handleChange} required />
+        </label>
+        <label>
+          Číslo jednotky:
+          <input name="unit_number" value={form.unit_number} onChange={handleChange} required />
+        </label>
+        <label>
+          Patro:
+          <input name="floor" value={form.floor} onChange={handleChange} />
+        </label>
+        <label>
+          Plocha (m²):
+          <input name="area" value={form.area} onChange={handleChange} />
+        </label>
+        <label>
+          Popis:
+          <textarea name="description" value={form.description} onChange={handleChange} />
+        </label>
+        <button type="submit">Uložit změny</button>
+      </form>
+      <button onClick={handleDelete} style={{ color: "red", marginTop: 12 }}>Smazat jednotku</button>
+    </main>
+  );
 }
