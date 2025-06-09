@@ -9,11 +9,11 @@ export const metadata = {
   description: 'Aplikace pro správu nemovitostí a nájmů',
 }
 
-// Toto použij jen pro chráněné stránky! (ne pro /login, /register)
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="cs">
       <body>
+        <h1 style={{color: 'red', background: 'yellow'}}>ROOT LAYOUT</h1>
         <SidebarLayout>
           {children}
         </SidebarLayout>
