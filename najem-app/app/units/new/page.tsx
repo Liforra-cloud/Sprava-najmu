@@ -32,7 +32,7 @@ export default function NewUnitPage() {
       .then(data => setProperties(data))
   }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {console.log('propertyId:', propertyId);
     e.preventDefault()
     setIsSubmitting(true)
 
