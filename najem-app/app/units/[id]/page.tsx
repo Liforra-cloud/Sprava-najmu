@@ -13,12 +13,12 @@ interface Property {
 interface UnitForm {
   property_id: string;
   identifier: string;
-  floor: number | string;
+  floor: number | '';
   disposition: string;
-  area: number | string;
+  area: number | '';
   occupancy_status: string;
-  monthly_rent: number | string;
-  deposit: number | string;
+  monthly_rent: number | '';
+  deposit: number | '';
   description: string;
 }
 
@@ -51,30 +51,22 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
         ]);
 
         if (!unitRes.ok) throw new Error('Jednotka nenalezena');
-        const unit: unknown = await unitRes.json();
-        const propList: unknown = await propRes.json();
+        const unit: UnitForm = await unitRes.json();
+        const propList: Property[] = await propRes.json();
 
-        // typová kontrola (lze vylepšit dle backendu)
-        if (
-          typeof unit === 'object' &&
-          unit !== null &&
-          'property_id' in unit &&
-          'identifier' in unit
-        ) {
-          setForm({
-            property_id: (unit as any).property_id ?? '',
-            identifier: (unit as any).identifier ?? '',
-            floor: (unit as any).floor ?? '',
-            disposition: (unit as any).disposition ?? '',
-            area: (unit as any).area ?? '',
-            occupancy_status: (unit as any).occupancy_status || 'volné',
-            monthly_rent: (unit as any).monthly_rent ?? '',
-            deposit: (unit as any).deposit ?? '',
-            description: (unit as any).description ?? '',
-          });
-        }
+        setForm({
+          property_id: unit.property_id ?? '',
+          identifier: unit.identifier ?? '',
+          floor: unit.floor ?? '',
+          disposition: unit.disposition ?? '',
+          area: unit.area ?? '',
+          occupancy_status: unit.occupancy_status || 'volné',
+          monthly_rent: unit.monthly_rent ?? '',
+          deposit: unit.deposit ?? '',
+          description: unit.description ?? '',
+        });
 
-        setProperties(Array.isArray(propList) ? (propList as Property[]) : []);
+        setProperties(Array.isArray(propList) ? propList : []);
         setIsLoading(false);
       } catch (err) {
         setError((err as Error).message || 'Chyba při načítání');
@@ -167,7 +159,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           <input
             type="number"
             value={form.floor}
-            onChange={e => setForm(f => ({ ...f, floor: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, floor: Number(e.target.value) }))}
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
         </div>
@@ -190,7 +182,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           <input
             type="number"
             value={form.area}
-            onChange={e => setForm(f => ({ ...f, area: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, area: Number(e.target.value) }))}
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
         </div>
@@ -215,7 +207,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           <input
             type="number"
             value={form.monthly_rent}
-            onChange={e => setForm(f => ({ ...f, monthly_rent: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, monthly_rent: Number(e.target.value) }))}
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
         </div>
@@ -226,7 +218,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           <input
             type="number"
             value={form.deposit}
-            onChange={e => setForm(f => ({ ...f, deposit: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, deposit: Number(e.target.value) }))}
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
         </div>
