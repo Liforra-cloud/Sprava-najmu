@@ -7,7 +7,7 @@ import { useParams } from 'next/navigation'
 
 type Guarantor = {
   name: string
-  [key: string]: any
+  [key: string]: unknown // opraveno z "any" na "unknown"
 }
 
 type Tenant = {
@@ -23,7 +23,7 @@ type Tenant = {
 }
 
 export default function TenantDetailPage() {
-  // ZDE je oprava! useParams() bez generika, s typecastem na Record
+  // použijeme typ Record pro typovou bezpečnost
   const id = (useParams() as Record<string, string>).id
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [isEditing, setIsEditing] = useState(false)
