@@ -4,6 +4,7 @@ import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 export async function POST(request: Request) {
   const supabase = supabaseRouteClient();
   const body = await request.json();
+  console.log("POSTED BODY", body);
   const { property_id, unit_number, floor, area, description } = body;
 
   const {
