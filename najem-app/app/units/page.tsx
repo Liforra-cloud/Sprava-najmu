@@ -7,10 +7,10 @@ import { useEffect, useState } from "react";
 type Unit = {
   id: string;
   property_id: string;
-  unit_number: string;
-  floor: string;
-  area: string;
-  description: string;
+  identifier: string; // změna!
+  floor: number | null;
+  area: number | null;
+  description: string | null;
 };
 
 export default function UnitsPage() {
@@ -29,7 +29,11 @@ export default function UnitsPage() {
       <ul>
         {units.map((unit) => (
           <li key={unit.id}>
-            <strong>{unit.unit_number}</strong> – {unit.floor}. patro, {unit.area} m², {unit.description}{" "}
+            <strong>{unit.identifier}</strong>
+            {unit.floor !== null && <> – {unit.floor}. patro</>}
+            {unit.area !== null && <>, {unit.area} m²</>}
+            {unit.description && <>, {unit.description}</>}
+            {" "}
             <Link href={`/units/${unit.id}`}>Editovat</Link>
           </li>
         ))}
@@ -37,3 +41,4 @@ export default function UnitsPage() {
     </main>
   );
 }
+
