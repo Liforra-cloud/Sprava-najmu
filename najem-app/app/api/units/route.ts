@@ -4,7 +4,11 @@ import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 export async function POST(request: Request) {
   const supabase = supabaseRouteClient();
   const body = await request.json();
+
+  // Debug: vypíšeme si, co fakticky přichází z formuláře
   console.log("POSTED BODY", body);
+
+  // Očekáváme, že frontend pošle unit_number!
   const { property_id, unit_number, floor, area, description } = body;
 
   const {
@@ -20,7 +24,7 @@ export async function POST(request: Request) {
     .from("units")
     .insert({
       property_id,
-      identifier: unit_number, // <<< TADY!
+      identifier: unit_number, // ← toto je KLÍČOVÉ!
       floor,
       area,
       description,
@@ -33,6 +37,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // vrací nově vytvořenou jednotku
   return NextResponse.json(data[0]);
 }
