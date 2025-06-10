@@ -1,9 +1,7 @@
 // lib/supabaseRouteClient.ts
-import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { type Database } from '@/types/supabase'
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 
-export function supabaseRouteClient(cookies: any) {
-  // createRouteHandlerClient automaticky použije ANON_KEY a session z cookies
+export function supabaseRouteClient() {
   return createRouteHandlerClient({ cookies });
 }
