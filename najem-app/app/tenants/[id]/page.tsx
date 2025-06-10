@@ -3,7 +3,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 
 type Tenant = {
   id: string
@@ -19,7 +19,6 @@ type Tenant = {
 
 export default function TenantDetailPage() {
   const id = (useParams() as Record<string, string>).id
-  const router = useRouter()
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -79,13 +78,6 @@ export default function TenantDetailPage() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!confirm('Opravdu smazat tohoto nájemníka?')) return
-    const res = await fetch(`/api/tenants/${id}`, { method: 'DELETE' })
-    if (res.ok) router.push('/tenants')
-    else alert('Smazání selhalo')
-  }
-
   if (!tenant) return <p>Načítání...</p>
 
   return (
@@ -112,12 +104,6 @@ export default function TenantDetailPage() {
         >
           {isEditing ? 'Zrušit' : 'Upravit'}
         </button>
-        <button
-          onClick={handleDelete}
-          className="ml-2 text-red-600 hover:underline"
-        >
-          Smazat
-        </button>
       </div>
 
       <div>
@@ -133,7 +119,6 @@ export default function TenantDetailPage() {
           tenant.email
         )}
       </div>
-
       <div>
         <strong>Telefon:</strong>{' '}
         {isEditing ? (
@@ -146,7 +131,6 @@ export default function TenantDetailPage() {
           tenant.phone || '—'
         )}
       </div>
-
       <div>
         <strong>Rodné číslo:</strong>{' '}
         {isEditing ? (
@@ -159,7 +143,6 @@ export default function TenantDetailPage() {
           tenant.personal_id || '—'
         )}
       </div>
-
       <div>
         <strong>Adresa:</strong>{' '}
         {isEditing ? (
@@ -172,7 +155,6 @@ export default function TenantDetailPage() {
           tenant.address || '—'
         )}
       </div>
-
       <div>
         <strong>Zaměstnavatel:</strong>{' '}
         {isEditing ? (
@@ -185,7 +167,6 @@ export default function TenantDetailPage() {
           tenant.employer || '—'
         )}
       </div>
-
       <div>
         <strong>Poznámka:</strong>{' '}
         {isEditing ? (
@@ -194,18 +175,16 @@ export default function TenantDetailPage() {
             onChange={e => setEditedData(d => ({ ...d, note: e.target.value }))}
             className="border px-2 py-1 rounded w-full"
             rows={2}
-            placeholder="Poznámka k nájemníkovi"
+            placeholder='Poznámka k nájemníkovi'
           />
         ) : (
           tenant.note || '—'
         )}
       </div>
-
       <div>
         <strong>Registrován:</strong>{' '}
         {new Date(tenant.date_registered).toLocaleDateString()}
       </div>
-
       {isEditing && (
         <button
           onClick={handleSave}
@@ -215,7 +194,6 @@ export default function TenantDetailPage() {
           {isSaving ? 'Ukládám...' : 'Uložit změny'}
         </button>
       )}
-
       {saveSuccess && (
         <p className="text-green-600 font-medium">✅ Změny byly uloženy.</p>
       )}
