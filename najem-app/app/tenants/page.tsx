@@ -4,7 +4,18 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import type { Tenant } from '@/types/tenant' // Pokud máš typ bokem
+
+type Tenant = {
+  id: string
+  full_name: string
+  email: string
+  phone?: string
+  personal_id?: string
+  address?: string
+  employer?: string
+  note?: string
+  date_registered: string
+}
 
 export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([])
@@ -53,4 +64,5 @@ export default function TenantsPage() {
     </div>
   )
 }
+
 
