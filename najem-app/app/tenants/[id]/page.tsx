@@ -3,7 +3,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 
 type Tenant = {
   id: string
@@ -19,6 +19,7 @@ type Tenant = {
 
 export default function TenantDetailPage() {
   const id = (useParams() as Record<string, string>).id
+  const router = useRouter()
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -58,18 +59,8 @@ export default function TenantDetailPage() {
   const handleSave = async () => {
     setIsSaving(true)
     setSaveSuccess(false)
-
-    const payload: Omit<Tenant, 'id' | 'date_registered'> = {
-      full_name: editedData.full_name,
-      email: editedData.email,
-      phone: editedData.phone,
-      personal_id: editedData.personal_id,
-      address: editedData.address,
-      employer: editedData.employer,
-      note: editedData.note,
-    }
-
     try {
+      const payload = { ...editedData }
       const res = await fetch(`/api/tenants/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -88,11 +79,112 @@ export default function TenantDetailPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!confirm('Opravdu smazat tohoto nájemníka?')) return
+    const res = await fetch(`/api/tenants/${id}`, { method: 'DELETE' })
+    if (res.ok) router.push('/tenants')
+    else alert('Smazání selhalo')
+  }
+
   if (!tenant) return <p>Načítání...</p>
 
   return (
     <div className="space-y-6 p-6 max-w-xl mx-auto">
-      {/* ...ostatní pole... */}
+      <div className="flex items-center space-x-2">
+        <h1 className="text-3xl font-bold">
+          {isEditing ? (
+            <input
+              value={editedData.full_name}
+              onChange={e => setEditedData(d => ({ ...d, full_name: e.target.value }))}
+              className="border px-2 py-1 rounded text-xl"
+            />
+          ) : (
+            tenant.full_name
+          )}
+        </h1>
+        <button
+          onClick={() => {
+            setIsEditing(!isEditing)
+            setSaveSuccess(false)
+          }}
+          className="text-blue-600 hover:text-blue-800"
+          title={isEditing ? 'Zrušit úpravu' : 'Upravit nájemníka'}
+        >
+          {isEditing ? 'Zrušit' : 'Upravit'}
+        </button>
+        <button
+          onClick={handleDelete}
+          className="ml-2 text-red-600 hover:underline"
+        >
+          Smazat
+        </button>
+      </div>
+
+      <div>
+        <strong>Email:</strong>{' '}
+        {isEditing ? (
+          <input
+            value={editedData.email}
+            onChange={e => setEditedData(d => ({ ...d, email: e.target.value }))}
+            className="border px-2 py-1 rounded"
+            type="email"
+          />
+        ) : (
+          tenant.email
+        )}
+      </div>
+
+      <div>
+        <strong>Telefon:</strong>{' '}
+        {isEditing ? (
+          <input
+            value={editedData.phone}
+            onChange={e => setEditedData(d => ({ ...d, phone: e.target.value }))}
+            className="border px-2 py-1 rounded"
+          />
+        ) : (
+          tenant.phone || '—'
+        )}
+      </div>
+
+      <div>
+        <strong>Rodné číslo:</strong>{' '}
+        {isEditing ? (
+          <input
+            value={editedData.personal_id}
+            onChange={e => setEditedData(d => ({ ...d, personal_id: e.target.value }))}
+            className="border px-2 py-1 rounded"
+          />
+        ) : (
+          tenant.personal_id || '—'
+        )}
+      </div>
+
+      <div>
+        <strong>Adresa:</strong>{' '}
+        {isEditing ? (
+          <input
+            value={editedData.address}
+            onChange={e => setEditedData(d => ({ ...d, address: e.target.value }))}
+            className="border px-2 py-1 rounded"
+          />
+        ) : (
+          tenant.address || '—'
+        )}
+      </div>
+
+      <div>
+        <strong>Zaměstnavatel:</strong>{' '}
+        {isEditing ? (
+          <input
+            value={editedData.employer}
+            onChange={e => setEditedData(d => ({ ...d, employer: e.target.value }))}
+            className="border px-2 py-1 rounded"
+          />
+        ) : (
+          tenant.employer || '—'
+        )}
+      </div>
 
       <div>
         <strong>Poznámka:</strong>{' '}
