@@ -1,10 +1,7 @@
 // app/api/units/route.ts
 
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-// Typ pro property (můžeš upravit podle své struktury)
-type Property = { id: string };
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,42 +22,36 @@ export async function POST(request: Request) {
     description,
   } = body;
 
-  // Debug: vypiš co dostáváš z frontendu
-  console.log("property_id z frontendu:", property_id);
+  // DEBUG: Vypiš property_id, co přijde z frontend
+  console.log('property_id z requestu:', JSON.stringify(property_id));
 
-  // Načti všechna id z tabulky properties
-  const { data: propertyList, error: propertyListError } = await supabase
-    .from("properties")
-    .select("id");
+  // DEBUG: Vypiš všechna id z tabulky properties
+  const allProperties = await supabase.from('properties').select('id');
+  console.log('Všechna id v DB:', allProperties.data);
 
-  console.log("Seznam všech id z properties:", propertyList);
-  if (propertyListError) {
-    return NextResponse.json(
-      { error: "Chyba při čtení tabulky properties: " + propertyListError.message },
-      { status: 500 }
-    );
-  }
+  // Kontrola existence property_id v tabulce properties
+  const { data: property, error: propertyError } = await supabase
+    .from('properties')
+    .select('id')
+    .eq('id', property_id)
+    .single();
 
-  // Typování propertyList
-  const exists = (propertyList as Property[]).some((p) => String(p.id) === String(property_id));
-  console.log("exists:", exists);
+  // DEBUG: Vypiš property a případný error
+  console.log('Výsledek hledání property:', property, propertyError);
 
-  if (!exists) {
+  if (propertyError || !property) {
     return NextResponse.json(
       {
-        error:
-          "Nemovitost nebyla nalezena (ani přes přímé porovnání). property_id=" +
-          property_id +
-          ". Všechny id v DB: " +
-          (propertyList as Property[]).map((p) => p.id).join(", "),
+        error: 'Nemovitost nebyla nalezena (ani přes přímé porovnání).',
+        debug: { property_id, allProperties: allProperties.data, propertyError },
       },
-      { status: 400 }
+      { status: 404 }
     );
   }
 
-  // Pokud existuje, proveď insert do units
+  // Uložení nové jednotky (unit)
   const { data, error } = await supabase
-    .from("units")
+    .from('units')
     .insert([
       {
         property_id,
@@ -78,8 +69,11 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Chyba při ukládání jednotky.', debug: error },
+      { status: 500 }
+    );
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(data, { status: 201 });
 }
