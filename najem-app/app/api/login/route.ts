@@ -1,22 +1,29 @@
-// najem-app/app/api/login/route.ts
+// app/api/login/route.ts
+import { NextResponse } from "next/server";
+import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 
-import { NextRequest, NextResponse } from 'next/server';
-import { supabaseRouteClient } from '@/lib/supabaseRouteClient';
-
-export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { email, password } = body;
+export async function POST(request: Request) {
   const supabase = supabaseRouteClient();
+  const { email, password } = await request.json();
 
+  // přihlásíme pomocí emailu/hesla
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    // vracíme status 401 + message do klienta
+    return NextResponse.json(
+      { error: error.message },
+      { status: 401 }
+    );
   }
 
-  // Session cookies helper nastaví automaticky!
-  return NextResponse.json({ user: data.user });
+  // data.session obsahuje access_token a refresh_token,
+  // auth-helpers-nextjs je automaticky zapíše do cookies
+  return NextResponse.json(
+    { user: data.user },
+    { status: 200 }
+  );
 }
