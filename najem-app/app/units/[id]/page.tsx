@@ -42,7 +42,6 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Načti data jednotky + properties
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -52,31 +51,39 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
         ]);
 
         if (!unitRes.ok) throw new Error('Jednotka nenalezena');
-        const unit = await unitRes.json();
-        const propList = await propRes.json();
+        const unit: unknown = await unitRes.json();
+        const propList: unknown = await propRes.json();
 
-        setForm({
-          property_id: unit.property_id || '',
-          identifier: unit.identifier || '',
-          floor: unit.floor ?? '',
-          disposition: unit.disposition ?? '',
-          area: unit.area ?? '',
-          occupancy_status: unit.occupancy_status || 'volné',
-          monthly_rent: unit.monthly_rent ?? '',
-          deposit: unit.deposit ?? '',
-          description: unit.description ?? '',
-        });
-        setProperties(Array.isArray(propList) ? propList : []);
+        // typová kontrola (lze vylepšit dle backendu)
+        if (
+          typeof unit === 'object' &&
+          unit !== null &&
+          'property_id' in unit &&
+          'identifier' in unit
+        ) {
+          setForm({
+            property_id: (unit as any).property_id ?? '',
+            identifier: (unit as any).identifier ?? '',
+            floor: (unit as any).floor ?? '',
+            disposition: (unit as any).disposition ?? '',
+            area: (unit as any).area ?? '',
+            occupancy_status: (unit as any).occupancy_status || 'volné',
+            monthly_rent: (unit as any).monthly_rent ?? '',
+            deposit: (unit as any).deposit ?? '',
+            description: (unit as any).description ?? '',
+          });
+        }
+
+        setProperties(Array.isArray(propList) ? (propList as Property[]) : []);
         setIsLoading(false);
-      } catch (err: any) {
-        setError(err.message || 'Chyba při načítání');
+      } catch (err) {
+        setError((err as Error).message || 'Chyba při načítání');
         setIsLoading(false);
       }
     };
     fetchData();
   }, [id]);
 
-  // Ukládání změn
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -93,14 +100,12 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
         throw new Error(errData.error || 'Chyba při ukládání');
       }
       router.refresh();
-      // Zpět na seznam jednotek nebo zůstaň na detailu? Zde jen refrešneme data.
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     }
     setIsSaving(false);
   };
 
-  // Smazání jednotky
   const handleDelete = async () => {
     if (!confirm('Opravdu smazat tuto jednotku?')) return;
     setIsSaving(true);
@@ -114,8 +119,8 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
         throw new Error(errData.error || 'Chyba při mazání');
       }
       router.push('/units');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
       setIsSaving(false);
     }
   };
@@ -258,5 +263,3 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-
