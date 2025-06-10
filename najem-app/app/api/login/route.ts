@@ -15,6 +15,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 401 });
   }
 
-  // Supabase helper nastaví cookies automaticky
   return NextResponse.json({ user: data.user }, { status: 200 });
 }
