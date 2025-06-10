@@ -42,3 +42,19 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   return NextResponse.json(data);
 }
+
+// DELETE - Smazání jednotky
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  const { id } = params;
+  const supabase = supabaseRouteClient();
+  const { error } = await supabase
+    .from("units")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
