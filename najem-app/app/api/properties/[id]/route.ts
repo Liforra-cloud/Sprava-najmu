@@ -1,86 +1,35 @@
 // app/api/properties/[id]/route.ts
 
-import { NextRequest, NextResponse } from 'next/server'
-import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export async function GET(request: NextRequest) {
-  const url = new URL(request.url)
-  const id = url.pathname.split('/').pop()
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!id) {
-    return NextResponse.json({ error: 'Missing ID in request' }, { status: 400 })
-  }
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const supabase = supabaseRouteClient()
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  const propertyId = params.id;
+
+  // Debug: vypiš, jaké id přichází z URL
+  console.log('Hledám property s id:', JSON.stringify(propertyId));
+
+  // Debug: vypiš všechny id v databázi
+  const all = await supabase.from('properties').select('id');
+  console.log('Všechna id v DB:', all.data);
 
   const { data, error } = await supabase
     .from('properties')
-    .select(`
-      id,
-      name,
-      address,
-      description,
-      date_added,
-      units (
-        id,
-        identifier,
-        floor,
-        disposition,
-        area,
-        occupancy_status,
-        monthly_rent,
-        deposit,
-        date_added
-      )
-    `)
-    .eq('id', id)
-    .single()
+    .select('*')
+    .eq('id', propertyId)
+    .single();
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message || 'Property not found' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Nemovitost nebyla nalezena (ani přes přímé porovnání).', debug: { error, propertyId, allIds: all.data } },
+      { status: 404 }
+    );
   }
 
-  return NextResponse.json(data, { status: 200 })
-}
-
-export async function PATCH(request: NextRequest) {
-  const url = new URL(request.url)
-  const id = url.pathname.split('/').pop()
-
-  if (!id) {
-    return NextResponse.json({ error: 'Missing ID in request' }, { status: 400 })
-  }
-
-  const supabase = supabaseRouteClient()
-
-  // Zjisti session uživatele
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    return NextResponse.json({ error: 'Nepřihlášený uživatel' }, { status: 401 })
-  }
-
-  const updates = await request.json()
-
-  // Updatujeme pouze pro konkrétní id a user_id
-  const { data, error } = await supabase
-    .from('properties')
-    .update({
-      name: updates.name,
-      address: updates.address,
-      description: updates.description,
-      date_added: updates.date_added,
-    })
-    .eq('id', id)
-    .eq('user_id', session.user.id) // Tohle je klíčové pro správný update!
-    .select()
-    .single()
-
-  if (error || !data) {
-    return NextResponse.json({ error: error?.message || 'Failed to update property' }, { status: 500 })
-  }
-
-  return NextResponse.json(data, { status: 200 })
+  return NextResponse.json(data);
 }
