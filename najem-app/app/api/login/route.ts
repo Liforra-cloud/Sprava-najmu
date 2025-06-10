@@ -18,11 +18,3 @@ export async function POST(request: Request) {
   // Supabase helper nastaví cookies automaticky
   return NextResponse.json({ user: data.user }, { status: 200 });
 }
-
-  // data.session obsahuje access_token a refresh_token,
-  // auth-helpers-nextjs je automaticky zapíše do cookies
-  return NextResponse.json(
-    { user: data.user },
-    { status: 200 }
-  );
-}
