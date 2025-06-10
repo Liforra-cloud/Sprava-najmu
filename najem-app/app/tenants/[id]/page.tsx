@@ -5,11 +5,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 
-type Guarantor = {
-  name: string
-  [key: string]: unknown // opraveno z "any" na "unknown"
-}
-
 type Tenant = {
   id: string
   full_name: string
@@ -18,12 +13,11 @@ type Tenant = {
   personal_id?: string
   address?: string
   employer?: string
-  guarantors?: Guarantor[]
+  note?: string
   date_registered: string
 }
 
 export default function TenantDetailPage() {
-  // použijeme typ Record pro typovou bezpečnost
   const id = (useParams() as Record<string, string>).id
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -36,7 +30,7 @@ export default function TenantDetailPage() {
     personal_id: '',
     address: '',
     employer: '',
-    guarantors: '',
+    note: '',
   })
 
   useEffect(() => {
@@ -55,7 +49,7 @@ export default function TenantDetailPage() {
         personal_id: data.personal_id || '',
         address: data.address || '',
         employer: data.employer || '',
-        guarantors: data.guarantors ? JSON.stringify(data.guarantors) : '',
+        note: data.note || '',
       })
     }
     fetchTenant()
@@ -64,28 +58,18 @@ export default function TenantDetailPage() {
   const handleSave = async () => {
     setIsSaving(true)
     setSaveSuccess(false)
+
+    const payload: Omit<Tenant, 'id' | 'date_registered'> = {
+      full_name: editedData.full_name,
+      email: editedData.email,
+      phone: editedData.phone,
+      personal_id: editedData.personal_id,
+      address: editedData.address,
+      employer: editedData.employer,
+      note: editedData.note,
+    }
+
     try {
-      let parsedGuarantors: Guarantor[] | undefined = undefined
-      if (editedData.guarantors) {
-        try {
-          parsedGuarantors = JSON.parse(editedData.guarantors)
-        } catch {
-          alert('Rušitelé musí být validní JSON pole.')
-          setIsSaving(false)
-          return
-        }
-      }
-
-      const payload: Omit<Tenant, 'id' | 'date_registered'> = {
-        full_name: editedData.full_name,
-        email: editedData.email,
-        phone: editedData.phone,
-        personal_id: editedData.personal_id,
-        address: editedData.address,
-        employer: editedData.employer,
-        guarantors: parsedGuarantors,
-      }
-
       const res = await fetch(`/api/tenants/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -108,108 +92,20 @@ export default function TenantDetailPage() {
 
   return (
     <div className="space-y-6 p-6 max-w-xl mx-auto">
-      <div className="flex items-center space-x-2">
-        <h1 className="text-3xl font-bold">
-          {isEditing ? (
-            <input
-              value={editedData.full_name}
-              onChange={e => setEditedData(d => ({ ...d, full_name: e.target.value }))}
-              className="border px-2 py-1 rounded text-xl"
-            />
-          ) : (
-            tenant.full_name
-          )}
-        </h1>
-        <button
-          onClick={() => {
-            setIsEditing(!isEditing)
-            setSaveSuccess(false)
-          }}
-          className="text-blue-600 hover:text-blue-800"
-          title={isEditing ? 'Zrušit úpravu' : 'Upravit nájemníka'}
-        >
-          {isEditing ? 'Zrušit' : 'Upravit'}
-        </button>
-      </div>
+      {/* ...ostatní pole... */}
 
       <div>
-        <strong>Email:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.email}
-            onChange={e => setEditedData(d => ({ ...d, email: e.target.value }))}
-            className="border px-2 py-1 rounded"
-            type="email"
-          />
-        ) : (
-          tenant.email
-        )}
-      </div>
-
-      <div>
-        <strong>Telefon:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.phone}
-            onChange={e => setEditedData(d => ({ ...d, phone: e.target.value }))}
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          tenant.phone || '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Rodné číslo:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.personal_id}
-            onChange={e => setEditedData(d => ({ ...d, personal_id: e.target.value }))}
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          tenant.personal_id || '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Adresa:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.address}
-            onChange={e => setEditedData(d => ({ ...d, address: e.target.value }))}
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          tenant.address || '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Zaměstnavatel:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.employer}
-            onChange={e => setEditedData(d => ({ ...d, employer: e.target.value }))}
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          tenant.employer || '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Rušitelé (JSON pole):</strong>{' '}
+        <strong>Poznámka:</strong>{' '}
         {isEditing ? (
           <textarea
-            value={editedData.guarantors}
-            onChange={e => setEditedData(d => ({ ...d, guarantors: e.target.value }))}
+            value={editedData.note}
+            onChange={e => setEditedData(d => ({ ...d, note: e.target.value }))}
             className="border px-2 py-1 rounded w-full"
             rows={2}
-            placeholder='Např. [{"name":"Jan Novák"}]'
+            placeholder="Poznámka k nájemníkovi"
           />
         ) : (
-          tenant.guarantors ? JSON.stringify(tenant.guarantors) : '—'
+          tenant.note || '—'
         )}
       </div>
 
