@@ -15,13 +15,15 @@ export default async function SidebarLayout({ children }: { children: React.Reac
     redirect('/login')
   }
 
-  // Zbytek sidebaru jako dřív – user je zaručeně přihlášen
+  // Sidebar navigace – PŘIDÁNO tenants!
   const navItems = [
     { href: '/', label: 'Dashboard' },
     { href: '/properties', label: 'Nemovitosti' },
     { href: '/properties/new', label: 'Přidat nemovitost' },
     { href: '/units', label: 'Jednotky' },
     { href: '/units/new', label: 'Přidat jednotku' },
+    { href: '/tenants', label: 'Nájemníci' },
+    { href: '/tenants/new', label: 'Přidat nájemníka' },
   ]
 
   return (
