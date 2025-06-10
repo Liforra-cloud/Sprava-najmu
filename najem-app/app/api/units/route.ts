@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
 // Handler pro získání všech jednotek uživatele
-export async function GET(request: Request) {
+export async function GET() {
   const supabase = supabaseRouteClient()
   // Získání session z cookies
   const { data: { session } } = await supabase.auth.getSession()
