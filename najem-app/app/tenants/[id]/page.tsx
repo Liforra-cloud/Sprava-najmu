@@ -1,5 +1,3 @@
-//app/tenants/[id]/page.tsx
-
 // app/tenants/[id]/page.tsx
 
 'use client'
@@ -25,7 +23,8 @@ type Tenant = {
 }
 
 export default function TenantDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  // ZDE je oprava! useParams() bez generika, s typecastem na Record
+  const id = (useParams() as Record<string, string>).id
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
