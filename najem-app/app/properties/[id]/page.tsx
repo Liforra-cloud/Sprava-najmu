@@ -33,7 +33,6 @@ interface Property {
 
 export default function Page({ params }: { params: { id: string } }) {
   const { id } = params
-  const router = useRouter()
   const [property, setProperty] = useState<Property | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editedData, setEditedData] = useState({
