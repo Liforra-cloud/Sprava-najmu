@@ -3,6 +3,25 @@
 import { NextResponse } from "next/server";
 import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 
+// GET - Detail jednotky podle ID
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  const { id } = params;
+  const supabase = supabaseRouteClient();
+
+  const { data, error } = await supabase
+    .from("units")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message || "Jednotka nenalezena" }, { status: 404 });
+  }
+
+  return NextResponse.json(data);
+}
+
+// PATCH - Aktualizace jednotky
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const { id } = params;
   const supabase = supabaseRouteClient();
