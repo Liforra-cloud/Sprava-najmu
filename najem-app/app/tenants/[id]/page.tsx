@@ -3,8 +3,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 
+type Guarantor = {
+  name: string
+  [key: string]: any
+}
 type Tenant = {
   id: string
   full_name: string
@@ -13,13 +17,12 @@ type Tenant = {
   personal_id?: string
   address?: string
   employer?: string
-  guarantors?: any // Pokud chceš podrobnější typ, dej např. guarantors: { name: string, ... }[]
+  guarantors?: Guarantor[]
   date_registered: string
 }
 
 export default function TenantDetailPage() {
   const { id } = useParams<{ id: string }>()
-  // Pokud router budeš potřebovat pro redirect po smazání apod., můžeš ho tu mít – jinak smaž
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
