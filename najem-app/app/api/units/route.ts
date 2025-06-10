@@ -1,38 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 
-export async function GET() {
-  const supabase = supabaseRouteClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    // neautorizovaný uživatel → prázdný seznam, frontend .map nepadne
-    return NextResponse.json([]);
-  }
-
-  const userId = session.user.id;
-  const { data, error } = await supabase
-    .from("units")
-    .select(`
-      id,
-      identifier AS unit_number,
-      floor,
-      area,
-      description,
-      property_id
-    `)
-    .eq("user_id", userId);
-
-  if (error) {
-    console.error("Chyba při načítání jednotek:", error);
-    return NextResponse.json([]);
-  }
-
-  return NextResponse.json(data);
-}
-
 export async function POST(request: Request) {
   const supabase = supabaseRouteClient();
   const body = await request.json();
@@ -51,7 +19,7 @@ export async function POST(request: Request) {
     .from("units")
     .insert({
       property_id,
-      identifier: unit_number,
+      identifier: unit_number, // <<< TADY!
       floor,
       area,
       description,
