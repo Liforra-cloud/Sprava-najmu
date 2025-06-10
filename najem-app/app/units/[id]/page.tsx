@@ -2,11 +2,8 @@
 
 'use client'
 
-import { notFound } from 'next/navigation'
-import { useState, useEffect } from 'react'
-import { Pencil, X } from 'lucide-react'
-
-export const dynamic = 'force-dynamic'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface Unit {
   id: string
@@ -18,234 +15,254 @@ interface Unit {
   occupancy_status: string
   monthly_rent: number | null
   deposit: number | null
-  date_added: string
   description: string | null
+  date_added: string
 }
 
-export default function Page({ params }: { params: { id: string } }) {
+interface Property {
+  id: string
+  name: string
+}
+
+export default function EditUnitPage({ params }: { params: { id: string } }) {
   const { id } = params
+  const router = useRouter()
   const [unit, setUnit] = useState<Unit | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedData, setEditedData] = useState({
-    identifier: '',
-    floor: '',
-    disposition: '',
-    area: '',
-    occupancy_status: 'volné',
-    monthly_rent: '',
-    deposit: '',
-    description: ''
-  })
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [properties, setProperties] = useState<Property[]>([])
+  const [form, setForm] = useState<any>({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
-  // Enum options - uprav dle skutečných enum hodnot z DB
-  const occupancyOptions = [
-    { value: 'volné', label: 'Volné' },
-    { value: 'obsazené', label: 'Obsazené' },
-    { value: 'rezervováno', label: 'Rezervováno' }
-  ]
-
+  // Načíst jednotku i seznam nemovitostí
   useEffect(() => {
-    const fetchUnit = async () => {
-      const res = await fetch(`/api/units/${id}`, { credentials: 'include' })
-      if (!res.ok) {
-        notFound()
-        return
-      }
-      const unit = await res.json()
-      setUnit(unit)
-      setEditedData({
-        identifier: unit.identifier || '',
-        floor: unit.floor !== null && unit.floor !== undefined ? String(unit.floor) : '',
-        disposition: unit.disposition || '',
-        area: unit.area !== null && unit.area !== undefined ? String(unit.area) : '',
-        occupancy_status: unit.occupancy_status || 'volné',
-        monthly_rent: unit.monthly_rent !== null && unit.monthly_rent !== undefined ? String(unit.monthly_rent) : '',
-        deposit: unit.deposit !== null && unit.deposit !== undefined ? String(unit.deposit) : '',
-        description: unit.description || '',
+    setLoading(true)
+    Promise.all([
+      fetch(`/api/units/${id}`).then(r => r.json()),
+      fetch('/api/properties').then(r => r.json())
+    ])
+      .then(([unitData, propertiesData]) => {
+        if (unitData.error) throw new Error(unitData.error)
+        setUnit(unitData)
+        setForm({
+          property_id: unitData.property_id,
+          identifier: unitData.identifier,
+          floor: unitData.floor || '',
+          disposition: unitData.disposition || '',
+          area: unitData.area || '',
+          occupancy_status: unitData.occupancy_status,
+          monthly_rent: unitData.monthly_rent || '',
+          deposit: unitData.deposit || '',
+          description: unitData.description || '',
+        })
+        setProperties(propertiesData)
       })
-    }
-    fetchUnit()
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
   }, [id])
 
-  const handleSave = async () => {
-    setIsSaving(true)
-    setSaveSuccess(false)
-    try {
-      const res = await fetch(`/api/units/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...editedData,
-          floor: editedData.floor !== '' ? Number(editedData.floor) : null,
-          area: editedData.area !== '' ? Number(editedData.area) : null,
-          monthly_rent: editedData.monthly_rent !== '' ? Number(editedData.monthly_rent) : null,
-          deposit: editedData.deposit !== '' ? Number(editedData.deposit) : null,
-        })
-      })
-      if (!res.ok) throw new Error('Chyba při ukládání')
-      const updated = await res.json()
-      setUnit({ ...unit!, ...updated })
-      setSaveSuccess(true)
-      setIsEditing(false)
-      setTimeout(() => setSaveSuccess(false), 3000)
-    } catch (err) {
-      console.error(err)
-      alert('Nepodařilo se uložit změnu.')
-    } finally {
-      setIsSaving(false)
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }))
+  }
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    const res = await fetch(`/api/units/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(form)
+    })
+    if (res.ok) {
+      router.refresh()
+      setSaving(false)
+    } else {
+      const { error } = await res.json()
+      setError(error || 'Nepodařilo se uložit jednotku.')
+      setSaving(false)
     }
   }
 
-  if (!unit) return <p>Načítání...</p>
+  const handleDelete = async () => {
+    if (!confirm('Opravdu chcete jednotku smazat?')) return
+    setDeleteLoading(true)
+    const res = await fetch(`/api/units/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+    if (res.ok) {
+      router.push('/units')
+    } else {
+      const { error } = await res.json()
+      setError(error || 'Nepodařilo se jednotku smazat.')
+      setDeleteLoading(false)
+    }
+  }
+
+  if (loading) return <div className="p-8">Načítání…</div>
+  if (error) return <div className="p-8 text-red-600">{error}</div>
+  if (!unit) return <div className="p-8 text-red-600">Jednotka nenalezena.</div>
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center space-x-2">
-        <h1 className="text-3xl font-bold">
-          {isEditing ? (
-            <input
-              value={editedData.identifier}
-              onChange={e => setEditedData(d => ({ ...d, identifier: e.target.value }))}
-              className="border px-2 py-1 rounded text-xl"
-            />
-          ) : (
-            unit.identifier
-          )}
-        </h1>
-        <button
-          onClick={() => {
-            setIsEditing(!isEditing)
-            setSaveSuccess(false)
-          }}
-          className="text-blue-600 hover:text-blue-800"
-          title={isEditing ? 'Zrušit úpravu' : 'Upravit informace'}
-        >
-          {isEditing ? <X size={18} /> : <Pencil size={18} />}
-        </button>
-      </div>
-
-      <div>
-        <strong>Podlaží:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.floor}
-            onChange={e => setEditedData(d => ({ ...d, floor: e.target.value }))}
-            className="border px-2 py-1 rounded"
-            type="number"
-          />
-        ) : (
-          unit.floor !== null && unit.floor !== undefined ? unit.floor : '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Dispozice:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.disposition}
-            onChange={e => setEditedData(d => ({ ...d, disposition: e.target.value }))}
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          unit.disposition || '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Rozloha:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.area}
-            onChange={e => setEditedData(d => ({ ...d, area: e.target.value }))}
-            className="border px-2 py-1 rounded"
-            type="number"
-          />
-        ) : (
-          unit.area !== null && unit.area !== undefined ? `${unit.area} m²` : '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Stav obsazenosti:</strong>{' '}
-        {isEditing ? (
+    <div className="max-w-xl mx-auto mt-10 p-6 bg-white shadow rounded">
+      <h1 className="text-2xl font-bold mb-4">Editace jednotky</h1>
+      <form onSubmit={handleSave} className="space-y-4">
+        <div>
+          <label htmlFor="property_id" className="block text-sm font-medium text-gray-700">
+            Nemovitost
+          </label>
           <select
-            value={editedData.occupancy_status}
-            onChange={e => setEditedData(d => ({ ...d, occupancy_status: e.target.value }))}
-            className="border px-2 py-1 rounded"
+            id="property_id"
+            name="property_id"
+            value={form.property_id}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+            required
           >
-            {occupancyOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            <option value="">Vyberte nemovitost</option>
+            {properties.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-        ) : (
-          unit.occupancy_status || '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Nájem:</strong>{' '}
-        {isEditing ? (
+        </div>
+        <div>
+          <label htmlFor="identifier" className="block text-sm font-medium text-gray-700">
+            Označení jednotky
+          </label>
           <input
-            value={editedData.monthly_rent}
-            onChange={e => setEditedData(d => ({ ...d, monthly_rent: e.target.value }))}
-            className="border px-2 py-1 rounded"
-            type="number"
+            id="identifier"
+            name="identifier"
+            type="text"
+            required
+            value={form.identifier}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
-        ) : (
-          unit.monthly_rent !== null && unit.monthly_rent !== undefined ? `${unit.monthly_rent} Kč` : '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Kauce:</strong>{' '}
-        {isEditing ? (
+        </div>
+        <div>
+          <label htmlFor="floor" className="block text-sm font-medium text-gray-700">
+            Podlaží
+          </label>
           <input
-            value={editedData.deposit}
-            onChange={e => setEditedData(d => ({ ...d, deposit: e.target.value }))}
-            className="border px-2 py-1 rounded"
+            id="floor"
+            name="floor"
             type="number"
+            value={form.floor}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+            min={0}
           />
-        ) : (
-          unit.deposit !== null && unit.deposit !== undefined ? `${unit.deposit} Kč` : '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Popis:</strong>{' '}
-        {isEditing ? (
+        </div>
+        <div>
+          <label htmlFor="disposition" className="block text-sm font-medium text-gray-700">
+            Dispozice
+          </label>
+          <input
+            id="disposition"
+            name="disposition"
+            type="text"
+            value={form.disposition}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="area" className="block text-sm font-medium text-gray-700">
+            Rozloha (m²)
+          </label>
+          <input
+            id="area"
+            name="area"
+            type="number"
+            step="0.01"
+            value={form.area}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+            min={0}
+          />
+        </div>
+        <div>
+          <label htmlFor="occupancy_status" className="block text-sm font-medium text-gray-700">
+            Stav obsazenosti
+          </label>
+          <select
+            id="occupancy_status"
+            name="occupancy_status"
+            value={form.occupancy_status}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+            required
+          >
+            <option value="volné">Volné</option>
+            <option value="pronajaté">Pronajaté</option>
+            <option value="rezervované">Rezervované</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="monthly_rent" className="block text-sm font-medium text-gray-700">
+            Nájem (Kč)
+          </label>
+          <input
+            id="monthly_rent"
+            name="monthly_rent"
+            type="number"
+            step="0.01"
+            value={form.monthly_rent}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+            min={0}
+          />
+        </div>
+        <div>
+          <label htmlFor="deposit" className="block text-sm font-medium text-gray-700">
+            Kauce (Kč)
+          </label>
+          <input
+            id="deposit"
+            name="deposit"
+            type="number"
+            step="0.01"
+            value={form.deposit}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+            min={0}
+          />
+        </div>
+        <div>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+            Popis
+          </label>
           <textarea
-            value={editedData.description}
-            onChange={e => setEditedData(d => ({ ...d, description: e.target.value }))}
-            className="border px-2 py-1 rounded w-full"
+            id="description"
+            name="description"
+            value={form.description}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
             rows={2}
           />
-        ) : (
-          unit.description || '—'
-        )}
-      </div>
-
-      <div>
-        <strong>Přidáno:</strong>{' '}
-        {unit.date_added ? new Date(unit.date_added).toLocaleDateString() : '—'}
-      </div>
-
-      {isEditing && (
+        </div>
         <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="mt-2 px-4 py-1 bg-blue-600 text-white rounded"
+          type="submit"
+          disabled={saving}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
         >
-          {isSaving ? 'Ukládám...' : 'Uložit změny'}
+          {saving ? 'Ukládám...' : 'Uložit změny'}
         </button>
-      )}
-
-      {saveSuccess && (
-        <p className="text-green-600 font-medium">✅ Změny byly uloženy.</p>
-      )}
+      </form>
+      <hr className="my-6" />
+      <button
+        onClick={handleDelete}
+        disabled={deleteLoading}
+        className="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
+      >
+        {deleteLoading ? 'Mažu...' : 'Smazat jednotku'}
+      </button>
+      {error && <div className="text-red-600 mt-4">{error}</div>}
     </div>
   )
 }
+
 
