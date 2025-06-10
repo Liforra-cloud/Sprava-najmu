@@ -6,7 +6,6 @@ import { notFound } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Pencil, X } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
