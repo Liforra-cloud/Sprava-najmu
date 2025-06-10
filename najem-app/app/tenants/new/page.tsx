@@ -2,12 +2,22 @@
 
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+type TenantForm = {
+  full_name: string
+  email: string
+  phone: string
+  personal_id: string
+  address: string
+  employer: string
+  note: string
+}
 
 export default function NewTenantPage() {
   const router = useRouter()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<TenantForm>({
     full_name: '',
     email: '',
     phone: '',
@@ -19,7 +29,8 @@ export default function NewTenantPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    setForm(prev => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,13 +42,12 @@ export default function NewTenantPage() {
       body: JSON.stringify(form),
     })
     if (res.ok) {
-      const data = await res.json()
-      router.push(`/tenants/${data.id}`)
+      router.push('/tenants')
     } else {
-      const err = await res.json()
-      alert(err.error || 'Nepodařilo se přidat nájemníka.')
-      setIsSubmitting(false)
+      const data = await res.json()
+      alert(data.error || 'Chyba při ukládání')
     }
+    setIsSubmitting(false)
   }
 
   return (
@@ -45,11 +55,8 @@ export default function NewTenantPage() {
       <h1 className="text-2xl font-bold mb-4">Přidat nájemníka</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
-            Jméno a příjmení
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Jméno a příjmení</label>
           <input
-            id="full_name"
             name="full_name"
             type="text"
             required
@@ -59,11 +66,8 @@ export default function NewTenantPage() {
           />
         </div>
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            E-mail
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Email</label>
           <input
-            id="email"
             name="email"
             type="email"
             required
@@ -73,11 +77,8 @@ export default function NewTenantPage() {
           />
         </div>
         <div>
-          <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-            Telefon
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Telefon</label>
           <input
-            id="phone"
             name="phone"
             type="text"
             value={form.phone}
@@ -86,11 +87,8 @@ export default function NewTenantPage() {
           />
         </div>
         <div>
-          <label htmlFor="personal_id" className="block text-sm font-medium text-gray-700">
-            Rodné číslo
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Rodné číslo</label>
           <input
-            id="personal_id"
             name="personal_id"
             type="text"
             value={form.personal_id}
@@ -99,11 +97,8 @@ export default function NewTenantPage() {
           />
         </div>
         <div>
-          <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-            Adresa
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Adresa</label>
           <input
-            id="address"
             name="address"
             type="text"
             value={form.address}
@@ -112,11 +107,8 @@ export default function NewTenantPage() {
           />
         </div>
         <div>
-          <label htmlFor="employer" className="block text-sm font-medium text-gray-700">
-            Zaměstnavatel
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Zaměstnavatel</label>
           <input
-            id="employer"
             name="employer"
             type="text"
             value={form.employer}
@@ -125,11 +117,8 @@ export default function NewTenantPage() {
           />
         </div>
         <div>
-          <label htmlFor="note" className="block text-sm font-medium text-gray-700">
-            Poznámka
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Poznámka</label>
           <textarea
-            id="note"
             name="note"
             value={form.note}
             onChange={handleChange}
