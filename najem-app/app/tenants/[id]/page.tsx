@@ -3,8 +3,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Pencil, X } from 'lucide-react'
+import { useParams, useRouter } from 'next/navigation'
 
 type Tenant = {
   id: string
@@ -14,61 +13,69 @@ type Tenant = {
   personal_id?: string
   address?: string
   employer?: string
+  guarantors?: any // Pokud chceš podrobnější typ, dej např. guarantors: { name: string, ... }[]
   date_registered: string
 }
 
-export default function TenantDetailPage({ params }: { params: { id: string } }) {
-  const router = useRouter()
-  const { id } = params
+export default function TenantDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  // Pokud router budeš potřebovat pro redirect po smazání apod., můžeš ho tu mít – jinak smaž
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
   const [editedData, setEditedData] = useState({
     full_name: '',
     email: '',
     phone: '',
     personal_id: '',
     address: '',
-    employer: ''
+    employer: '',
+    guarantors: '',
   })
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/tenants/${id}`)
-      .then(res => res.json())
-      .then(data => {
-        setTenant(data)
-        setEditedData({
-          full_name: data.full_name || '',
-          email: data.email || '',
-          phone: data.phone || '',
-          personal_id: data.personal_id || '',
-          address: data.address || '',
-          employer: data.employer || ''
-        })
+    const fetchTenant = async () => {
+      const res = await fetch(`/api/tenants/${id}`)
+      if (!res.ok) {
+        setTenant(null)
+        return
+      }
+      const data = await res.json()
+      setTenant(data)
+      setEditedData({
+        full_name: data.full_name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        personal_id: data.personal_id || '',
+        address: data.address || '',
+        employer: data.employer || '',
+        guarantors: data.guarantors ? JSON.stringify(data.guarantors) : '',
       })
+    }
+    fetchTenant()
   }, [id])
 
   const handleSave = async () => {
     setIsSaving(true)
     setSaveSuccess(false)
-
     try {
+      const payload = {
+        ...editedData,
+        guarantors: editedData.guarantors ? JSON.parse(editedData.guarantors) : null,
+      }
       const res = await fetch(`/api/tenants/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(editedData)
+        body: JSON.stringify(payload),
       })
-
       if (!res.ok) throw new Error('Chyba při ukládání')
-
       const updated = await res.json()
-      setTenant({ ...tenant!, ...updated })
+      setTenant(updated)
       setSaveSuccess(true)
       setIsEditing(false)
-      setTimeout(() => setSaveSuccess(false), 2000)
-    } catch (err) {
+      setTimeout(() => setSaveSuccess(false), 3000)
+    } catch {
       alert('Nepodařilo se uložit změnu.')
     } finally {
       setIsSaving(false)
@@ -78,9 +85,9 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
   if (!tenant) return <p>Načítání...</p>
 
   return (
-    <div className="max-w-xl mx-auto mt-10 p-6 bg-white shadow rounded space-y-4">
+    <div className="space-y-6 p-6 max-w-xl mx-auto">
       <div className="flex items-center space-x-2">
-        <h1 className="text-2xl font-bold">
+        <h1 className="text-3xl font-bold">
           {isEditing ? (
             <input
               value={editedData.full_name}
@@ -97,23 +104,26 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
             setSaveSuccess(false)
           }}
           className="text-blue-600 hover:text-blue-800"
-          title={isEditing ? 'Zrušit úpravu' : 'Upravit informace'}
+          title={isEditing ? 'Zrušit úpravu' : 'Upravit nájemníka'}
         >
-          {isEditing ? <X size={18} /> : <Pencil size={18} />}
+          {isEditing ? 'Zrušit' : 'Upravit'}
         </button>
       </div>
+
       <div>
-        <strong>E-mail:</strong>{' '}
+        <strong>Email:</strong>{' '}
         {isEditing ? (
           <input
             value={editedData.email}
             onChange={e => setEditedData(d => ({ ...d, email: e.target.value }))}
             className="border px-2 py-1 rounded"
+            type="email"
           />
         ) : (
           tenant.email
         )}
       </div>
+
       <div>
         <strong>Telefon:</strong>{' '}
         {isEditing ? (
@@ -126,8 +136,9 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
           tenant.phone || '—'
         )}
       </div>
+
       <div>
-        <strong>Rodné číslo / číslo OP:</strong>{' '}
+        <strong>Rodné číslo:</strong>{' '}
         {isEditing ? (
           <input
             value={editedData.personal_id}
@@ -138,6 +149,7 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
           tenant.personal_id || '—'
         )}
       </div>
+
       <div>
         <strong>Adresa:</strong>{' '}
         {isEditing ? (
@@ -150,6 +162,7 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
           tenant.address || '—'
         )}
       </div>
+
       <div>
         <strong>Zaměstnavatel:</strong>{' '}
         {isEditing ? (
@@ -162,10 +175,27 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
           tenant.employer || '—'
         )}
       </div>
+
+      <div>
+        <strong>Rušitelé (JSON pole):</strong>{' '}
+        {isEditing ? (
+          <textarea
+            value={editedData.guarantors}
+            onChange={e => setEditedData(d => ({ ...d, guarantors: e.target.value }))}
+            className="border px-2 py-1 rounded w-full"
+            rows={2}
+            placeholder='Např. [{"name":"Jan Novák"}]'
+          />
+        ) : (
+          tenant.guarantors ? JSON.stringify(tenant.guarantors) : '—'
+        )}
+      </div>
+
       <div>
         <strong>Registrován:</strong>{' '}
         {new Date(tenant.date_registered).toLocaleDateString()}
       </div>
+
       {isEditing && (
         <button
           onClick={handleSave}
@@ -175,9 +205,11 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
           {isSaving ? 'Ukládám...' : 'Uložit změny'}
         </button>
       )}
+
       {saveSuccess && (
         <p className="text-green-600 font-medium">✅ Změny byly uloženy.</p>
       )}
     </div>
   )
 }
+
