@@ -1,10 +1,12 @@
 // app/properties/[id]/page.tsx
 
+
 'use client'
 
 import { notFound } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Pencil, X } from 'lucide-react'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -181,15 +183,22 @@ export default function Page({ params }: { params: { id: string } }) {
       <h2 className="text-2xl font-semibold mt-4">Jednotky</h2>
       <ul className="space-y-2">
         {property.units?.map((unit: Unit) => (
-          <li key={unit.id} className="border p-4 rounded">
-            <p><strong>Identifikátor:</strong> {unit.identifier}</p>
-            <p><strong>Podlaží:</strong> {unit.floor}</p>
-            <p><strong>Dispozice:</strong> {unit.disposition}</p>
-            <p><strong>Rozloha:</strong> {unit.area} m²</p>
-            <p><strong>Stav obsazenosti:</strong> {unit.occupancy_status}</p>
-            <p><strong>Nájem:</strong> {unit.monthly_rent} Kč</p>
-            <p><strong>Kauce:</strong> {unit.deposit} Kč</p>
-            <p><strong>Přidáno:</strong> {new Date(unit.date_added).toLocaleDateString()}</p>
+          <li key={unit.id} className="border p-4 rounded flex flex-col md:flex-row md:justify-between md:items-center">
+            <div>
+              <p><strong>Identifikátor:</strong> {unit.identifier}</p>
+              <p><strong>Podlaží:</strong> {unit.floor}</p>
+              <p><strong>Dispozice:</strong> {unit.disposition}</p>
+              <p><strong>Rozloha:</strong> {unit.area} m²</p>
+              <p><strong>Stav obsazenosti:</strong> {unit.occupancy_status}</p>
+              <p><strong>Nájem:</strong> {unit.monthly_rent} Kč</p>
+              <p><strong>Kauce:</strong> {unit.deposit} Kč</p>
+              <p><strong>Přidáno:</strong> {new Date(unit.date_added).toLocaleDateString()}</p>
+            </div>
+            <Link href={`/units/${unit.id}`}>
+              <button className="mt-2 md:mt-0 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Editovat
+              </button>
+            </Link>
           </li>
         ))}
       </ul>
