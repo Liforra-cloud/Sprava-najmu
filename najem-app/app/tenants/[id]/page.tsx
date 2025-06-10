@@ -1,5 +1,7 @@
 //app/tenants/[id]/page.tsx
 
+// app/tenants/[id]/page.tsx
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -7,7 +9,7 @@ import { useParams } from 'next/navigation'
 
 type Guarantor = {
   name: string
-  // Přidej další pole pokud bude potřeba, například relationship, phone atd.
+  [key: string]: any
 }
 
 type Tenant = {
@@ -22,24 +24,13 @@ type Tenant = {
   date_registered: string
 }
 
-// Typ pro stav editace (editedData)
-type TenantFormData = {
-  full_name: string
-  email: string
-  phone: string
-  personal_id: string
-  address: string
-  employer: string
-  guarantors: string // JSON string pro editaci
-}
-
 export default function TenantDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [tenant, setTenant] = useState<Tenant | null>(null)
-  const [isEditing, setIsEditing] = useState<boolean>(false)
-  const [isSaving, setIsSaving] = useState<boolean>(false)
-  const [saveSuccess, setSaveSuccess] = useState<boolean>(false)
-  const [editedData, setEditedData] = useState<TenantFormData>({
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [editedData, setEditedData] = useState({
     full_name: '',
     email: '',
     phone: '',
@@ -75,7 +66,7 @@ export default function TenantDetailPage() {
     setIsSaving(true)
     setSaveSuccess(false)
     try {
-      let parsedGuarantors: Guarantor[] | null = null
+      let parsedGuarantors: Guarantor[] | undefined = undefined
       if (editedData.guarantors) {
         try {
           parsedGuarantors = JSON.parse(editedData.guarantors)
