@@ -1,3 +1,5 @@
+// najem-app/app/api/login/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient';
 
