@@ -7,8 +7,9 @@ import { useParams } from 'next/navigation'
 
 type Guarantor = {
   name: string
-  [key: string]: any
+  // Přidej další pole pokud bude potřeba, například relationship, phone atd.
 }
+
 type Tenant = {
   id: string
   full_name: string
@@ -21,13 +22,24 @@ type Tenant = {
   date_registered: string
 }
 
+// Typ pro stav editace (editedData)
+type TenantFormData = {
+  full_name: string
+  email: string
+  phone: string
+  personal_id: string
+  address: string
+  employer: string
+  guarantors: string // JSON string pro editaci
+}
+
 export default function TenantDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [tenant, setTenant] = useState<Tenant | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
-  const [editedData, setEditedData] = useState({
+  const [isEditing, setIsEditing] = useState<boolean>(false)
+  const [isSaving, setIsSaving] = useState<boolean>(false)
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false)
+  const [editedData, setEditedData] = useState<TenantFormData>({
     full_name: '',
     email: '',
     phone: '',
@@ -44,7 +56,7 @@ export default function TenantDetailPage() {
         setTenant(null)
         return
       }
-      const data = await res.json()
+      const data: Tenant = await res.json()
       setTenant(data)
       setEditedData({
         full_name: data.full_name || '',
@@ -63,17 +75,34 @@ export default function TenantDetailPage() {
     setIsSaving(true)
     setSaveSuccess(false)
     try {
-      const payload = {
-        ...editedData,
-        guarantors: editedData.guarantors ? JSON.parse(editedData.guarantors) : null,
+      let parsedGuarantors: Guarantor[] | null = null
+      if (editedData.guarantors) {
+        try {
+          parsedGuarantors = JSON.parse(editedData.guarantors)
+        } catch {
+          alert('Rušitelé musí být validní JSON pole.')
+          setIsSaving(false)
+          return
+        }
       }
+
+      const payload: Omit<Tenant, 'id' | 'date_registered'> = {
+        full_name: editedData.full_name,
+        email: editedData.email,
+        phone: editedData.phone,
+        personal_id: editedData.personal_id,
+        address: editedData.address,
+        employer: editedData.employer,
+        guarantors: parsedGuarantors,
+      }
+
       const res = await fetch(`/api/tenants/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error('Chyba při ukládání')
-      const updated = await res.json()
+      const updated: Tenant = await res.json()
       setTenant(updated)
       setSaveSuccess(true)
       setIsEditing(false)
@@ -215,4 +244,3 @@ export default function TenantDetailPage() {
     </div>
   )
 }
-
