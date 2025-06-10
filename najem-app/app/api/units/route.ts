@@ -5,11 +5,13 @@ export async function POST(request: Request) {
   const supabase = supabaseRouteClient();
   const body = await request.json();
 
-  // Debug: vypíšeme si, co fakticky přichází z formuláře
-  console.log("POSTED BODY", body);
+  // Tohle vezme identifier, nebo unit_number, podle toho, co přijde
+  const identifier = body.identifier || body.unit_number;
+  const { property_id, floor, area, description } = body;
 
-  // Očekáváme, že frontend pošle unit_number!
-  const { property_id, unit_number, floor, area, description } = body;
+  if (!identifier) {
+    return NextResponse.json({ error: "Chybí unit_number/identifier!" }, { status: 400 });
+  }
 
   const {
     data: { session },
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
     .from("units")
     .insert({
       property_id,
-      identifier: unit_number, // ← toto je KLÍČOVÉ!
+      identifier, // ZDE JE JISTOTA, že nikdy není null!
       floor,
       area,
       description,
@@ -33,7 +35,6 @@ export async function POST(request: Request) {
     .select();
 
   if (error) {
-    console.error("Chyba při vkládání jednotky:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
