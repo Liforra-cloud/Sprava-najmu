@@ -4,11 +4,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+const occupancyOptions = [
+  { value: "volné", label: "Volné" },
+  { value: "obsazené", label: "Obsazené" },
+  { value: "rezervováno", label: "Rezervováno" }
+  // Přidej další možnosti podle enumu v DB, pokud máš víc stavů!
+];
+
 export default function NewUnitPage() {
   const [unitNumber, setUnitNumber] = useState("");
-  const [propertyId, setPropertyId] = useState(""); // předvyplň, nebo doplň selectem
+  const [propertyId, setPropertyId] = useState("");
   const [floor, setFloor] = useState("");
+  const [disposition, setDisposition] = useState("");
   const [area, setArea] = useState("");
+  const [occupancyStatus, setOccupancyStatus] = useState("volné");
+  const [monthlyRent, setMonthlyRent] = useState("");
+  const [deposit, setDeposit] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -17,15 +28,18 @@ export default function NewUnitPage() {
     e.preventDefault();
     setError(null);
 
-    // !!! Tohle je klíčové - posíláme unit_number !!!
     const res = await fetch("/api/units", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         unit_number: unitNumber,
         property_id: propertyId,
-        floor,
-        area,
+        floor: floor !== "" ? Number(floor) : null,
+        disposition,
+        area: area !== "" ? Number(area) : null,
+        occupancy_status: occupancyStatus,
+        monthly_rent: monthlyRent !== "" ? Number(monthlyRent) : null,
+        deposit: deposit !== "" ? Number(deposit) : null,
         description,
       }),
     });
@@ -63,13 +77,41 @@ export default function NewUnitPage() {
           onChange={(e) => setFloor(e.target.value)}
         />
         <input
+          type="text"
+          placeholder="Dispozice (např. 2+kk)"
+          value={disposition}
+          onChange={(e) => setDisposition(e.target.value)}
+        />
+        <input
           type="number"
-          placeholder="Plocha"
+          step="0.01"
+          placeholder="Plocha (m²)"
           value={area}
           onChange={(e) => setArea(e.target.value)}
         />
+        <select
+          value={occupancyStatus}
+          onChange={(e) => setOccupancyStatus(e.target.value)}
+        >
+          {occupancyOptions.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
         <input
-          type="text"
+          type="number"
+          step="0.01"
+          placeholder="Měsíční nájem (Kč)"
+          value={monthlyRent}
+          onChange={(e) => setMonthlyRent(e.target.value)}
+        />
+        <input
+          type="number"
+          step="0.01"
+          placeholder="Kauce (Kč)"
+          value={deposit}
+          onChange={(e) => setDeposit(e.target.value)}
+        />
+        <textarea
           placeholder="Popis"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -80,4 +122,3 @@ export default function NewUnitPage() {
     </main>
   );
 }
-
