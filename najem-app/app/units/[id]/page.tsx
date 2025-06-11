@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface Property {
   id: string;
@@ -316,40 +317,56 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
             {showAddTenant ? 'Zavřít' : 'Přidat nájemníka'}
           </button>
         </div>
-        <ul className="mt-3 space-y-2">
-          {unitTenants.length === 0 && <li className="text-gray-500">Žádní nájemníci</li>}
-          {unitTenants.map(ut => (
-            <li key={ut.id} className="p-2 border rounded flex flex-col md:flex-row md:items-center md:justify-between">
-              <div>
-                <span>
-                  <b>{ut.tenant?.full_name}</b> <span className="text-gray-500 text-xs">{ut.tenant?.email}</span>
-                </span>
-                <span className="text-sm block">
-                  <b>Od:</b> {ut.date_from} {ut.date_to && <> <b>do:</b> {ut.date_to}</>}
-                  {ut.contract_number && <> <b> | Smlouva:</b> {ut.contract_number}</>}
-                </span>
-                {ut.note && <span className="text-xs text-gray-500">Poznámka: {ut.note}</span>}
-              </div>
-              <button
-                className="bg-red-500 text-white px-3 py-1 rounded mt-2 md:mt-0"
-                onClick={async () => {
-                  if (!confirm('Opravdu odebrat tohoto nájemníka z jednotky?')) return;
-                  await fetch(`/api/unit-tenants/${ut.id}`, {
-                    method: 'DELETE',
-                    credentials: 'include',
-                  });
-                  const unitRes = await fetch(`/api/units/${id}`, { credentials: 'include' });
-                  if (unitRes.ok) {
-                    const unit = await unitRes.json();
-                    setUnitTenants(unit.tenants ?? []);
-                  }
-                }}
-              >
-                Odebrat
-              </button>
-            </li>
-          ))}
-        </ul>
+     <ul className="mt-3 space-y-2">
+  {unitTenants.length === 0 && <li className="text-gray-500">Žádní nájemníci</li>}
+  {unitTenants.map(ut => (
+    <li key={ut.id} className="p-2 border rounded flex flex-col md:flex-row md:items-center md:justify-between">
+      <div>
+        {/* Jméno jako odkaz na detail nájemníka */}
+        <Link
+          href={`/tenants/${ut.tenant?.id}`}
+          className="font-bold text-blue-700 hover:underline mr-2"
+        >
+          {ut.tenant?.full_name}
+        </Link>
+        <span className="text-gray-500 text-xs">{ut.tenant?.email}</span>
+        <span className="text-sm block">
+          <b>Od:</b> {ut.date_from} {ut.date_to && <> <b>do:</b> {ut.date_to}</>}
+          {ut.contract_number && <> <b> | Smlouva:</b> {ut.contract_number}</>}
+        </span>
+        {ut.note && <span className="text-xs text-gray-500">Poznámka: {ut.note}</span>}
+      </div>
+      <div className="flex gap-2 mt-2 md:mt-0">
+        {/* Tlačítko pro editaci nájemníka */}
+        <Link
+          href={`/tenants/${ut.tenant?.id}`}
+          className="bg-yellow-500 text-white px-3 py-1 rounded"
+        >
+          Upravit
+        </Link>
+        {/* Mazání přiřazení */}
+        <button
+          className="bg-red-500 text-white px-3 py-1 rounded"
+          onClick={async () => {
+            if (!confirm('Opravdu odebrat tohoto nájemníka z jednotky?')) return;
+            await fetch(`/api/unit-tenants/${ut.id}`, {
+              method: 'DELETE',
+              credentials: 'include',
+            });
+            const unitRes = await fetch(`/api/units/${id}`, { credentials: 'include' });
+            if (unitRes.ok) {
+              const unit = await unitRes.json();
+              setUnitTenants(unit.tenants ?? []);
+            }
+          }}
+        >
+          Odebrat
+        </button>
+      </div>
+    </li>
+  ))}
+</ul>
+
 
         {showAddTenant && (
           <form onSubmit={handleAddTenant} className="mt-4 space-y-2 p-3 bg-gray-100 rounded">
