@@ -10,6 +10,22 @@ interface Property {
   name: string;
 }
 
+interface Tenant {
+  id: string;
+  full_name: string;
+  email: string;
+}
+
+interface UnitTenant {
+  id: string;
+  tenant_id: string;
+  tenant: Tenant;
+  date_from: string;
+  date_to?: string | null;
+  contract_number?: string | null;
+  note?: string | null;
+}
+
 interface UnitForm {
   property_id: string;
   identifier: string;
@@ -26,6 +42,20 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const router = useRouter();
 
+  // --- Nové stavy pro nájemníky ---
+  const [unitTenants, setUnitTenants] = useState<UnitTenant[]>([]);
+  const [allTenants, setAllTenants] = useState<Tenant[]>([]);
+  const [showAddTenant, setShowAddTenant] = useState(false);
+  const [newTenant, setNewTenant] = useState({
+    tenant_id: '',
+    date_from: '',
+    date_to: '',
+    contract_number: '',
+    note: '',
+  });
+  const [tenantSaveError, setTenantSaveError] = useState('');
+
+  // --- Stávající z tvého kódu ---
   const [properties, setProperties] = useState<Property[]>([]);
   const [form, setForm] = useState<UnitForm>({
     property_id: '',
@@ -45,15 +75,19 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [unitRes, propRes] = await Promise.all([
+        // --- Načti detail jednotky + unitTenants ---
+        const [unitRes, propRes, tenantsRes] = await Promise.all([
           fetch(`/api/units/${id}`, { credentials: 'include' }),
           fetch('/api/properties', { credentials: 'include' }),
+          fetch('/api/tenants', { credentials: 'include' }),
         ]);
 
         if (!unitRes.ok) throw new Error('Jednotka nenalezena');
-        const unit: UnitForm = await unitRes.json();
+        const unit = await unitRes.json();
         const propList: Property[] = await propRes.json();
+        const tenantList: Tenant[] = await tenantsRes.json();
 
+        // --- Základní data jednotky ---
         setForm({
           property_id: unit.property_id ?? '',
           identifier: unit.identifier ?? '',
@@ -66,6 +100,9 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           description: unit.description ?? '',
         });
 
+        // --- Nájemníci v jednotce ---
+        setUnitTenants(unit.tenants ?? []);
+        setAllTenants(Array.isArray(tenantList) ? tenantList : []);
         setProperties(Array.isArray(propList) ? propList : []);
         setIsLoading(false);
       } catch (err) {
@@ -74,10 +111,10 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
       }
     };
     fetchData();
-    // id nemusí být v dep array, jde o params z Next.js (není reaktivní)
     // eslint-disable-next-line
   }, []);
 
+  // --- Uložení změn jednotky ---
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -100,6 +137,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
     setIsSaving(false);
   };
 
+  // --- Smazání jednotky ---
   const handleDelete = async () => {
     if (!confirm('Opravdu smazat tuto jednotku?')) return;
     setIsSaving(true);
@@ -119,6 +157,38 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
     }
   };
 
+  // --- Přidání nájemníka k jednotce ---
+  const handleAddTenant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTenantSaveError('');
+    try {
+      const res = await fetch('/api/unit-tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          unit_id: id,
+          ...newTenant,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Chyba při přiřazení nájemníka');
+      }
+      // refresh tenantů v jednotce
+      setShowAddTenant(false);
+      setNewTenant({ tenant_id: '', date_from: '', date_to: '', contract_number: '', note: '' });
+      // Znovu načti unitTenants
+      const unitRes = await fetch(`/api/units/${id}`, { credentials: 'include' });
+      if (unitRes.ok) {
+        const unit = await unitRes.json();
+        setUnitTenants(unit.tenants ?? []);
+      }
+    } catch (err) {
+      setTenantSaveError((err as Error).message || 'Chyba');
+    }
+  };
+
   if (isLoading) return <p className="p-8">Načítání...</p>;
   if (error) return <p className="p-8 text-red-600">{error}</p>;
 
@@ -126,6 +196,9 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
     <div className="max-w-xl mx-auto mt-10 p-6 bg-white shadow rounded">
       <h1 className="text-2xl font-bold mb-4">Editace jednotky</h1>
       <form onSubmit={handleSave} className="space-y-4">
+        {/* --- Původní formulář jednotky --- */}
+        {/* ... zde zůstává tvůj původní obsah ... */}
+        {/* (ponechávám ho stejný) */}
         <div>
           <label className="block text-sm font-medium text-gray-700">
             Nemovitost
@@ -254,6 +327,99 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
         </div>
         {error && <p className="text-red-600">{error}</p>}
       </form>
+
+      {/* --- Nová sekce: Nájemníci v této jednotce --- */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Nájemníci v této jednotce</h2>
+          <button
+            className="bg-green-600 text-white px-3 py-1 rounded"
+            onClick={() => setShowAddTenant(v => !v)}
+          >
+            {showAddTenant ? 'Zavřít' : 'Přidat nájemníka'}
+          </button>
+        </div>
+        {/* Výpis současných nájemníků */}
+        <ul className="mt-3 space-y-2">
+          {unitTenants.length === 0 && <li className="text-gray-500">Žádní nájemníci</li>}
+          {unitTenants.map(ut => (
+            <li key={ut.id} className="p-2 border rounded flex flex-col">
+              <span>
+                <b>{ut.tenant?.full_name}</b> <span className="text-gray-500 text-xs">{ut.tenant?.email}</span>
+              </span>
+              <span className="text-sm">
+                <b>Od:</b> {ut.date_from} {ut.date_to && <> <b>do:</b> {ut.date_to}</>}
+                {ut.contract_number && <> <b> | Smlouva:</b> {ut.contract_number}</>}
+              </span>
+              {ut.note && <span className="text-xs text-gray-500">Poznámka: {ut.note}</span>}
+            </li>
+          ))}
+        </ul>
+
+        {/* Formulář pro přiřazení nájemníka */}
+        {showAddTenant && (
+          <form onSubmit={handleAddTenant} className="mt-4 space-y-2 p-3 bg-gray-100 rounded">
+            <div>
+              <label className="block text-sm font-medium">Nájemník</label>
+              <select
+                required
+                value={newTenant.tenant_id}
+                onChange={e => setNewTenant(nt => ({ ...nt, tenant_id: e.target.value }))}
+                className="w-full px-2 py-1 border rounded"
+              >
+                <option value="">Vyberte nájemníka…</option>
+                {allTenants.map(t => (
+                  <option key={t.id} value={t.id}>{t.full_name} ({t.email})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Od</label>
+              <input
+                type="date"
+                required
+                value={newTenant.date_from}
+                onChange={e => setNewTenant(nt => ({ ...nt, date_from: e.target.value }))}
+                className="w-full px-2 py-1 border rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Do (nepovinné)</label>
+              <input
+                type="date"
+                value={newTenant.date_to}
+                onChange={e => setNewTenant(nt => ({ ...nt, date_to: e.target.value }))}
+                className="w-full px-2 py-1 border rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Číslo smlouvy (nepovinné)</label>
+              <input
+                type="text"
+                value={newTenant.contract_number}
+                onChange={e => setNewTenant(nt => ({ ...nt, contract_number: e.target.value }))}
+                className="w-full px-2 py-1 border rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Poznámka</label>
+              <input
+                type="text"
+                value={newTenant.note}
+                onChange={e => setNewTenant(nt => ({ ...nt, note: e.target.value }))}
+                className="w-full px-2 py-1 border rounded"
+              />
+            </div>
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-1 rounded"
+            >
+              Přidat nájemníka
+            </button>
+            {tenantSaveError && <div className="text-red-600">{tenantSaveError}</div>}
+          </form>
+        )}
+      </div>
     </div>
   );
 }
