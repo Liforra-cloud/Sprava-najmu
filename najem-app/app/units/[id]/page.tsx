@@ -42,7 +42,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const router = useRouter();
 
-  // --- Nové stavy pro nájemníky ---
+  // Nájemníci
   const [unitTenants, setUnitTenants] = useState<UnitTenant[]>([]);
   const [allTenants, setAllTenants] = useState<Tenant[]>([]);
   const [showAddTenant, setShowAddTenant] = useState(false);
@@ -55,7 +55,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
   });
   const [tenantSaveError, setTenantSaveError] = useState('');
 
-  // --- Stávající z tvého kódu ---
+  // Jednotka
   const [properties, setProperties] = useState<Property[]>([]);
   const [form, setForm] = useState<UnitForm>({
     property_id: '',
@@ -75,7 +75,6 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // --- Načti detail jednotky + unitTenants ---
         const [unitRes, propRes, tenantsRes] = await Promise.all([
           fetch(`/api/units/${id}`, { credentials: 'include' }),
           fetch('/api/properties', { credentials: 'include' }),
@@ -87,7 +86,6 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
         const propList: Property[] = await propRes.json();
         const tenantList: Tenant[] = await tenantsRes.json();
 
-        // --- Základní data jednotky ---
         setForm({
           property_id: unit.property_id ?? '',
           identifier: unit.identifier ?? '',
@@ -100,7 +98,6 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           description: unit.description ?? '',
         });
 
-        // --- Nájemníci v jednotce ---
         setUnitTenants(unit.tenants ?? []);
         setAllTenants(Array.isArray(tenantList) ? tenantList : []);
         setProperties(Array.isArray(propList) ? propList : []);
@@ -111,10 +108,9 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
       }
     };
     fetchData();
-    // eslint-disable-next-line
-  }, []);
+  }, [id]);
 
-  // --- Uložení změn jednotky ---
+  // Uložení změn jednotky
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -137,7 +133,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
     setIsSaving(false);
   };
 
-  // --- Smazání jednotky ---
+  // Smazání jednotky
   const handleDelete = async () => {
     if (!confirm('Opravdu smazat tuto jednotku?')) return;
     setIsSaving(true);
@@ -157,28 +153,30 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
     }
   };
 
-  // --- Přidání nájemníka k jednotce ---
+  // Přidání nájemníka k jednotce
   const handleAddTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     setTenantSaveError('');
     try {
+      // Pokud date_to je "", dej null
+      const payload = {
+        unit_id: id,
+        ...newTenant,
+        date_to: newTenant.date_to === '' ? null : newTenant.date_to,
+      };
+
       const res = await fetch('/api/unit-tenants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          unit_id: id,
-          ...newTenant,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Chyba při přiřazení nájemníka');
       }
-      // refresh tenantů v jednotce
       setShowAddTenant(false);
       setNewTenant({ tenant_id: '', date_from: '', date_to: '', contract_number: '', note: '' });
-      // Znovu načti unitTenants
       const unitRes = await fetch(`/api/units/${id}`, { credentials: 'include' });
       if (unitRes.ok) {
         const unit = await unitRes.json();
@@ -196,13 +194,8 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
     <div className="max-w-xl mx-auto mt-10 p-6 bg-white shadow rounded">
       <h1 className="text-2xl font-bold mb-4">Editace jednotky</h1>
       <form onSubmit={handleSave} className="space-y-4">
-        {/* --- Původní formulář jednotky --- */}
-        {/* ... zde zůstává tvůj původní obsah ... */}
-        {/* (ponechávám ho stejný) */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Nemovitost
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Nemovitost</label>
           <select
             value={form.property_id}
             onChange={e => setForm(f => ({ ...f, property_id: e.target.value }))}
@@ -216,9 +209,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Označení jednotky
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Označení jednotky</label>
           <input
             type="text"
             required
@@ -228,9 +219,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Podlaží
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Podlaží</label>
           <input
             type="number"
             value={form.floor}
@@ -239,9 +228,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Dispozice
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Dispozice</label>
           <input
             type="text"
             value={form.disposition}
@@ -251,9 +238,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Rozloha (m²)
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Rozloha (m²)</label>
           <input
             type="number"
             value={form.area}
@@ -262,9 +247,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Stav obsazenosti
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Stav obsazenosti</label>
           <select
             value={form.occupancy_status}
             onChange={e => setForm(f => ({ ...f, occupancy_status: e.target.value }))}
@@ -276,9 +259,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Nájem (Kč)
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Nájem (Kč)</label>
           <input
             type="number"
             value={form.monthly_rent}
@@ -287,9 +268,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Kauce (Kč)
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Kauce (Kč)</label>
           <input
             type="number"
             value={form.deposit}
@@ -298,9 +277,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Popis jednotky
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Popis jednotky</label>
           <textarea
             value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -328,7 +305,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
         {error && <p className="text-red-600">{error}</p>}
       </form>
 
-      {/* --- Nová sekce: Nájemníci v této jednotce --- */}
+      {/* --- Nájemníci v jednotce --- */}
       <div className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Nájemníci v této jednotce</h2>
@@ -339,44 +316,41 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
             {showAddTenant ? 'Zavřít' : 'Přidat nájemníka'}
           </button>
         </div>
-        {/* Výpis současných nájemníků */}
-      <ul className="mt-3 space-y-2">
-  {unitTenants.length === 0 && <li className="text-gray-500">Žádní nájemníci</li>}
-  {unitTenants.map(ut => (
-    <li key={ut.id} className="p-2 border rounded flex flex-col md:flex-row md:items-center md:justify-between">
-      <div>
-        <span>
-          <b>{ut.tenant?.full_name}</b> <span className="text-gray-500 text-xs">{ut.tenant?.email}</span>
-        </span>
-        <span className="text-sm block">
-          <b>Od:</b> {ut.date_from} {ut.date_to && <> <b>do:</b> {ut.date_to}</>}
-          {ut.contract_number && <> <b> | Smlouva:</b> {ut.contract_number}</>}
-        </span>
-        {ut.note && <span className="text-xs text-gray-500">Poznámka: {ut.note}</span>}
-      </div>
-      <button
-        className="bg-red-500 text-white px-3 py-1 rounded mt-2 md:mt-0"
-        onClick={async () => {
-          if (!confirm('Opravdu odebrat tohoto nájemníka z jednotky?')) return;
-          await fetch(`/api/unit-tenants/${ut.id}`, {
-            method: 'DELETE',
-            credentials: 'include',
-          });
-          // Obnovit výpis nájemníků
-          const unitRes = await fetch(`/api/units/${id}`, { credentials: 'include' });
-          if (unitRes.ok) {
-            const unit = await unitRes.json();
-            setUnitTenants(unit.tenants ?? []);
-          }
-        }}
-      >
-        Odebrat
-      </button>
-    </li>
-  ))}
-</ul>
+        <ul className="mt-3 space-y-2">
+          {unitTenants.length === 0 && <li className="text-gray-500">Žádní nájemníci</li>}
+          {unitTenants.map(ut => (
+            <li key={ut.id} className="p-2 border rounded flex flex-col md:flex-row md:items-center md:justify-between">
+              <div>
+                <span>
+                  <b>{ut.tenant?.full_name}</b> <span className="text-gray-500 text-xs">{ut.tenant?.email}</span>
+                </span>
+                <span className="text-sm block">
+                  <b>Od:</b> {ut.date_from} {ut.date_to && <> <b>do:</b> {ut.date_to}</>}
+                  {ut.contract_number && <> <b> | Smlouva:</b> {ut.contract_number}</>}
+                </span>
+                {ut.note && <span className="text-xs text-gray-500">Poznámka: {ut.note}</span>}
+              </div>
+              <button
+                className="bg-red-500 text-white px-3 py-1 rounded mt-2 md:mt-0"
+                onClick={async () => {
+                  if (!confirm('Opravdu odebrat tohoto nájemníka z jednotky?')) return;
+                  await fetch(`/api/unit-tenants/${ut.id}`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                  });
+                  const unitRes = await fetch(`/api/units/${id}`, { credentials: 'include' });
+                  if (unitRes.ok) {
+                    const unit = await unitRes.json();
+                    setUnitTenants(unit.tenants ?? []);
+                  }
+                }}
+              >
+                Odebrat
+              </button>
+            </li>
+          ))}
+        </ul>
 
-        {/* Formulář pro přiřazení nájemníka */}
         {showAddTenant && (
           <form onSubmit={handleAddTenant} className="mt-4 space-y-2 p-3 bg-gray-100 rounded">
             <div>
@@ -443,3 +417,4 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
