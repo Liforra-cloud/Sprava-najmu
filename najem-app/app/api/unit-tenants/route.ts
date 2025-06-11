@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
 // GET – výpis všech přiřazení (například pro správu, není povinné používat)
-export async function GET(request: NextRequest) {
+export async function GET() {
   const supabase = supabaseRouteClient()
   const { data, error } = await supabase
     .from('unit_tenants')
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST – přiřazení nájemníka k jednotce
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     // Ošetři povinné položky
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     }
     // Vrať nově vytvořený záznam
     return NextResponse.json(data, { status: 201 })
-  } catch (e: any) {
+  } catch (error: unknown) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 }
