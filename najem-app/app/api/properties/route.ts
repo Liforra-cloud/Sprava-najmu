@@ -14,48 +14,41 @@ export async function GET() {
     return NextResponse.json({ error: 'Nepřihlášený uživatel' }, { status: 401 })
   }
 
-  const { data, error } = await supabase
+  // 1. Načteme properties uživatele
+  const { data: properties, error: propError } = await supabase
     .from('properties')
     .select('id, name, address, description')
     .eq('user_id', session.user.id)
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (propError) {
+    return NextResponse.json({ error: propError.message }, { status: 500 })
   }
 
-  return NextResponse.json(data)
+  // 2. Načteme všechny jednotky těchto nemovitostí (jen potřebná pole)
+  const propertyIds = properties.map((p: any) => p.id)
+  const { data: units, error: unitError } = await supabase
+    .from('units')
+    .select('id, property_id, monthly_rent, occupancy_status')
+    .in('property_id', propertyIds)
+
+  if (unitError) {
+    return NextResponse.json({ error: unitError.message }, { status: 500 })
+  }
+
+  // 3. Spočítáme souhrny pro každou nemovitost
+  const propertyMap = properties.map((property: any) => {
+    const propUnits = units.filter((u: any) => u.property_id === property.id)
+    const unitCount = propUnits.length
+    const occupiedCount = propUnits.filter((u: any) => u.occupancy_status === 'obsazeno').length
+    const totalRent = propUnits.reduce((sum: number, u: any) => sum + (Number(u.monthly_rent) || 0), 0)
+    return {
+      ...property,
+      unitCount,
+      occupiedCount,
+      totalRent,
+    }
+  })
+
+  return NextResponse.json(propertyMap)
 }
 
-// Přidej tento POST handler:
-export async function POST(request: NextRequest) {
-  const supabase = supabaseRouteClient()
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  if (!session) {
-    return NextResponse.json({ error: 'Nelze zjistit přihlášeného uživatele.' }, { status: 401 })
-  }
-
-  const { name, address, description } = await request.json()
-
-  const { data, error } = await supabase
-    .from('properties')
-    .insert([
-      {
-        name,
-        address,
-        description,
-        user_id: session.user.id,
-      },
-    ])
-    .select()
-    .single()
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json(data)
-}
