@@ -17,6 +17,13 @@ type Unit = {
   occupancy_status: string
 }
 
+// nový typ pro attachment, pokud budeš chtít použít později
+type Attachment = {
+  id: string
+  property_id: string
+  url: string
+}
+
 export async function GET() {
   const supabase = supabaseRouteClient()
 
@@ -55,17 +62,35 @@ export async function GET() {
     units = unitsData ?? []
   }
 
-  // 3. Spočítáme souhrny pro každou nemovitost
+  // 3. Načti attachments (přílohy) pro všechny properties v jednom dotazu
+  let attachments: Attachment[] = []
+  if (propertyIds.length > 0) {
+    const { data: attachmentsData, error: attachmentsError } = await supabase
+      .from('attachments')
+      .select('id, property_id')
+      .in('property_id', propertyIds)
+
+    if (attachmentsError) {
+      return NextResponse.json({ error: attachmentsError.message }, { status: 500 })
+    }
+    attachments = attachmentsData ?? []
+  }
+
+  // 4. Spočítáme souhrny + indikátory pro každou nemovitost
   const propertyMap = propertyList.map((property) => {
     const propUnits = units.filter((u) => u.property_id === property.id)
     const unitCount = propUnits.length
     const occupiedCount = propUnits.filter((u) => u.occupancy_status === 'obsazeno').length
     const totalRent = propUnits.reduce((sum, u) => sum + (Number(u.monthly_rent) || 0), 0)
+    const hasAttachment = attachments.some(a => a.property_id === property.id)
+    const hasNote = !!property.description && property.description.trim().length > 0
     return {
       ...property,
       unitCount,
       occupiedCount,
       totalRent,
+      hasAttachment,
+      hasNote,
     }
   })
 
