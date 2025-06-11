@@ -10,12 +10,11 @@ export default async function SidebarLayout({ children }: { children: React.Reac
   const supabase = supabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Pokud není user, redirect na login
   if (!user) {
     redirect('/login')
   }
 
-  // Sidebar navigace – PŘIDÁNO tenants!
+  // Sidebar navigace – PŘIDÁNO tenants a expenses!
   const navItems = [
     { href: '/', label: 'Dashboard' },
     { href: '/properties', label: 'Nemovitosti' },
@@ -24,6 +23,8 @@ export default async function SidebarLayout({ children }: { children: React.Reac
     { href: '/units/new', label: 'Přidat jednotku' },
     { href: '/tenants', label: 'Nájemníci' },
     { href: '/tenants/new', label: 'Přidat nájemníka' },
+    { href: '/expenses', label: 'Náklady' }, // <-- Přidáno
+    { href: '/expenses/new', label: 'Přidat náklad' }, // (volitelné)
   ]
 
   return (
