@@ -3,7 +3,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Plus, Edit, Trash2 } from 'lucide-react'
+import { X, Plus, Edit, Trash2, ArrowDownAZ, ArrowUpAZ } from 'lucide-react'
 
 interface Expense {
   id: string
@@ -26,6 +26,8 @@ interface Unit {
   property_id: string
 }
 
+type SortField = 'date_incurred' | 'amount' | 'unit_id' | 'property_id' | 'expense_type'
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [properties, setProperties] = useState<Property[]>([])
@@ -34,6 +36,10 @@ export default function ExpensesPage() {
   const [selectedUnit, setSelectedUnit] = useState<string>('')
   const [showModal, setShowModal] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [sortBy, setSortBy] = useState<SortField>('date_incurred')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   // Formulář pro přidání/editaci
   const [form, setForm] = useState({
@@ -70,6 +76,43 @@ export default function ExpensesPage() {
       .then(res => res.json())
       .then(setExpenses)
   }, [selectedProperty, selectedUnit, saving, showModal])
+
+  // Filtrování podle datumu
+  const filteredByDate = expenses.filter(exp => {
+    let include = true
+    if (dateFrom) include = include && exp.date_incurred >= dateFrom
+    if (dateTo) include = include && exp.date_incurred <= dateTo
+    return include
+  })
+
+  // Řazení
+  const sortedExpenses = [...filteredByDate].sort((a, b) => {
+    let valA: any = a[sortBy]
+    let valB: any = b[sortBy]
+    if (sortBy === 'unit_id') {
+      valA = units.find(u => u.id === a.unit_id)?.identifier || ''
+      valB = units.find(u => u.id === b.unit_id)?.identifier || ''
+    }
+    if (sortBy === 'property_id') {
+      valA = properties.find(p => p.id === a.property_id)?.name || ''
+      valB = properties.find(p => p.id === b.property_id)?.name || ''
+    }
+    if (sortBy === 'date_incurred') {
+      valA = a.date_incurred
+      valB = b.date_incurred
+    }
+    if (sortBy === 'amount') {
+      valA = Number(a.amount)
+      valB = Number(b.amount)
+    }
+    if (sortBy === 'expense_type') {
+      valA = a.expense_type || ''
+      valB = b.expense_type || ''
+    }
+    if (valA < valB) return sortDir === 'asc' ? -1 : 1
+    if (valA > valB) return sortDir === 'asc' ? 1 : -1
+    return 0
+  })
 
   // Filtr dostupných jednotek podle vybrané nemovitosti
   const filteredUnits = selectedProperty
@@ -148,7 +191,17 @@ export default function ExpensesPage() {
   }
 
   // Suma aktuálně zobrazených nákladů
-  const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
+  const total = sortedExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
+
+  // Helper pro přepnutí řazení
+  const handleSort = (field: SortField) => {
+    if (sortBy === field) {
+      setSortDir(dir => (dir === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(field)
+      setSortDir('asc')
+    }
+  }
 
   return (
     <div className="max-w-3xl mx-auto p-6">
@@ -160,7 +213,7 @@ export default function ExpensesPage() {
       </div>
 
       {/* Filtry */}
-      <div className="flex gap-4 mb-4 flex-wrap">
+      <div className="flex gap-4 mb-4 flex-wrap items-end">
         <div>
           <label className="text-sm">Nemovitost:</label>
           <select
@@ -188,6 +241,24 @@ export default function ExpensesPage() {
             ))}
           </select>
         </div>
+        <div>
+          <label className="text-sm">Od:</label>
+          <input
+            type="date"
+            className="border rounded px-2 py-1 ml-2"
+            value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-sm">Do:</label>
+          <input
+            type="date"
+            className="border rounded px-2 py-1 ml-2"
+            value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Suma */}
@@ -200,22 +271,47 @@ export default function ExpensesPage() {
         <table className="min-w-full border rounded shadow-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="p-2 text-left">Datum</th>
+              <th className="p-2 text-left cursor-pointer" onClick={() => handleSort('date_incurred')}>
+                Datum{' '}
+                {sortBy === 'date_incurred' ? (
+                  sortDir === 'asc' ? <ArrowDownAZ size={14} /> : <ArrowUpAZ size={14} />
+                ) : null}
+              </th>
               <th className="p-2 text-left">Popis</th>
-              <th className="p-2 text-left">Typ</th>
-              <th className="p-2 text-right">Částka (Kč)</th>
-              <th className="p-2 text-left">Nemovitost</th>
-              <th className="p-2 text-left">Jednotka</th>
+              <th className="p-2 text-left cursor-pointer" onClick={() => handleSort('expense_type')}>
+                Typ{' '}
+                {sortBy === 'expense_type' ? (
+                  sortDir === 'asc' ? <ArrowDownAZ size={14} /> : <ArrowUpAZ size={14} />
+                ) : null}
+              </th>
+              <th className="p-2 text-right cursor-pointer" onClick={() => handleSort('amount')}>
+                Částka (Kč){' '}
+                {sortBy === 'amount' ? (
+                  sortDir === 'asc' ? <ArrowDownAZ size={14} /> : <ArrowUpAZ size={14} />
+                ) : null}
+              </th>
+              <th className="p-2 text-left cursor-pointer" onClick={() => handleSort('property_id')}>
+                Nemovitost{' '}
+                {sortBy === 'property_id' ? (
+                  sortDir === 'asc' ? <ArrowDownAZ size={14} /> : <ArrowUpAZ size={14} />
+                ) : null}
+              </th>
+              <th className="p-2 text-left cursor-pointer" onClick={() => handleSort('unit_id')}>
+                Jednotka{' '}
+                {sortBy === 'unit_id' ? (
+                  sortDir === 'asc' ? <ArrowDownAZ size={14} /> : <ArrowUpAZ size={14} />
+                ) : null}
+              </th>
               <th className="p-2"></th>
             </tr>
           </thead>
           <tbody>
-            {expenses.length === 0 && (
+            {sortedExpenses.length === 0 && (
               <tr>
                 <td colSpan={7} className="p-4 text-center text-gray-500">Žádné náklady</td>
               </tr>
             )}
-            {expenses.map(exp => (
+            {sortedExpenses.map(exp => (
               <tr key={exp.id} className="border-t">
                 <td className="p-2">{new Date(exp.date_incurred).toLocaleDateString()}</td>
                 <td className="p-2">{exp.description}</td>
