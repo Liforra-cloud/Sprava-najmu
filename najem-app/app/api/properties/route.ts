@@ -56,7 +56,7 @@ export async function GET() {
   }
 
   // 3. Načteme počet příloh ke každé nemovitosti (attachments)
-  let attachmentsCount: Record<string, number> = {}
+  const attachmentsCount: Record<string, number> = {}
   if (propertyIds.length > 0) {
     const { data: attachmentsData, error: attachError } = await supabase
       .from('attachments')
