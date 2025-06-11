@@ -17,13 +17,6 @@ type Unit = {
   occupancy_status: string
 }
 
-// nový typ pro attachment, pokud budeš chtít použít později
-type Attachment = {
-  id: string
-  property_id: string
-  url: string
-}
-
 export async function GET() {
   const supabase = supabaseRouteClient()
 
@@ -62,35 +55,43 @@ export async function GET() {
     units = unitsData ?? []
   }
 
-  // 3. Načti attachments (přílohy) pro všechny properties v jednom dotazu
-  let attachments: Attachment[] = []
+  // 3. Načteme počet příloh ke každé nemovitosti (attachments)
+  let attachmentsCount: Record<string, number> = {}
   if (propertyIds.length > 0) {
-    const { data: attachmentsData, error: attachmentsError } = await supabase
+    const { data: attachmentsData, error: attachError } = await supabase
       .from('attachments')
-      .select('id, property_id')
+      .select('property_id, id')
       .in('property_id', propertyIds)
 
-    if (attachmentsError) {
-      return NextResponse.json({ error: attachmentsError.message }, { status: 500 })
+    if (attachError) {
+      return NextResponse.json({ error: attachError.message }, { status: 500 })
     }
-    attachments = attachmentsData ?? []
+
+    // Vytvoř hash { property_id: count }
+    attachmentsData?.forEach((a: { property_id: string }) => {
+      attachmentsCount[a.property_id] = (attachmentsCount[a.property_id] || 0) + 1
+    })
   }
 
-  // 4. Spočítáme souhrny + indikátory pro každou nemovitost
+  // 4. Sestavíme výsledek
   const propertyMap = propertyList.map((property) => {
     const propUnits = units.filter((u) => u.property_id === property.id)
     const unitCount = propUnits.length
     const occupiedCount = propUnits.filter((u) => u.occupancy_status === 'obsazeno').length
     const totalRent = propUnits.reduce((sum, u) => sum + (Number(u.monthly_rent) || 0), 0)
-    const hasAttachment = attachments.some(a => a.property_id === property.id)
-    const hasNote = !!property.description && property.description.trim().length > 0
+
+    // Má property poznámku?
+    const hasNote = !!(property.description && property.description.trim().length > 0)
+    // Má property přílohu?
+    const hasAttachment = (attachmentsCount[property.id] || 0) > 0
+
     return {
       ...property,
       unitCount,
       occupiedCount,
       totalRent,
-      hasAttachment,
       hasNote,
+      hasAttachment,
     }
   })
 
