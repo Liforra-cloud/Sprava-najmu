@@ -97,3 +97,54 @@ export async function GET() {
 
   return NextResponse.json(propertyMap)
 }
+
+// ⬇️⬇️⬇️ NOVÁ POST METODA ⬇️⬇️⬇️
+
+export async function POST(request: Request) {
+  const supabase = supabaseRouteClient()
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (!session) {
+    return NextResponse.json({ error: 'Nepřihlášený uživatel' }, { status: 401 })
+  }
+
+  const body = await request.json()
+  const {
+    name,
+    address,
+    description,
+    property_type,
+    owner,
+    year_built,
+    total_area,
+  } = body
+
+  // Kontrola povinných polí
+  if (!name || !address) {
+    return NextResponse.json({ error: 'Název a adresa jsou povinné.' }, { status: 400 })
+  }
+
+  const { data, error } = await supabase
+    .from('properties')
+    .insert([{
+      name,
+      address,
+      description,
+      property_type,
+      owner,
+      year_built: year_built ? parseInt(year_built) : null,
+      total_area: total_area ? parseFloat(total_area) : null,
+      user_id: session.user.id
+    }])
+    .select('id')
+    .single()
+
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message || 'Nepodařilo se přidat nemovitost.' }, { status: 500 })
+  }
+
+  return NextResponse.json({ id: data.id }, { status: 200 })
+}
