@@ -1,63 +1,72 @@
 // app/units/[id]/page.tsx
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-interface TenantItem {
+interface Property {
   id: string;
-  tenant_id: string;
-  lease_start: string | null;
-  lease_end: string | null;
-  note: string | null;
-  tenant: {
-    id: string;
-    full_name: string;
-    email: string;
-    phone: string | null;
-  }
+  name: string;
+}
+
+interface UnitForm {
+  property_id: string;
+  identifier: string;
+  floor: number | '';
+  disposition: string;
+  area: number | '';
+  occupancy_status: string;
+  monthly_rent: number | '';
+  deposit: number | '';
+  description: string;
 }
 
 export default function EditUnitPage({ params }: { params: { id: string } }) {
-  // ...původní kód...
+  const { id } = params;
+  const router = useRouter();
 
-  // --- Nové: Správa nájemníků ---
-  const [tenants, setTenants] = useState<TenantItem[]>([]);
-  const [allTenants, setAllTenants] = useState<any[]>([]);
-  const [newTenantId, setNewTenantId] = useState('');
-  const [leaseStart, setLeaseStart] = useState('');
-  const [leaseNote, setLeaseNote] = useState('');
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [form, setForm] = useState<UnitForm>({
+    property_id: '',
+    identifier: '',
+    floor: '',
+    disposition: '',
+    area: '',
+    occupancy_status: 'volné',
+    monthly_rent: '',
+    deposit: '',
+    description: '',
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      // Původní fetch jednotky a properties
       try {
-        const [unitRes, propRes, tenantsRes] = await Promise.all([
+        const [unitRes, propRes] = await Promise.all([
           fetch(`/api/units/${id}`, { credentials: 'include' }),
           fetch('/api/properties', { credentials: 'include' }),
-          fetch('/api/tenants', { credentials: 'include' }),
         ]);
 
         if (!unitRes.ok) throw new Error('Jednotka nenalezena');
-        const unitData = await unitRes.json();
+        const unit: UnitForm = await unitRes.json();
+        const propList: Property[] = await propRes.json();
 
         setForm({
-          property_id: unitData.property_id ?? '',
-          identifier: unitData.identifier ?? '',
-          floor: unitData.floor ?? '',
-          disposition: unitData.disposition ?? '',
-          area: unitData.area ?? '',
-          occupancy_status: unitData.occupancy_status || 'volné',
-          monthly_rent: unitData.monthly_rent ?? '',
-          deposit: unitData.deposit ?? '',
-          description: unitData.description ?? '',
+          property_id: unit.property_id ?? '',
+          identifier: unit.identifier ?? '',
+          floor: unit.floor ?? '',
+          disposition: unit.disposition ?? '',
+          area: unit.area ?? '',
+          occupancy_status: unit.occupancy_status || 'volné',
+          monthly_rent: unit.monthly_rent ?? '',
+          deposit: unit.deposit ?? '',
+          description: unit.description ?? '',
         });
 
-        setTenants(unitData.tenants || []);
-        setProperties(Array.isArray(await propRes.json()) ? await propRes.json() : []);
-        setAllTenants(await tenantsRes.json());
+        setProperties(Array.isArray(propList) ? propList : []);
         setIsLoading(false);
       } catch (err) {
         setError((err as Error).message || 'Chyba při načítání');
@@ -65,33 +74,25 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
       }
     };
     fetchData();
-  }, [id]);
+    // id nemusí být v dep array, jde o params z Next.js (není reaktivní)
+    // eslint-disable-next-line
+  }, []);
 
-  // Přidání nájemníka k jednotce
-  const handleAddTenant = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/unit-tenants', {
-        method: 'POST',
+      const res = await fetch(`/api/units/${id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          unit_id: id,
-          tenant_id: newTenantId,
-          lease_start: leaseStart,
-          note: leaseNote
-        }),
+        body: JSON.stringify(form),
       });
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Chyba při přidávání nájemníka');
+        throw new Error(errData.error || 'Chyba při ukládání');
       }
-      // Refresh page data
-      setNewTenantId('');
-      setLeaseStart('');
-      setLeaseNote('');
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -99,97 +100,160 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
     setIsSaving(false);
   };
 
-  // Odebrání nájemníka z jednotky
-  const handleRemoveTenant = async (itemId: string) => {
-    if (!confirm('Odebrat tohoto nájemníka z jednotky?')) return;
+  const handleDelete = async () => {
+    if (!confirm('Opravdu smazat tuto jednotku?')) return;
     setIsSaving(true);
     try {
-      const res = await fetch(`/api/unit-tenants/${itemId}`, {
+      const res = await fetch(`/api/units/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Chyba při odebírání nájemníka');
+        throw new Error(errData.error || 'Chyba při mazání');
       }
-      router.refresh();
+      router.push('/units');
     } catch (err) {
       setError((err as Error).message);
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
-  // ...tvůj původní render formulář jednotky...
-  // Přidej pod něj nový blok pro nájemníky:
+  if (isLoading) return <p className="p-8">Načítání...</p>;
+  if (error) return <p className="p-8 text-red-600">{error}</p>;
 
   return (
     <div className="max-w-xl mx-auto mt-10 p-6 bg-white shadow rounded">
-      {/* ...formulář jednotky... */}
-
-      <h2 className="text-xl font-semibold mt-8 mb-2">Nájemníci v jednotce</h2>
-      <ul className="mb-4 space-y-1">
-        {tenants.length === 0 && <li className="text-gray-500">Žádný nájemník</li>}
-        {tenants.map(t => (
-          <li key={t.id} className="flex justify-between items-center border-b py-2">
-            <div>
-              <span className="font-medium">{t.tenant?.full_name}</span>
-              <span className="ml-2 text-gray-500 text-sm">{t.tenant?.email}</span>
-              {t.lease_start && (
-                <span className="ml-2 text-sm text-gray-600">od {new Date(t.lease_start).toLocaleDateString()}</span>
-              )}
-              {t.note && (
-                <span className="ml-2 italic text-xs text-gray-500">({t.note})</span>
-              )}
-            </div>
-            <button
-              className="text-red-600 px-2 py-1 rounded hover:bg-red-100"
-              onClick={() => handleRemoveTenant(t.id)}
-            >
-              Odebrat
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      <form onSubmit={handleAddTenant} className="bg-gray-50 p-4 rounded mb-4">
-        <h3 className="font-medium mb-2">Přidat nájemníka</h3>
-        <div className="flex gap-2">
+      <h1 className="text-2xl font-bold mb-4">Editace jednotky</h1>
+      <form onSubmit={handleSave} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Nemovitost
+          </label>
           <select
+            value={form.property_id}
+            onChange={e => setForm(f => ({ ...f, property_id: e.target.value }))}
             required
-            value={newTenantId}
-            onChange={e => setNewTenantId(e.target.value)}
-            className="border rounded px-2 py-1 flex-1"
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           >
-            <option value="">Vyberte nájemníka</option>
-            {allTenants.map(ten => (
-              <option key={ten.id} value={ten.id}>{ten.full_name}</option>
+            <option value="">Vyberte nemovitost</option>
+            {properties.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-          <input
-            type="date"
-            value={leaseStart}
-            onChange={e => setLeaseStart(e.target.value)}
-            className="border rounded px-2 py-1"
-            required
-          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Označení jednotky
+          </label>
           <input
             type="text"
-            placeholder="poznámka"
-            value={leaseNote}
-            onChange={e => setLeaseNote(e.target.value)}
-            className="border rounded px-2 py-1 flex-1"
+            required
+            value={form.identifier}
+            onChange={e => setForm(f => ({ ...f, identifier: e.target.value }))}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Podlaží
+          </label>
+          <input
+            type="number"
+            value={form.floor}
+            onChange={e => setForm(f => ({ ...f, floor: e.target.value === '' ? '' : Number(e.target.value) }))}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Dispozice
+          </label>
+          <input
+            type="text"
+            value={form.disposition}
+            onChange={e => setForm(f => ({ ...f, disposition: e.target.value }))}
+            placeholder="např. 2+kk"
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Rozloha (m²)
+          </label>
+          <input
+            type="number"
+            value={form.area}
+            onChange={e => setForm(f => ({ ...f, area: e.target.value === '' ? '' : Number(e.target.value) }))}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Stav obsazenosti
+          </label>
+          <select
+            value={form.occupancy_status}
+            onChange={e => setForm(f => ({ ...f, occupancy_status: e.target.value }))}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          >
+            <option value="volné">Volné</option>
+            <option value="obsazené">Obsazené</option>
+            <option value="rezervováno">Rezervováno</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Nájem (Kč)
+          </label>
+          <input
+            type="number"
+            value={form.monthly_rent}
+            onChange={e => setForm(f => ({ ...f, monthly_rent: e.target.value === '' ? '' : Number(e.target.value) }))}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Kauce (Kč)
+          </label>
+          <input
+            type="number"
+            value={form.deposit}
+            onChange={e => setForm(f => ({ ...f, deposit: e.target.value === '' ? '' : Number(e.target.value) }))}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Popis jednotky
+          </label>
+          <textarea
+            value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+            rows={2}
+          />
+        </div>
+        <div className="flex gap-2">
           <button
             type="submit"
             disabled={isSaving}
-            className="bg-blue-600 text-white px-4 py-1 rounded"
+            className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
           >
-            Přidat
+            {isSaving ? 'Ukládám...' : 'Uložit změny'}
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isSaving}
+            className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
+          >
+            Smazat jednotku
           </button>
         </div>
+        {error && <p className="text-red-600">{error}</p>}
       </form>
-      {error && <p className="text-red-600">{error}</p>}
     </div>
   );
 }
-
