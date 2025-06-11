@@ -12,13 +12,20 @@ type Property = {
   unitCount?: number
   occupiedCount?: number
   totalRent?: number
-  hasNote?: boolean     // Indikátor poznámky
-  hasAttachment?: boolean // Indikátor přílohy
+  hasNote?: boolean
+  hasAttachment?: boolean
 }
+
+type SortKey = 'name' | 'unitCount' | 'totalRent'
+type SortDirection = 'asc' | 'desc'
 
 export default function PropertiesPage() {
   const [list, setList] = useState<Property[]>([])
   const [search, setSearch] = useState('')
+  const [minUnits, setMinUnits] = useState('')
+  const [minRent, setMinRent] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('name')
+  const [sortDir, setSortDir] = useState<SortDirection>('asc')
   const [error, setError] = useState<string>('')
 
   useEffect(() => {
@@ -34,12 +41,32 @@ export default function PropertiesPage() {
       .catch(err => setError(err.message))
   }, [])
 
-  // Filtrovaný list
-  const filtered = list.filter(
-    prop =>
-      prop.name.toLowerCase().includes(search.toLowerCase()) ||
-      prop.address.toLowerCase().includes(search.toLowerCase())
-  )
+  // Filtrování a řazení
+  let filtered = list
+    .filter(
+      prop =>
+        prop.name.toLowerCase().includes(search.toLowerCase()) ||
+        prop.address.toLowerCase().includes(search.toLowerCase())
+    )
+    .filter(prop =>
+      minUnits ? (prop.unitCount || 0) >= Number(minUnits) : true
+    )
+    .filter(prop =>
+      minRent ? (prop.totalRent || 0) >= Number(minRent) : true
+    )
+
+  filtered = filtered.sort((a, b) => {
+    let aVal: string | number = a[sortKey] ?? ''
+    let bVal: string | number = b[sortKey] ?? ''
+    // Pokud je string (název), řadíme podle localeCompare
+    if (sortKey === 'name') {
+      const cmp = (aVal as string).localeCompare(bVal as string, 'cs')
+      return sortDir === 'asc' ? cmp : -cmp
+    }
+    // Jinak podle čísel
+    const cmp = (Number(aVal) || 0) - (Number(bVal) || 0)
+    return sortDir === 'asc' ? cmp : -cmp
+  })
 
   return (
     <div className="p-6">
@@ -52,13 +79,63 @@ export default function PropertiesPage() {
         </Link>
       </div>
 
-      <input
-        type="text"
-        placeholder="Hledat podle názvu nebo adresy…"
-        className="border px-3 py-2 mb-4 rounded w-full max-w-md"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-      />
+      {/* Filtrovací pole */}
+      <div className="flex flex-wrap gap-4 mb-4 items-end">
+        <div>
+          <label className="block text-sm">Hledat:</label>
+          <input
+            type="text"
+            placeholder="Název nebo adresa…"
+            className="border px-3 py-2 rounded w-full"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-sm">Min. jednotek:</label>
+          <input
+            type="number"
+            min={0}
+            className="border px-3 py-2 rounded w-32"
+            value={minUnits}
+            onChange={e => setMinUnits(e.target.value)}
+            placeholder="např. 3"
+          />
+        </div>
+        <div>
+          <label className="block text-sm">Min. nájemné (Kč):</label>
+          <input
+            type="number"
+            min={0}
+            className="border px-3 py-2 rounded w-32"
+            value={minRent}
+            onChange={e => setMinRent(e.target.value)}
+            placeholder="např. 10000"
+          />
+        </div>
+        <div>
+          <label className="block text-sm">Řadit podle:</label>
+          <select
+            className="border px-3 py-2 rounded w-40"
+            value={sortKey}
+            onChange={e => setSortKey(e.target.value as SortKey)}
+          >
+            <option value="name">Název</option>
+            <option value="unitCount">Počet jednotek</option>
+            <option value="totalRent">Celkové nájemné</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm">&nbsp;</label>
+          <button
+            className="border px-3 py-2 rounded bg-gray-100"
+            onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}
+            title={`Aktuálně ${sortDir === 'asc' ? 'vzestupně' : 'sestupně'}`}
+          >
+            {sortDir === 'asc' ? '⬆️ Vzestupně' : '⬇️ Sestupně'}
+          </button>
+        </div>
+      </div>
 
       {error && <p className="text-red-600 mb-4">{error}</p>}
 
@@ -71,7 +148,6 @@ export default function PropertiesPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-bold text-xl">{prop.name}</h2>
-                {/* Indikátory poznámka/příloha */}
                 {prop.hasNote && (
                   <span title="Poznámka" className="text-yellow-600">📝</span>
                 )}
@@ -106,4 +182,3 @@ export default function PropertiesPage() {
     </div>
   )
 }
-
