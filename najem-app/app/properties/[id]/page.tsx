@@ -6,6 +6,9 @@ import { notFound } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Pencil, X } from 'lucide-react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
+
+const ExpensesList = dynamic(() => import('@/components/ExpensesList'), { ssr: false })
 
 export const dynamic = 'force-dynamic'
 
@@ -293,7 +296,9 @@ export default function Page({ params }: { params: { id: string } }) {
           </li>
         ))}
       </ul>
+
+      {/* --- Náklady k nemovitosti --- */}
+      <ExpensesList propertyId={property.id} />
     </div>
   )
 }
-
