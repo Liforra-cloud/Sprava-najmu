@@ -6,11 +6,11 @@ import { notFound } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Pencil, X } from 'lucide-react'
 import Link from 'next/link'
-import dynamic from 'next/dynamic'
-
-const ExpensesList = dynamic(() => import('@/components/ExpensesList'), { ssr: false })
+import dynamicImport from 'next/dynamic'
 
 export const dynamic = 'force-dynamic'
+
+const ExpensesList = dynamicImport(() => import('@/components/ExpensesList'), { ssr: false })
 
 interface Unit {
   id: string
