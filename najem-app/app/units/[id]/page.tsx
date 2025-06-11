@@ -432,7 +432,9 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* --- Náklady k jednotce --- */}
-      <ExpensesList unitId={id} />
+        {/* --- Náklady k jednotce --- */}
+  <ExpensesList unitId={id} propertyId={form.property_id} />
+
     </div>
   );
 }
