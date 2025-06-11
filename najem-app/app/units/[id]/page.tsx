@@ -5,9 +5,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import dynamic from 'next/dynamic'
+import dynamicImport from 'next/dynamic'
 
-const ExpensesList = dynamic(() => import('@/components/ExpensesList'), { ssr: false })
+const ExpensesList = dynamicImport(() => import('@/components/ExpensesList'), { ssr: false })
 
 interface Property {
   id: string;
