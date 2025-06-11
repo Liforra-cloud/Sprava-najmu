@@ -12,10 +12,13 @@ type Property = {
   unitCount?: number
   occupiedCount?: number
   totalRent?: number
+  hasNote?: boolean     // Indikátor poznámky
+  hasAttachment?: boolean // Indikátor přílohy
 }
 
 export default function PropertiesPage() {
   const [list, setList] = useState<Property[]>([])
+  const [search, setSearch] = useState('')
   const [error, setError] = useState<string>('')
 
   useEffect(() => {
@@ -31,6 +34,13 @@ export default function PropertiesPage() {
       .catch(err => setError(err.message))
   }, [])
 
+  // Filtrovaný list
+  const filtered = list.filter(
+    prop =>
+      prop.name.toLowerCase().includes(search.toLowerCase()) ||
+      prop.address.toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
@@ -42,21 +52,37 @@ export default function PropertiesPage() {
         </Link>
       </div>
 
+      <input
+        type="text"
+        placeholder="Hledat podle názvu nebo adresy…"
+        className="border px-3 py-2 mb-4 rounded w-full max-w-md"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+      />
+
       {error && <p className="text-red-600 mb-4">{error}</p>}
 
       <ul className="space-y-4">
-        {list.map(prop => (
+        {filtered.map(prop => (
           <li
             key={prop.id}
             className="p-4 border rounded flex justify-between items-start"
           >
             <div>
-              <h2 className="font-bold text-xl">{prop.name}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-xl">{prop.name}</h2>
+                {/* Indikátory poznámka/příloha */}
+                {prop.hasNote && (
+                  <span title="Poznámka" className="text-yellow-600">📝</span>
+                )}
+                {prop.hasAttachment && (
+                  <span title="Příloha" className="text-blue-600">📎</span>
+                )}
+              </div>
               <p className="text-sm text-gray-600">{prop.address}</p>
               {prop.description && (
                 <p className="mt-2 text-gray-800">{prop.description}</p>
               )}
-              {/* Nové souhrnné informace */}
               <div className="mt-2 text-sm text-gray-700 space-y-1">
                 <div>
                   <strong>Počet jednotek:</strong> {prop.unitCount}
@@ -80,3 +106,4 @@ export default function PropertiesPage() {
     </div>
   )
 }
+
