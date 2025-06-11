@@ -298,7 +298,7 @@ export default function Page({ params }: { params: { id: string } }) {
       </ul>
 
       {/* --- Náklady k nemovitosti --- */}
-      <ExpensesList propertyId={property.id} />
+      <ExpensesList unitId={id} propertyId={form.property_id} />
     </div>
   )
 }
