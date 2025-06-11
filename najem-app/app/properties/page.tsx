@@ -9,6 +9,9 @@ type Property = {
   name: string
   address: string
   description?: string
+  unitCount?: number
+  occupiedCount?: number
+  totalRent?: number
 }
 
 export default function PropertiesPage() {
@@ -53,6 +56,18 @@ export default function PropertiesPage() {
               {prop.description && (
                 <p className="mt-2 text-gray-800">{prop.description}</p>
               )}
+              {/* Nové souhrnné informace */}
+              <div className="mt-2 text-sm text-gray-700 space-y-1">
+                <div>
+                  <strong>Počet jednotek:</strong> {prop.unitCount}
+                </div>
+                <div>
+                  <strong>Obsazených jednotek:</strong> {prop.occupiedCount}
+                </div>
+                <div>
+                  <strong>Celkové nájemné:</strong> {prop.totalRent} Kč
+                </div>
+              </div>
             </div>
             <Link href={`/properties/${prop.id}`}>
               <button className="bg-gray-200 text-gray-800 px-3 py-1 rounded">
