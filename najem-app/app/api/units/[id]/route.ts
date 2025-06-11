@@ -89,6 +89,5 @@ export async function GET(
   }
 
   // Sestav odpověď bez informace o property (je zbytečné posílat user_id zpět)
-  const { property, ...unitData } = unit;
   return NextResponse.json({ ...unitData, tenants });
 }
