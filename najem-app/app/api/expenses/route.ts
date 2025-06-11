@@ -49,12 +49,10 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST: Přidání nového nákladu
- * Očekává v body: property_id, (volitelně unit_id), amount, description, expense_type, date_incurred
+ * POST: Přidání nového nákladu – dovoluje poslat buď property_id, nebo unit_id
  */
 export async function POST(request: NextRequest) {
   const supabase = supabaseRouteClient()
-
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -63,17 +61,31 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const {
+  let {
     property_id,
     unit_id = null,
     amount,
     description,
     expense_type = null,
-    date_incurred = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+    date_incurred = new Date().toISOString().slice(0, 10)
   } = body
 
-  if (!property_id || !amount || !description) {
+  // Umožní zadat buď property_id, nebo unit_id (musí být alespoň jedno)
+  if ((!property_id && !unit_id) || !amount || !description) {
     return NextResponse.json({ error: 'Chybí povinné pole.' }, { status: 400 })
+  }
+
+  // Pokud není property_id, ale máme unit_id, načteme property_id z jednotky
+  if (!property_id && unit_id) {
+    const { data: unit, error: unitErr } = await supabase
+      .from('units')
+      .select('property_id')
+      .eq('id', unit_id)
+      .maybeSingle()
+    if (unitErr || !unit?.property_id) {
+      return NextResponse.json({ error: 'Nelze zjistit nemovitost pro tuto jednotku.' }, { status: 400 })
+    }
+    property_id = unit.property_id
   }
 
   const { data, error } = await supabase
