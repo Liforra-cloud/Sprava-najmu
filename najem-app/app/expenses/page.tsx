@@ -3,7 +3,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Plus, Edit, Trash2, ArrowDownAZ, ArrowUpAZ } from 'lucide-react'
+import { X, Plus, Edit, Trash2, ArrowDownAZ, ArrowUpAZ, Search } from 'lucide-react'
 
 interface Expense {
   id: string
@@ -38,6 +38,7 @@ export default function ExpensesPage() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [searchText, setSearchText] = useState('')
   const [sortBy, setSortBy] = useState<SortField>('date_incurred')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
@@ -77,7 +78,7 @@ export default function ExpensesPage() {
       .then(setExpenses)
   }, [selectedProperty, selectedUnit, saving, showModal])
 
-  // Filtrování podle datumu
+  // Filtr podle data
   const filteredByDate = expenses.filter(exp => {
     let include = true
     if (dateFrom) include = include && exp.date_incurred >= dateFrom
@@ -85,32 +86,42 @@ export default function ExpensesPage() {
     return include
   })
 
-  // Řazení
-  const sortedExpenses = [...filteredByDate].sort((a, b) => {
-    let valA: any = a[sortBy]
-    let valB: any = b[sortBy]
+  // CHYTRÉ FULLTEXT HLEDÁNÍ
+  const filteredByText = filteredByDate.filter(exp => {
+    if (!searchText.trim()) return true
+    const lower = searchText.toLowerCase()
+    // Porovnáváme všechny důležité sloupce + property/jednotku
+    return (
+      exp.description?.toLowerCase().includes(lower) ||
+      (exp.expense_type || '').toLowerCase().includes(lower) ||
+      exp.amount.toString().includes(lower) ||
+      (properties.find(p => p.id === exp.property_id)?.name.toLowerCase().includes(lower) ?? false) ||
+      (units.find(u => u.id === exp.unit_id)?.identifier.toLowerCase().includes(lower) ?? false)
+    )
+  })
+
+  // Řazení - žádné "any", jen union
+  const sortedExpenses = [...filteredByText].sort((a, b) => {
+    let valA: string | number | undefined
+    let valB: string | number | undefined
     if (sortBy === 'unit_id') {
       valA = units.find(u => u.id === a.unit_id)?.identifier || ''
       valB = units.find(u => u.id === b.unit_id)?.identifier || ''
-    }
-    if (sortBy === 'property_id') {
+    } else if (sortBy === 'property_id') {
       valA = properties.find(p => p.id === a.property_id)?.name || ''
       valB = properties.find(p => p.id === b.property_id)?.name || ''
-    }
-    if (sortBy === 'date_incurred') {
+    } else if (sortBy === 'date_incurred') {
       valA = a.date_incurred
       valB = b.date_incurred
-    }
-    if (sortBy === 'amount') {
+    } else if (sortBy === 'amount') {
       valA = Number(a.amount)
       valB = Number(b.amount)
-    }
-    if (sortBy === 'expense_type') {
+    } else if (sortBy === 'expense_type') {
       valA = a.expense_type || ''
       valB = b.expense_type || ''
     }
-    if (valA < valB) return sortDir === 'asc' ? -1 : 1
-    if (valA > valB) return sortDir === 'asc' ? 1 : -1
+    if (valA! < valB!) return sortDir === 'asc' ? -1 : 1
+    if (valA! > valB!) return sortDir === 'asc' ? 1 : -1
     return 0
   })
 
@@ -257,6 +268,18 @@ export default function ExpensesPage() {
             className="border rounded px-2 py-1 ml-2"
             value={dateTo}
             onChange={e => setDateTo(e.target.value)}
+          />
+        </div>
+        {/* Fulltext hledání */}
+        <div className="flex items-center border rounded px-2 py-1 ml-2 bg-white shadow-sm">
+          <Search size={18} className="mr-1 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Hledat náklad..."
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            className="outline-none border-none bg-transparent"
+            style={{ minWidth: 120 }}
           />
         </div>
       </div>
