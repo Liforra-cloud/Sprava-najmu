@@ -26,6 +26,10 @@ interface Property {
   name: string
   address: string
   description: string | null
+  property_type?: string | null
+  owner?: string | null
+  year_built?: number | null
+  total_area?: number | null
   date_added: string
   units: Unit[]
 }
@@ -38,6 +42,10 @@ export default function Page({ params }: { params: { id: string } }) {
     name: '',
     address: '',
     description: '',
+    property_type: '',
+    owner: '',
+    year_built: '',
+    total_area: '',
     date_added: ''
   })
   const [isSaving, setIsSaving] = useState(false)
@@ -53,9 +61,13 @@ export default function Page({ params }: { params: { id: string } }) {
       const prop = await res.json()
       setProperty(prop)
       setEditedData({
-        name: prop.name,
-        address: prop.address,
+        name: prop.name || '',
+        address: prop.address || '',
         description: prop.description || '',
+        property_type: prop.property_type || '',
+        owner: prop.owner || '',
+        year_built: prop.year_built?.toString() || '',
+        total_area: prop.total_area?.toString() || '',
         date_added: prop.date_added?.split('T')[0] || ''
       })
     }
@@ -71,7 +83,11 @@ export default function Page({ params }: { params: { id: string } }) {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(editedData)
+        body: JSON.stringify({
+          ...editedData,
+          year_built: editedData.year_built ? parseInt(editedData.year_built) : null,
+          total_area: editedData.total_area ? parseFloat(editedData.total_area) : null
+        })
       })
 
       if (!res.ok) throw new Error('Chyba při ukládání')
@@ -150,6 +166,72 @@ export default function Page({ params }: { params: { id: string } }) {
       </div>
 
       <div>
+        <strong>Typ nemovitosti:</strong>{' '}
+        {isEditing ? (
+          <input
+            value={editedData.property_type}
+            onChange={e =>
+              setEditedData(d => ({ ...d, property_type: e.target.value }))
+            }
+            className="border px-2 py-1 rounded"
+          />
+        ) : (
+          property.property_type || '—'
+        )}
+      </div>
+
+      <div>
+        <strong>Vlastník:</strong>{' '}
+        {isEditing ? (
+          <input
+            value={editedData.owner}
+            onChange={e =>
+              setEditedData(d => ({ ...d, owner: e.target.value }))
+            }
+            className="border px-2 py-1 rounded"
+          />
+        ) : (
+          property.owner || '—'
+        )}
+      </div>
+
+      <div>
+        <strong>Rok kolaudace:</strong>{' '}
+        {isEditing ? (
+          <input
+            type="number"
+            value={editedData.year_built}
+            onChange={e =>
+              setEditedData(d => ({ ...d, year_built: e.target.value }))
+            }
+            className="border px-2 py-1 rounded"
+            min="1800"
+            max={new Date().getFullYear()}
+          />
+        ) : (
+          property.year_built || '—'
+        )}
+      </div>
+
+      <div>
+        <strong>Celková plocha (m²):</strong>{' '}
+        {isEditing ? (
+          <input
+            type="number"
+            value={editedData.total_area}
+            onChange={e =>
+              setEditedData(d => ({ ...d, total_area: e.target.value }))
+            }
+            className="border px-2 py-1 rounded"
+            min="0"
+            step="0.01"
+          />
+        ) : (
+          property.total_area || '—'
+        )}
+      </div>
+
+      <div>
         <strong>Přidáno:</strong>{' '}
         {isEditing ? (
           <input
@@ -214,3 +296,4 @@ export default function Page({ params }: { params: { id: string } }) {
     </div>
   )
 }
+
