@@ -1,5 +1,7 @@
 // app/properties/new/page.tsx
 
+// app/properties/new/page.tsx
+
 'use client'
 
 import { useState } from 'react'
@@ -10,18 +12,29 @@ export default function NewPropertyPage() {
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
   const [description, setDescription] = useState('')
+  const [propertyType, setPropertyType] = useState('')
+  const [owner, setOwner] = useState('')
+  const [yearBuilt, setYearBuilt] = useState('')
+  const [totalArea, setTotalArea] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Nově voláme API route na serveru – cookies jdou automaticky!
     const res = await fetch('/api/properties', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // Klíčové pro session!
-      body: JSON.stringify({ name, address, description }),
+      credentials: 'include',
+      body: JSON.stringify({
+        name,
+        address,
+        description,
+        property_type: propertyType,
+        owner,
+        year_built: yearBuilt ? parseInt(yearBuilt) : null,
+        total_area: totalArea ? parseFloat(totalArea) : null,
+      }),
     })
 
     if (res.ok) {
@@ -80,6 +93,66 @@ export default function NewPropertyPage() {
             placeholder="Např. Dům po rekonstrukci, má 5 jednotek..."
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
             rows={3}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="propertyType" className="block text-sm font-medium text-gray-700">
+            Typ nemovitosti
+          </label>
+          <input
+            id="propertyType"
+            type="text"
+            value={propertyType}
+            onChange={(e) => setPropertyType(e.target.value)}
+            placeholder="Např. bytový dům, komerční objekt"
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="owner" className="block text-sm font-medium text-gray-700">
+            Vlastník
+          </label>
+          <input
+            id="owner"
+            type="text"
+            value={owner}
+            onChange={(e) => setOwner(e.target.value)}
+            placeholder="Např. Jan Novák"
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="yearBuilt" className="block text-sm font-medium text-gray-700">
+            Rok kolaudace
+          </label>
+          <input
+            id="yearBuilt"
+            type="number"
+            value={yearBuilt}
+            onChange={(e) => setYearBuilt(e.target.value)}
+            min="1800"
+            max={new Date().getFullYear()}
+            placeholder="Např. 2012"
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="totalArea" className="block text-sm font-medium text-gray-700">
+            Celková plocha (m²)
+          </label>
+          <input
+            id="totalArea"
+            type="number"
+            value={totalArea}
+            onChange={(e) => setTotalArea(e.target.value)}
+            min="0"
+            step="0.01"
+            placeholder="Např. 452.5"
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 shadow-sm"
           />
         </div>
 
