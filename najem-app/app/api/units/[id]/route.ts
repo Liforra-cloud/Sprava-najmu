@@ -16,8 +16,8 @@ type Tenant = {
 type UnitTenantDb = {
   id: string;
   tenant_id: string;
-  lease_start: string | null;
-  lease_end: string | null;
+  date_from: string | null;
+  date_to: string | null;
   note?: string | null;
   tenant: Tenant[]; // Supabase vrací vždy pole!
 };
@@ -25,8 +25,8 @@ type UnitTenantDb = {
 type UnitTenant = {
   id: string;
   tenant_id: string;
-  lease_start: string | null;
-  lease_end: string | null;
+  date_from: string | null;
+  date_to: string | null;
   note?: string | null;
   tenant: Tenant | null; // My chceme objekt nebo null
 };
@@ -60,8 +60,8 @@ export async function GET(
       `
       id,
       tenant_id,
-      lease_start,
-      lease_end,
+     date_from,
+      date_to,
       note,
       tenant:tenants (
         id,
@@ -82,8 +82,8 @@ export async function GET(
     (ut) => ({
       id: ut.id,
       tenant_id: ut.tenant_id,
-      lease_start: ut.lease_start,
-      lease_end: ut.lease_end,
+      date_from: ut.date_from,
+      date_to: ut.date_to,
       note: ut.note,
       tenant:
         Array.isArray(ut.tenant) && ut.tenant.length > 0 ? ut.tenant[0] : null,
