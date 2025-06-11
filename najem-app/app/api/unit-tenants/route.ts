@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
-// GET – výpis všech přiřazení (například pro správu, není povinné používat)
+// GET – výpis všech přiřazení (není nutné použít error, pokud nechceš vracet chybu)
 export async function GET() {
   const supabase = supabaseRouteClient()
   const { data, error } = await supabase
@@ -24,6 +24,7 @@ export async function GET() {
     `)
     .order('date_from', { ascending: false })
 
+  // Tady musíš error použít!
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
@@ -35,7 +36,6 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    // Ošetři povinné položky
     if (!body.unit_id || !body.tenant_id || !body.date_from) {
       return NextResponse.json({ error: 'Chybí povinná data (unit_id, tenant_id, date_from)' }, { status: 400 })
     }
@@ -53,13 +53,11 @@ export async function POST(request: NextRequest) {
         note
       `)
       .single()
-
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
-    // Vrať nově vytvořený záznam
     return NextResponse.json(data, { status: 201 })
-  } catch (error: unknown) {
+  } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 }
