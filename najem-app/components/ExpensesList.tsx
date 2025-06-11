@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Plus, Edit, Trash2, X } from 'lucide-react'
 
 type Expense = {
@@ -35,6 +35,7 @@ export default function ExpensesList({
   showPropertyColumn = false,
   showUnitColumn = false,
 }: Props) {
+  // Filtry a stav
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [showModal, setShowModal] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
@@ -46,7 +47,16 @@ export default function ExpensesList({
   })
   const [saving, setSaving] = useState(false)
 
-  // Načti náklady k nemovitosti/jednotce
+  // FILTRY
+  const [searchText, setSearchText] = useState('')
+  const [filterType, setFilterType] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [onlyUnit, setOnlyUnit] = useState(false)
+  const [onlyProperty, setOnlyProperty] = useState(false)
+  const [sortBy, setSortBy] = useState('date_incurred_desc')
+
+  // Načti náklady
   useEffect(() => {
     const params = new URLSearchParams()
     if (propertyId) params.append('property_id', propertyId)
@@ -55,6 +65,39 @@ export default function ExpensesList({
       .then((res) => res.json())
       .then(setExpenses)
   }, [propertyId, unitId, saving, showModal])
+
+  // Chytré filtry a řazení (useMemo kvůli výkonu)
+  const filteredExpenses = useMemo(() => {
+    let result = [...expenses]
+    if (searchText)
+      result = result.filter(e =>
+        [e.description, e.expense_type, e.amount, e.date_incurred]
+          .map(x => (x ?? '').toString().toLowerCase())
+          .some(x => x.includes(searchText.toLowerCase()))
+      )
+    if (filterType)
+      result = result.filter(e => (e.expense_type ?? '') === filterType)
+    if (dateFrom)
+      result = result.filter(e => e.date_incurred >= dateFrom)
+    if (dateTo)
+      result = result.filter(e => e.date_incurred <= dateTo)
+    if (onlyUnit)
+      result = result.filter(e => e.unit_id)
+    if (onlyProperty)
+      result = result.filter(e => !e.unit_id)
+    // Řazení
+    result = result.sort((a, b) => {
+      if (sortBy === 'date_incurred_desc') return b.date_incurred.localeCompare(a.date_incurred)
+      if (sortBy === 'date_incurred_asc') return a.date_incurred.localeCompare(b.date_incurred)
+      if (sortBy === 'amount_desc') return Number(b.amount) - Number(a.amount)
+      if (sortBy === 'amount_asc') return Number(a.amount) - Number(b.amount)
+      return 0
+    })
+    return result
+  }, [expenses, searchText, filterType, dateFrom, dateTo, onlyUnit, onlyProperty, sortBy])
+
+  // Typy nákladů na select
+  const allTypes = Array.from(new Set(expenses.map(e => e.expense_type).filter(Boolean))) as string[]
 
   // Přidání/úprava
   const openNewModal = () => {
@@ -113,16 +156,50 @@ export default function ExpensesList({
     })
     setSaving(false)
   }
-  const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
+  const total = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
   return (
     <div className="mt-6">
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-xl font-semibold">Náklady</h2>
-        <button className="flex items-center gap-1 px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700" onClick={openNewModal}>
+      {/* Filtry */}
+      <div className="flex flex-wrap gap-2 mb-4 items-center">
+        <input
+          type="text"
+          placeholder="Hledat…"
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          className="border rounded px-2 py-1"
+        />
+        <select
+          value={filterType}
+          onChange={e => setFilterType(e.target.value)}
+          className="border rounded px-2 py-1"
+        >
+          <option value="">Všechny typy</option>
+          {allTypes.map(t => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="border rounded px-2 py-1" />
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="border rounded px-2 py-1" />
+        <label className="flex items-center gap-1 text-sm">
+          <input type="checkbox" checked={onlyUnit} onChange={e => setOnlyUnit(e.target.checked)} />
+          Jen k jednotce
+        </label>
+        <label className="flex items-center gap-1 text-sm">
+          <input type="checkbox" checked={onlyProperty} onChange={e => setOnlyProperty(e.target.checked)} />
+          Jen k nemovitosti
+        </label>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="border rounded px-2 py-1">
+          <option value="date_incurred_desc">Nejnovější</option>
+          <option value="date_incurred_asc">Nejstarší</option>
+          <option value="amount_desc">Nejdražší</option>
+          <option value="amount_asc">Nejlevnější</option>
+        </select>
+        <button className="flex items-center gap-1 px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 ml-auto" onClick={openNewModal}>
           <Plus size={16} /> Přidat náklad
         </button>
       </div>
+
       <div className="mb-2 text-sm text-gray-600">
         Celkem: <span className="font-medium">{total.toLocaleString('cs-CZ', { style: 'currency', currency: 'CZK' })}</span>
       </div>
@@ -135,16 +212,17 @@ export default function ExpensesList({
             <th className="p-2 text-right">Částka</th>
             {showPropertyColumn && <th className="p-2 text-left">Nemovitost</th>}
             {showUnitColumn && <th className="p-2 text-left">Jednotka</th>}
+            <th className="p-2 text-center">Kam patří</th>
             <th className="p-2"></th>
           </tr>
         </thead>
         <tbody>
-          {expenses.length === 0 && (
+          {filteredExpenses.length === 0 && (
             <tr>
-              <td colSpan={6} className="p-4 text-center text-gray-500">Žádné náklady</td>
+              <td colSpan={7} className="p-4 text-center text-gray-500">Žádné náklady</td>
             </tr>
           )}
-          {expenses.map(exp => (
+          {filteredExpenses.map(exp => (
             <tr key={exp.id} className="border-t">
               <td className="p-2">{new Date(exp.date_incurred).toLocaleDateString()}</td>
               <td className="p-2">{exp.description}</td>
@@ -156,6 +234,12 @@ export default function ExpensesList({
               {showUnitColumn && (
                 <td className="p-2">{units.find(u => u.id === exp.unit_id)?.identifier || '—'}</td>
               )}
+              <td className="p-2 text-center">
+                {exp.unit_id
+                  ? <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs">Jednotka</span>
+                  : <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Nemovitost</span>
+                }
+              </td>
               <td className="p-2 flex gap-2">
                 <button onClick={() => openEditModal(exp)} className="text-blue-700 hover:underline flex items-center">
                   <Edit size={16} />
@@ -195,7 +279,11 @@ export default function ExpensesList({
                   value={form.expense_type}
                   onChange={e => setForm(f => ({ ...f, expense_type: e.target.value }))}
                   placeholder="např. pojištění, oprava..."
+                  list="expenseTypeList"
                 />
+                <datalist id="expenseTypeList">
+                  {allTypes.map(t => <option key={t} value={t} />)}
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm">Částka (Kč):</label>
