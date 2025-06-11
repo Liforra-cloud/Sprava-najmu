@@ -56,8 +56,8 @@ export default function PropertiesPage() {
     )
 
   filtered = filtered.sort((a, b) => {
-    let aVal: string | number = a[sortKey] ?? ''
-    let bVal: string | number = b[sortKey] ?? ''
+    const aVal: string | number = a[sortKey] ?? ''
+    const bVal: string | number = b[sortKey] ?? ''
     // Pokud je string (název), řadíme podle localeCompare
     if (sortKey === 'name') {
       const cmp = (aVal as string).localeCompare(bVal as string, 'cs')
