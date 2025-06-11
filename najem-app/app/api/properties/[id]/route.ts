@@ -20,6 +20,10 @@ export async function GET(request: NextRequest) {
       name,
       address,
       description,
+      property_type,
+      owner,
+      year_built,
+      total_area,
       date_added,
       units (
         id,
@@ -52,8 +56,6 @@ export async function PATCH(request: NextRequest) {
   }
 
   const supabase = supabaseRouteClient()
-
-  // Zjisti session uživatele
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -64,17 +66,20 @@ export async function PATCH(request: NextRequest) {
 
   const updates = await request.json()
 
-  // Updatujeme pouze pro konkrétní id a user_id
   const { data, error } = await supabase
     .from('properties')
     .update({
       name: updates.name,
       address: updates.address,
       description: updates.description,
+      property_type: updates.property_type,
+      owner: updates.owner,
+      year_built: updates.year_built,
+      total_area: updates.total_area,
       date_added: updates.date_added,
     })
     .eq('id', id)
-    .eq('user_id', session.user.id) // Tohle je klíčové pro správný update!
+    .eq('user_id', session.user.id)
     .select()
     .single()
 
@@ -84,3 +89,4 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json(data, { status: 200 })
 }
+
