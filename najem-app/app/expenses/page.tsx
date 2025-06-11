@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from 'react'
 import { X, Plus, Edit, Trash2 } from 'lucide-react'
-import Link from 'next/link'
 
 interface Expense {
   id: string
@@ -33,7 +32,6 @@ export default function ExpensesPage() {
   const [units, setUnits] = useState<Unit[]>([])
   const [selectedProperty, setSelectedProperty] = useState<string>('')
   const [selectedUnit, setSelectedUnit] = useState<string>('')
-  const [filterType, setFilterType] = useState<string>('')
   const [showModal, setShowModal] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
 
