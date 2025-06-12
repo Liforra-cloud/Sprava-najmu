@@ -38,6 +38,3 @@ export async function DELETE(
 
   return NextResponse.json({ success: true })
 }
-
-  return NextResponse.json({ success: true })
-}
