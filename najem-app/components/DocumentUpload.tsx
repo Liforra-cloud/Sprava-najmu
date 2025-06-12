@@ -47,12 +47,12 @@ export default function DocumentUpload({ propertyId, unitId, expenseId, onUpload
         setFile(null)
         setName('')
         setDate(new Date().toISOString().slice(0, 10))
-        onUpload && onUpload()
+        if (onUpload) onUpload()
       } else {
         const data = await res.json()
         setError(data.error || 'Chyba při nahrávání.')
       }
-    } catch (err) {
+    } catch {
       setError('Chyba při odesílání.')
     }
     setUploading(false)
