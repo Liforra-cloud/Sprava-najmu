@@ -74,9 +74,9 @@ export async function POST(request: NextRequest) {
       unit_id: unit_id || null,
       tenant_id: tenant_id || null,
       expense_id: expense_id || null,
-      name,                        // uživatelský popis (speciální znaky dovoleny)
+      name,                        // uživatelský popis
       file_name: uniqueName,       // název v bucketu (technický)
-      original_file_name: userFileName, // originální název (volitelné)
+      original_file_name: userFileName, // originální název
       date,
       file_url,
       user_id: session.user.id,
