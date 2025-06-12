@@ -3,7 +3,27 @@ import { NextResponse } from "next/server";
 import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 
 export async function POST(request: Request) {
-  const { email, password } = await request.json();
+  let email = "";
+  let password = "";
+
+  try {
+    const data = await request.json();
+    email = data.email;
+    password = data.password;
+  } catch (e) {
+    return NextResponse.json(
+      { error: "Invalid JSON. Přihlášení selhalo." },
+      { status: 400 }
+    );
+  }
+
+  if (!email || !password) {
+    return NextResponse.json(
+      { error: "Zadejte e-mail a heslo." },
+      { status: 400 }
+    );
+  }
+
   const supabase = supabaseRouteClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
