@@ -37,19 +37,23 @@ export default function DocumentUpload({ propertyId, unitId, expenseId, onUpload
     if (unitId) formData.append('unit_id', unitId)
     if (expenseId) formData.append('expense_id', expenseId)
 
-    const res = await fetch('/api/documents', {
-      method: 'POST',
-      body: formData,
-    })
-    if (res.ok) {
-      setSuccess(true)
-      setFile(null)
-      setName('')
-      setDate(new Date().toISOString().slice(0, 10))
-      onUpload && onUpload()
-    } else {
-      const data = await res.json()
-      setError(data.error || 'Chyba při nahrávání.')
+    try {
+      const res = await fetch('/api/documents', {
+        method: 'POST',
+        body: formData,
+      })
+      if (res.ok) {
+        setSuccess(true)
+        setFile(null)
+        setName('')
+        setDate(new Date().toISOString().slice(0, 10))
+        onUpload && onUpload()
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Chyba při nahrávání.')
+      }
+    } catch (err) {
+      setError('Chyba při odesílání.')
     }
     setUploading(false)
   }
