@@ -8,6 +8,14 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const supabase = supabaseRouteClient()
+  const { data: { session } } = import { NextRequest, NextResponse } from 'next/server'
+import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const supabase = supabaseRouteClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) {
     return NextResponse.json({ error: 'Nepřihlášený uživatel' }, { status: 401 })
