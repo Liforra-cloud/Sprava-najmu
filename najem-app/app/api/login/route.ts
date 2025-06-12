@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const data = await request.json();
     email = data.email;
     password = data.password;
-  } catch (e) {
+  } catch {
     return NextResponse.json(
       { error: "Invalid JSON. Přihlášení selhalo." },
       { status: 400 }
