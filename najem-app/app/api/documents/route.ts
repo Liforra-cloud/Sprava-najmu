@@ -59,7 +59,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: storageError.message }, { status: 500 })
   }
 
-  // Save only metadata (not signed URL) to table
+  // Sestav základní URL (cestu) ke stažení souboru z bucketu (není to public URL!)
+  const file_url = `documents/${uniqueName}`
+
+  // Ulož metadata do tabulky
   const { data, error } = await supabase
     .from('documents')
     .insert([{
@@ -73,11 +76,16 @@ export async function POST(request: NextRequest) {
       date,
       user_id: session.user.id,
       uploaded_by: session.user.id,
-      // NEUKLÁDEJ file_url!
+      file_url // <- tímhle naplníš NOT NULL sloupec v tabulce!
     }])
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // Pokus o rollback - smaž nahraný soubor, pokud se insert do DB nepovedl
+    await supabase.storage.from('documents').remove([uniqueName])
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
   return NextResponse.json(data)
 }
