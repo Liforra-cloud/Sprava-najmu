@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
   const property_id = formData.get('property_id')
   const unit_id = formData.get('unit_id')
   const expense_id = formData.get('expense_id')
-  const name = formData.get('name') || file?.name || 'dokument'
+  const name = formData.get('name') || ''           // popisek uživatele (volitelné)
+  const file_name = file?.name || 'dokument.pdf'     // <-- NÁZEV SOUBORU!
   const date = formData.get('date') || new Date().toISOString().slice(0, 10)
 
   if (!file) {
@@ -49,7 +50,8 @@ export async function POST(request: NextRequest) {
       property_id: property_id || null,
       unit_id: unit_id || null,
       expense_id: expense_id || null,
-      name,
+      name,           // popis, nepovinný
+      file_name,      // NÁZEV SOUBORU, povinný
       date,
       file_url,
       user_id: session.user.id,
