@@ -9,7 +9,6 @@ import Link from 'next/link'
 import dynamicImport from 'next/dynamic'
 import DocumentUpload from '@/components/DocumentUpload'
 
-
 export const dynamic = 'force-dynamic'
 
 const ExpensesList = dynamicImport(() => import('@/components/ExpensesList'), { ssr: false })
@@ -55,6 +54,9 @@ export default function Page({ params }: { params: { id: string } }) {
   })
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+
+  // Dummy refresh funkce pro build (implementuj později dle potřeby)
+  const refreshDokumenty = () => {}
 
   useEffect(() => {
     const fetchProperty = async () => {
