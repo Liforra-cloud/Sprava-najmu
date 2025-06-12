@@ -7,6 +7,8 @@ import { useState, useEffect } from 'react'
 import { Pencil, X } from 'lucide-react'
 import Link from 'next/link'
 import dynamicImport from 'next/dynamic'
+import DocumentUpload from '@/components/DocumentUpload'
+
 
 export const dynamic = 'force-dynamic'
 
