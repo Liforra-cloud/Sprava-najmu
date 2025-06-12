@@ -307,6 +307,7 @@ export default function Page({ params }: { params: { id: string } }) {
 
 {/* --- Dokumenty k nemovitosti --- */}
 <DocumentUpload propertyId={property.id} onUpload={refreshDokumenty} />
+      <DocumentList propertyId={id} onChange={refreshDokumenty} />
 
     </div>
   )
