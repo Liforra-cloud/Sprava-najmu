@@ -1,3 +1,5 @@
+//app/api/documents/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
