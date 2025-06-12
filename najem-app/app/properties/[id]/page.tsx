@@ -300,7 +300,8 @@ export default function Page({ params }: { params: { id: string } }) {
       </ul>
 
       {/* --- Náklady k nemovitosti --- */}
-      <ExpensesList propertyId={property.id} units={property.units} />
+      <ExpensesList propertyId={property.id} />
+
       {/* --- Dokumenty k nemovitosti --- */}
       <DocumentUpload propertyId={property.id} onUpload={refreshDokumenty} />
     </div>
