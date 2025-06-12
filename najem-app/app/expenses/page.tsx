@@ -90,7 +90,6 @@ export default function ExpensesPage() {
   const filteredByText = filteredByDate.filter(exp => {
     if (!searchText.trim()) return true
     const lower = searchText.toLowerCase()
-    // Porovnáváme všechny důležité sloupce + property/jednotku
     return (
       exp.description?.toLowerCase().includes(lower) ||
       (exp.expense_type || '').toLowerCase().includes(lower) ||
@@ -100,7 +99,7 @@ export default function ExpensesPage() {
     )
   })
 
-  // Řazení - žádné "any", jen union
+  // Řazení
   const sortedExpenses = [...filteredByText].sort((a, b) => {
     let valA: string | number | undefined
     let valB: string | number | undefined
@@ -125,7 +124,7 @@ export default function ExpensesPage() {
     return 0
   })
 
-  // Filtr dostupných jednotek podle vybrané nemovitosti
+  // Filtr jednotek podle property
   const filteredUnits = selectedProperty
     ? units.filter(u => u.property_id === selectedProperty)
     : units
