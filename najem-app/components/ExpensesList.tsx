@@ -15,25 +15,14 @@ type Expense = {
   date_incurred: string
 }
 
-type Unit = { id: string; identifier: string }
-type Property = { id: string; name: string }
-
 type Props = {
   propertyId?: string
   unitId?: string
-  properties?: Property[]
-  units?: Unit[]
-  showPropertyColumn?: boolean
-  showUnitColumn?: boolean
 }
 
 export default function ExpensesList({
   propertyId,
-  unitId,
-  properties = [],
-  units = [],
-  showPropertyColumn = false,
-  showUnitColumn = false,
+  unitId
 }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [showModal, setShowModal] = useState(false)
@@ -329,3 +318,4 @@ export default function ExpensesList({
     </div>
   )
 }
+
