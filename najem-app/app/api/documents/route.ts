@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
   // Uložení do Supabase Storage (bucket "documents")
-  const { data: storageData, error: storageError } = await supabase.storage
+  const { error: storageError } = await supabase.storage
     .from('documents')
     .upload(uniqueName, file, { upsert: false, contentType: file.type })
 
