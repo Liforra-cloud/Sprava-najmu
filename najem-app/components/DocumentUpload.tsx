@@ -1,45 +1,98 @@
-/components/DocumentUpload.tsx
+// /components/DocumentUpload.tsx
 
 'use client'
-import { useState } from 'react'
 
-export default function DocumentUpload({ propertyId, unitId, tenantId }: { propertyId?: string, unitId?: string, tenantId?: string }) {
+import { useState, FormEvent } from 'react'
+
+type Props = {
+  propertyId?: string
+  unitId?: string
+  expenseId?: string
+  onUpload?: () => void // callback po úspěšném uploadu
+}
+
+export default function DocumentUpload({ propertyId, unitId, expenseId, onUpload }: Props) {
   const [file, setFile] = useState<File | null>(null)
-  const [desc, setDesc] = useState('')
+  const [name, setName] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [uploading, setUploading] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
-  const handleUpload = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!file) return
+    setError(null)
+    setSuccess(false)
+    if (!file) {
+      setError('Vyberte soubor!')
+      return
+    }
 
     setUploading(true)
-    setMessage(null)
     const formData = new FormData()
     formData.append('file', file)
-    if (desc) formData.append('description', desc)
+    if (name) formData.append('name', name)
+    if (date) formData.append('date', date)
     if (propertyId) formData.append('property_id', propertyId)
     if (unitId) formData.append('unit_id', unitId)
-    if (tenantId) formData.append('tenant_id', tenantId)
+    if (expenseId) formData.append('expense_id', expenseId)
 
     const res = await fetch('/api/documents', {
       method: 'POST',
       body: formData,
     })
-    const result = await res.json()
-    if (res.ok) setMessage('Soubor úspěšně nahrán.')
-    else setMessage(result.error || 'Chyba při nahrávání.')
+    if (res.ok) {
+      setSuccess(true)
+      setFile(null)
+      setName('')
+      setDate(new Date().toISOString().slice(0, 10))
+      onUpload && onUpload()
+    } else {
+      const data = await res.json()
+      setError(data.error || 'Chyba při nahrávání.')
+    }
     setUploading(false)
   }
 
   return (
-    <form onSubmit={handleUpload} className="space-y-2">
-      <input type="file" required onChange={e => setFile(e.target.files?.[0] || null)} />
-      <input type="text" placeholder="Popis (volitelně)" value={desc} onChange={e => setDesc(e.target.value)} className="border rounded px-2 py-1" />
-      <button type="submit" className="bg-blue-600 text-white px-4 py-1 rounded" disabled={uploading}>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 border p-4 rounded bg-gray-50 max-w-lg">
+      <div>
+        <label className="block mb-1 font-medium">Soubor</label>
+        <input
+          type="file"
+          onChange={e => setFile(e.target.files?.[0] ?? null)}
+          className="block"
+          required
+        />
+      </div>
+      <div>
+        <label className="block mb-1 font-medium">Popis / Název</label>
+        <input
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="např. smlouva, revize..."
+          className="w-full border rounded px-2 py-1"
+        />
+      </div>
+      <div>
+        <label className="block mb-1 font-medium">Datum</label>
+        <input
+          type="date"
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          className="border rounded px-2 py-1"
+        />
+      </div>
+      <button
+        type="submit"
+        disabled={uploading}
+        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+      >
         {uploading ? 'Nahrávám...' : 'Nahrát dokument'}
       </button>
-      {message && <div>{message}</div>}
+      {success && <div className="text-green-600">✅ Dokument byl nahrán.</div>}
+      {error && <div className="text-red-600">{error}</div>}
     </form>
   )
 }
