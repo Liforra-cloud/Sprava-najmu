@@ -1,4 +1,4 @@
-// components/ExpensesList.tsx
+// /components/ExpensesList.tsx
 
 'use client'
 
@@ -124,7 +124,7 @@ export default function ExpensesList({
   }
 
   // ** FILTROVÁNÍ A ŘAZENÍ **
-  let filtered = expenses
+  const filtered = expenses
     .filter((e) =>
       e.description.toLowerCase().includes(search.toLowerCase()) ||
       (e.expense_type || '').toLowerCase().includes(search.toLowerCase())
