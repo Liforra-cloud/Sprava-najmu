@@ -131,6 +131,7 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
       </form>
       <ExpensesList unitId={id} />
       <DocumentUpload unitId={id} onUpload={refreshDokumenty} />
+      <DocumentList unitId={id} onChange={refreshDokumenty} />
     </div>
   );
 }
