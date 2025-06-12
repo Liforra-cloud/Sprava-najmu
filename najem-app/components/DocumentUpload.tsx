@@ -1,102 +1,97 @@
 // /components/DocumentUpload.tsx
 
 'use client'
-
-import { useState, FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 
 type Props = {
   propertyId?: string
   unitId?: string
   expenseId?: string
-  onUpload?: () => void // callback po úspěšném uploadu
+  tenantId?: string
+  onChange?: () => void
 }
 
-export default function DocumentUpload({ propertyId, unitId, expenseId, onUpload }: Props) {
-  const [file, setFile] = useState<File | null>(null)
-  const [name, setName] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [uploading, setUploading] = useState(false)
+type Document = {
+  id: string
+  file_url: string
+  file_name: string
+  name?: string
+  uploaded_at: string
+  user_id: string
+}
+
+export default function DocumentList({ propertyId, unitId, expenseId, tenantId, onChange }: Props) {
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [me, setMe] = useState<string | null>(null)
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setSuccess(false)
-    if (!file) {
-      setError('Vyberte soubor!')
-      return
-    }
+  useEffect(() => {
+    // Zjisti id přihlášeného uživatele (pro mazání vlastních dokumentů)
+    fetch('/api/auth/me').then(r => r.json()).then(d => setMe(d.user?.id || null)).catch(() => setMe(null))
+  }, [])
 
-    setUploading(true)
-    const formData = new FormData()
-    formData.append('file', file)
-    if (name) formData.append('name', name)
-    if (date) formData.append('date', date)
-    if (propertyId) formData.append('property_id', propertyId)
-    if (unitId) formData.append('unit_id', unitId)
-    if (expenseId) formData.append('expense_id', expenseId)
-
-    try {
-      const res = await fetch('/api/documents', {
-        method: 'POST',
-        body: formData,
+  useEffect(() => {
+    setLoading(true)
+    let query = `/api/documents?`
+    if (propertyId) query += `property_id=${propertyId}&`
+    if (unitId) query += `unit_id=${unitId}&`
+    if (expenseId) query += `expense_id=${expenseId}&`
+    if (tenantId) query += `tenant_id=${tenantId}&`
+    fetch(query)
+      .then(res => res.json())
+      .then(data => {
+        setDocuments(Array.isArray(data) ? data : [])
+        setLoading(false)
       })
-      if (res.ok) {
-        setSuccess(true)
-        setFile(null)
-        setName('')
-        setDate(new Date().toISOString().slice(0, 10))
-        if (onUpload) onUpload()
-      } else {
-        const data = await res.json()
-        setError(data.error || 'Chyba při nahrávání.')
-      }
-    } catch {
-      setError('Chyba při odesílání.')
+      .catch(() => {
+        setError('Nepodařilo se načíst dokumenty')
+        setLoading(false)
+      })
+  }, [propertyId, unitId, expenseId, tenantId, onChange])
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Opravdu smazat tento dokument?')) return
+    const res = await fetch(`/api/documents?id=${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setDocuments(docs => docs.filter(doc => doc.id !== id))
+      if (onChange) onChange()
+    } else {
+      alert('Chyba při mazání!')
     }
-    setUploading(false)
   }
 
+  if (loading) return <div>Načítání…</div>
+  if (error) return <div className="text-red-600">{error}</div>
+  if (documents.length === 0) return <div>Žádné dokumenty</div>
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 border p-4 rounded bg-gray-50 max-w-lg">
-      <div>
-        <label className="block mb-1 font-medium">Soubor</label>
-        <input
-          type="file"
-          onChange={e => setFile(e.target.files?.[0] ?? null)}
-          className="block"
-          required
-        />
-      </div>
-      <div>
-        <label className="block mb-1 font-medium">Popis / Název</label>
-        <input
-          type="text"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="např. smlouva, revize..."
-          className="w-full border rounded px-2 py-1"
-        />
-      </div>
-      <div>
-        <label className="block mb-1 font-medium">Datum</label>
-        <input
-          type="date"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-          className="border rounded px-2 py-1"
-        />
-      </div>
-      <button
-        type="submit"
-        disabled={uploading}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-      >
-        {uploading ? 'Nahrávám...' : 'Nahrát dokument'}
-      </button>
-      {success && <div className="text-green-600">✅ Dokument byl nahrán.</div>}
-      {error && <div className="text-red-600">{error}</div>}
-    </form>
+    <div className="mt-4">
+      <h3 className="font-semibold mb-2">Seznam dokumentů</h3>
+      <ul>
+        {documents.map(doc => (
+          <li key={doc.id} className="mb-2 flex items-center gap-3">
+            <a
+              href={doc.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-700 hover:underline"
+            >
+              {doc.name || doc.file_name}
+            </a>
+            <span className="text-xs text-gray-500">{new Date(doc.uploaded_at).toLocaleDateString()}</span>
+            {/* Smazat jen když patří přihlášenému uživateli */}
+            {me && doc.user_id === me && (
+              <button
+                onClick={() => handleDelete(doc.id)}
+                className="text-red-600 text-xs border px-2 rounded hover:bg-red-50"
+              >
+                Smazat
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
