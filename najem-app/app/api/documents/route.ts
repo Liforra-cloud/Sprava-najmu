@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   const tenant_id = formData.get('tenant_id')
   const expense_id = formData.get('expense_id')
   const name = formData.get('name') || ''
-  const file_name = file?.name || 'dokument.pdf'
+  const userFileName = file?.name || 'dokument.pdf'
   const date = formData.get('date') || new Date().toISOString().slice(0, 10)
 
   if (!file) return NextResponse.json({ error: 'Chybí soubor.' }, { status: 400 })
@@ -45,9 +45,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Musí být vyplněno property_id, unit_id, tenant_id nebo expense_id.' }, { status: 400 })
   }
 
-  // Název souboru do storage
-  const ext = file.name.split('.').pop() || 'pdf'
-  const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  // Bezpečný název souboru do storage (unikátní, bez diakritiky a mezer)
+  const ext = userFileName.split('.').pop()?.toLowerCase() || 'pdf'
+  const safeBase = Date.now() + '-' + Math.random().toString(36).slice(2)
+  const uniqueName = `${safeBase}.${ext}`
 
   // Uložení do Supabase Storage (bucket "documents")
   const { error: storageError } = await supabase.storage
@@ -58,8 +59,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: storageError.message }, { status: 500 })
   }
 
-  // URL ke stažení souboru
-  const file_url = supabase.storage.from('documents').getPublicUrl(uniqueName).data.publicUrl
+  // Podepsaný (signed) URL pro soukromý bucket
+  const { data: signedUrlData } = await supabase.storage
+    .from('documents')
+    .createSignedUrl(uniqueName, 60 * 60) // platnost 1 hodina
+
+  const file_url = signedUrlData?.signedUrl || null
 
   // Uložení do tabulky documents
   const { data, error } = await supabase
@@ -69,8 +74,9 @@ export async function POST(request: NextRequest) {
       unit_id: unit_id || null,
       tenant_id: tenant_id || null,
       expense_id: expense_id || null,
-      name,
-      file_name,
+      name,                        // uživatelský popis (speciální znaky dovoleny)
+      file_name: uniqueName,       // název v bucketu (technický)
+      original_file_name: userFileName, // originální název (volitelné)
       date,
       file_url,
       user_id: session.user.id,
