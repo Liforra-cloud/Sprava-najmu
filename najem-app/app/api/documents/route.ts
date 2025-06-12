@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
       file_name,      // NÁZEV SOUBORU, povinný
       date,
       file_url,
-      user_id: session.user.id,
+      user_id: session.user.id,    // pokud potřebuješ oba, nech oba
+    uploaded_by: session.user.id // <-- TOTO JE NOVÉ!
     }])
     .select()
     .single()
