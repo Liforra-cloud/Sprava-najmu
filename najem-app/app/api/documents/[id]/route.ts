@@ -1,9 +1,6 @@
-app/api/documents/[id]/route.ts
-
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
-// Mazání dokumentu podle ID
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -39,4 +36,3 @@ export async function DELETE(
 
   return NextResponse.json({ success: true })
 }
-
