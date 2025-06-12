@@ -45,12 +45,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Musí být vyplněno property_id, unit_id, tenant_id nebo expense_id.' }, { status: 400 })
   }
 
-  // Bezpečný název souboru do storage (unikátní, bez diakritiky a mezer)
+  // Bezpečný název souboru do storage
   const ext = userFileName.split('.').pop()?.toLowerCase() || 'pdf'
   const safeBase = Date.now() + '-' + Math.random().toString(36).slice(2)
   const uniqueName = `${safeBase}.${ext}`
 
-  // Uložení do Supabase Storage (bucket "documents")
+  // Upload file to Supabase Storage (bucket "documents")
   const { error: storageError } = await supabase.storage
     .from('documents')
     .upload(uniqueName, file, { upsert: false, contentType: file.type })
@@ -59,14 +59,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: storageError.message }, { status: 500 })
   }
 
-  // Podepsaný (signed) URL pro soukromý bucket
-  const { data: signedUrlData } = await supabase.storage
-    .from('documents')
-    .createSignedUrl(uniqueName, 60 * 60) // platnost 1 hodina
-
-  const file_url = signedUrlData?.signedUrl || null
-
-  // Uložení do tabulky documents
+  // Save only metadata (not signed URL) to table
   const { data, error } = await supabase
     .from('documents')
     .insert([{
@@ -74,13 +67,13 @@ export async function POST(request: NextRequest) {
       unit_id: unit_id || null,
       tenant_id: tenant_id || null,
       expense_id: expense_id || null,
-      name,                        // uživatelský popis
-      file_name: uniqueName,       // název v bucketu (technický)
-      original_file_name: userFileName, // originální název
+      name,
+      file_name: uniqueName,
+      original_file_name: userFileName,
       date,
-      file_url,
       user_id: session.user.id,
-      uploaded_by: session.user.id
+      uploaded_by: session.user.id,
+      // NEUKLÁDEJ file_url!
     }])
     .select()
     .single()
@@ -88,4 +81,3 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
-
