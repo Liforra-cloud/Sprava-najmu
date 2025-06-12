@@ -8,6 +8,7 @@ import { Pencil, X } from 'lucide-react'
 import Link from 'next/link'
 import dynamicImport from 'next/dynamic'
 import DocumentUpload from '@/components/DocumentUpload'
+import DocumentList from '@/components/DocumentList' // ← NEZAPOMEŇ IMPORT!
 
 export const dynamic = 'force-dynamic'
 
@@ -55,8 +56,9 @@ export default function Page({ params }: { params: { id: string } }) {
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
-  // Dummy refresh funkce pro build (implementuj později dle potřeby)
-  const refreshDokumenty = () => {}
+  // REFRESH na dokumenty
+  const [refreshKey, setRefreshKey] = useState(0)
+  const refreshDokumenty = () => setRefreshKey(k => k + 1)
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -301,14 +303,16 @@ export default function Page({ params }: { params: { id: string } }) {
         ))}
       </ul>
 
+      {/* --- Náklady k nemovitosti --- */}
+      <ExpensesList propertyId={property.id} />
 
-{/* --- Náklady k nemovitosti --- */}
-<ExpensesList propertyId={property.id} />
-
-{/* --- Dokumenty k nemovitosti --- */}
-<DocumentUpload propertyId={property.id} onUpload={refreshDokumenty} />
-      <DocumentList propertyId={id} onChange={refreshDokumenty} />
-
+      {/* --- Dokumenty k nemovitosti --- */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-2">Dokumenty k nemovitosti</h2>
+        <DocumentUpload propertyId={property.id} onUpload={refreshDokumenty} />
+        <DocumentList propertyId={id} onChange={refreshDokumenty} key={refreshKey} />
+      </div>
     </div>
   )
 }
+
