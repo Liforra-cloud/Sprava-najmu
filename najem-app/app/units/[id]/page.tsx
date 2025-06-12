@@ -4,10 +4,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import dynamicImport from 'next/dynamic'
-import DocumentUpload from '@/components/DocumentUpload'
+import dynamicImport from 'next/dynamic';
+import DocumentUpload from '@/components/DocumentUpload';
+import DocumentList from '@/components/DocumentList'; // ← DŮLEŽITÝ IMPORT!
 
-const ExpensesList = dynamicImport(() => import('@/components/ExpensesList'), { ssr: false })
+const ExpensesList = dynamicImport(() => import('@/components/ExpensesList'), { ssr: false });
 
 interface UnitForm {
   property_id: string;
@@ -30,7 +31,9 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const router = useRouter();
 
-  const refreshDokumenty = () => {};
+  // --- Tohle obstará refresh výpisu dokumentů po nahrání/smazání ---
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refreshDokumenty = () => setRefreshKey(k => k + 1);
 
   const [form, setForm] = useState<UnitForm>({
     property_id: '',
@@ -108,7 +111,6 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
     <div className="max-w-xl mx-auto mt-10 p-6 bg-white shadow rounded">
       <h1 className="text-2xl font-bold mb-4">Editace jednotky</h1>
       <form onSubmit={handleSave} className="space-y-4">
-        {/* ... formulářová pole zůstávají ... */}
         <div>
           <label className="block text-sm font-medium text-gray-700">Nemovitost</label>
           <select
@@ -130,8 +132,12 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
         {error && <p className="text-red-600">{error}</p>}
       </form>
       <ExpensesList unitId={id} />
-      <DocumentUpload unitId={id} onUpload={refreshDokumenty} />
-      <DocumentList unitId={id} onChange={refreshDokumenty} />
+      <div className="my-8">
+        <h2 className="text-xl font-semibold mb-2">Dokumenty k jednotce</h2>
+        <DocumentUpload unitId={id} onUpload={refreshDokumenty} />
+        <DocumentList unitId={id} onChange={refreshDokumenty} key={refreshKey} />
+      </div>
     </div>
   );
 }
+
