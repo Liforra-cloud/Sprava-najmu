@@ -301,10 +301,12 @@ export default function Page({ params }: { params: { id: string } }) {
         ))}
       </ul>
 
-      {/* --- Náklady k nemovitosti --- */}
-<ExpensesList unitId={id} propertyId={form.property_id} />
-{/* --- Dokumenty k jednotce --- */}
-<DocumentUpload unitId={id} onUpload={refreshDokumenty} />
+
+{/* --- Náklady k nemovitosti --- */}
+<ExpensesList propertyId={property.id} />
+
+{/* --- Dokumenty k nemovitosti --- */}
+<DocumentUpload propertyId={property.id} onUpload={refreshDokumenty} />
 
     </div>
   )
