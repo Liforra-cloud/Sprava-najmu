@@ -3,7 +3,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Edit, Trash2, X } from 'lucide-react'
+import { Plus, Edit, Trash2, X, FileText } from 'lucide-react'
+import DocumentUpload from '@/components/DocumentUpload'
+import DocumentList from '@/components/DocumentList'
 
 type Expense = {
   id: string
@@ -34,6 +36,8 @@ export default function ExpensesList({
     date_incurred: new Date().toISOString().slice(0, 10),
   })
   const [saving, setSaving] = useState(false)
+  const [openedDocs, setOpenedDocs] = useState<string | null>(null)
+  const [refreshDocs, setRefreshDocs] = useState(0)
 
   // Filtry
   const [search, setSearch] = useState('')
@@ -52,7 +56,7 @@ export default function ExpensesList({
     fetch('/api/expenses?' + params.toString(), { credentials: 'include' })
       .then((res) => res.json())
       .then(setExpenses)
-  }, [propertyId, unitId, saving, showModal])
+  }, [propertyId, unitId, saving, showModal, refreshDocs])
 
   // Přidání/úprava
   const openNewModal = () => {
@@ -141,7 +145,6 @@ export default function ExpensesList({
         <h2 className="text-xl font-semibold mb-1">Náklady</h2>
         <p className="text-gray-600 text-sm mb-2">
           Evidujte provozní, investiční nebo administrativní náklady vztahující se k této nemovitosti nebo jednotce.
-          Každý náklad můžete přiřadit pouze k nemovitosti, nebo konkrétní jednotce. Filtry vám umožní rychlé vyhledání.
         </p>
         {/* FILTRY */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3 flex flex-wrap gap-3 items-end shadow-sm">
@@ -223,13 +226,14 @@ export default function ExpensesList({
             <th className="p-2 text-left font-bold">Typ</th>
             <th className="p-2 text-right font-bold">Částka</th>
             <th className="p-2 text-center font-bold">Kam patří</th>
+            <th className="p-2 text-center font-bold">Dokumenty</th>
             <th className="p-2"></th>
           </tr>
         </thead>
         <tbody>
           {filtered.length === 0 && (
             <tr>
-              <td colSpan={6} className="p-4 text-center text-gray-500">Žádné náklady</td>
+              <td colSpan={7} className="p-4 text-center text-gray-500">Žádné náklady</td>
             </tr>
           )}
           {filtered.map(exp => (
@@ -244,6 +248,16 @@ export default function ExpensesList({
                   : <span className="inline-block bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-semibold">Nemovitost</span>
                 }
               </td>
+              {/* DOKUMENTY */}
+              <td className="p-2 text-center">
+                <button
+                  title="Zobrazit dokumenty"
+                  onClick={() => setOpenedDocs(openedDocs === exp.id ? null : exp.id)}
+                  className="hover:text-blue-600"
+                >
+                  <FileText size={18} />
+                </button>
+              </td>
               <td className="p-2 flex gap-2 justify-center">
                 <button onClick={() => openEditModal(exp)} className="text-blue-700 hover:underline flex items-center" title="Upravit">
                   <Edit size={16} />
@@ -256,6 +270,17 @@ export default function ExpensesList({
           ))}
         </tbody>
       </table>
+
+      {/* Dokumenty ke konkrétnímu nákladu */}
+      {filtered.map(exp => (
+        openedDocs === exp.id && (
+          <div key={`docs-${exp.id}`} className="my-4 border border-blue-200 rounded p-4 bg-blue-50">
+            <h4 className="font-semibold mb-2">Dokumenty pro náklad: <span className="font-normal">{exp.description}</span></h4>
+            <DocumentUpload expenseId={exp.id} onUpload={() => setRefreshDocs(r => r + 1)} />
+            <DocumentList expenseId={exp.id} onChange={() => setRefreshDocs(r => r + 1)} />
+          </div>
+        )
+      ))}
 
       {/* MODÁL */}
       {showModal && (
@@ -318,4 +343,3 @@ export default function ExpensesList({
     </div>
   )
 }
-
