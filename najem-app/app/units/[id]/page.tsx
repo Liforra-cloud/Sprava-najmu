@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamicImport from 'next/dynamic'
+import DocumentUpload from '@/components/DocumentUpload'
 
 const ExpensesList = dynamicImport(() => import('@/components/ExpensesList'), { ssr: false })
 
