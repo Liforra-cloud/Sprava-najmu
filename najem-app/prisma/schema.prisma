@@ -63,29 +63,27 @@ model Tenant {
 model Lease {
   id         String   @id @default(uuid())
   name       String
-  unit       Unit     @relation(fields: [unitId], references: [id])
   unitId     String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id])
   tenantId   String
   startDate  DateTime
   endDate    DateTime?
   rentAmount Float
 
-  monthlyWater       Float @default(0)
-  monthlyGas         Float @default(0)
-  monthlyElectricity Float @default(0)
-  monthlyServices    Float @default(0)
-  repairFund         Float @default(0)
-  customFields       Json  @default("[]")
-  totalBillableRent  Float @default(0)
+  monthlyWater       Float   @default(0)
+  monthlyGas         Float   @default(0)
+  monthlyElectricity Float   @default(0)
+  monthlyServices    Float   @default(0)
+  repairFund         Float   @default(0)
+  customFields       Json    @default("[]")
+  totalBillableRent  Float   @default(0)
 
-  payments   Payment[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  unit     Unit   @relation(fields: [unitId], references: [id])
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  payments Payment[]
 
-  @@map("leases")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
-
 model Payment {
   id         String   @id @default(uuid())
   lease      Lease    @relation(fields: [leaseId], references: [id])
