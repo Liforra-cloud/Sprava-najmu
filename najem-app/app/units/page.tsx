@@ -24,6 +24,7 @@ type Property = {
 
 const SORTABLE_FIELDS = [
   { key: 'identifier', label: 'Označení' },
+  { key: 'property', label: 'Nemovitost' }, // přidáme nový sloupec
   { key: 'monthly_rent', label: 'Nájem' },
   { key: 'floor', label: 'Patro' },
   { key: 'area', label: 'Plocha' },
@@ -67,7 +68,7 @@ export default function UnitsPage() {
     if (floor) params.push(`floor=${encodeURIComponent(floor)}`)
     if (areaMin) params.push(`areaMin=${encodeURIComponent(areaMin)}`)
     if (areaMax) params.push(`areaMax=${encodeURIComponent(areaMax)}`)
-    if (orderBy) params.push(`orderBy=${encodeURIComponent(orderBy)}`)
+    if (orderBy && orderBy !== "property") params.push(`orderBy=${encodeURIComponent(orderBy)}`)
     if (orderDir) params.push(`orderDir=${encodeURIComponent(orderDir)}`)
     url += params.join('&')
     fetch(url)
@@ -109,6 +110,11 @@ export default function UnitsPage() {
     return orderDir === 'asc'
       ? <ChevronUpIcon className="inline w-4 h-4 ml-1" />
       : <ChevronDownIcon className="inline w-4 h-4 ml-1" />
+  }
+
+  // Pomocná funkce pro získání názvu nemovitosti podle ID
+  function getPropertyName(property_id: string) {
+    return properties.find(p => p.id === property_id)?.name || '—'
   }
 
   return (
@@ -200,7 +206,9 @@ export default function UnitsPage() {
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
-              {SORTABLE_FIELDS.map(field => (
+              <th className="px-4 py-2">Označení</th>
+              <th className="px-4 py-2">Nemovitost</th>
+              {SORTABLE_FIELDS.filter(f => f.key !== 'identifier' && f.key !== 'property').map(field => (
                 <th
                   key={field.key}
                   className="px-4 py-2 cursor-pointer select-none"
@@ -217,6 +225,14 @@ export default function UnitsPage() {
             {list.map(unit => (
               <tr key={unit.id} className="border-t">
                 <td className="px-4 py-2">{unit.identifier}</td>
+                <td className="px-4 py-2">
+                  <Link
+                    href={`/properties/${unit.property_id}`}
+                    className="text-blue-700 underline hover:text-blue-900"
+                  >
+                    {getPropertyName(unit.property_id)}
+                  </Link>
+                </td>
                 <td className="px-4 py-2">{unit.monthly_rent ?? '-'}</td>
                 <td className="px-4 py-2">{unit.floor ?? '-'}</td>
                 <td className="px-4 py-2">{unit.area ?? '-'}{unit.area ? ' m²' : ''}</td>
@@ -232,7 +248,7 @@ export default function UnitsPage() {
             ))}
             {list.length === 0 && (
               <tr>
-                <td colSpan={SORTABLE_FIELDS.length + 1} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={SORTABLE_FIELDS.length + 2} className="px-4 py-8 text-center text-gray-400">
                   Žádné jednotky neodpovídají zadaným filtrům.
                 </td>
               </tr>
