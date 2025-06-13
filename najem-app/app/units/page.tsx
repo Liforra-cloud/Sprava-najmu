@@ -16,16 +16,36 @@ type Unit = {
   monthly_rent?: number
 }
 
+type Property = {
+  id: string
+  name: string
+}
+
 export default function UnitsPage() {
   const [list, setList] = useState<Unit[]>([])
+  const [properties, setProperties] = useState<Property[]>([])
   const [error, setError] = useState<string>('')
   const [stav, setStav] = useState<string>('')
+  const [propertyId, setPropertyId] = useState<string>('')
 
+  // Načtení nemovitostí do dropdownu
   useEffect(() => {
-    let url = '/api/units'
-    if (stav) {
-      url += `?stav=${encodeURIComponent(stav)}`
-    }
+    fetch('/api/properties')
+      .then(async res => {
+        const json = await res.json()
+        if (res.ok && Array.isArray(json)) {
+          setProperties(json)
+        }
+      })
+  }, [])
+
+  // Načtení jednotek při změně filtru
+  useEffect(() => {
+    let url = '/api/units?'
+    const params = []
+    if (stav) params.push(`stav=${encodeURIComponent(stav)}`)
+    if (propertyId) params.push(`propertyId=${encodeURIComponent(propertyId)}`)
+    url += params.join('&')
     fetch(url)
       .then(async res => {
         const json = await res.json()
@@ -36,7 +56,7 @@ export default function UnitsPage() {
         }
       })
       .catch(err => setError(err.message))
-  }, [stav])
+  }, [stav, propertyId])
 
   return (
     <div className="p-6">
@@ -49,18 +69,35 @@ export default function UnitsPage() {
         </Link>
       </div>
 
-      {/* FILTR STAVU */}
-      <div className="mb-4">
-        <label className="mr-2 font-semibold">Filtr stavu:</label>
-        <select
-          value={stav}
-          onChange={e => setStav(e.target.value)}
-          className="border px-2 py-1 rounded"
-        >
-          <option value="">Všechny stavy</option>
-          <option value="volné">Volné</option>
-          <option value="obsazené">Obsazené</option>
-        </select>
+      {/* FILTRY */}
+      <div className="mb-4 flex gap-4">
+        <div>
+          <label className="mr-2 font-semibold">Filtr stavu:</label>
+          <select
+            value={stav}
+            onChange={e => setStav(e.target.value)}
+            className="border px-2 py-1 rounded"
+          >
+            <option value="">Všechny stavy</option>
+            <option value="volné">Volné</option>
+            <option value="obsazené">Obsazené</option>
+          </select>
+        </div>
+        <div>
+          <label className="mr-2 font-semibold">Nemovitost:</label>
+          <select
+            value={propertyId}
+            onChange={e => setPropertyId(e.target.value)}
+            className="border px-2 py-1 rounded"
+          >
+            <option value="">Všechny nemovitosti</option>
+            {properties.map(property => (
+              <option key={property.id} value={property.id}>
+                {property.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {error && <p className="text-red-600 mb-4">{error}</p>}
