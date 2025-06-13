@@ -17,7 +17,6 @@ model User {
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  // leases field removed because no corresponding userId in Lease table
 }
 
 model Property {
@@ -63,11 +62,18 @@ model Lease {
   endDate    DateTime?
   rentAmount Float
 
-  // 🆕 Nové měsíční náklady
+  // Měsíční náklady
   monthlyWater       Float   @default(0)
   monthlyGas         Float   @default(0)
   monthlyElectricity Float   @default(0)
   monthlyServices    Float   @default(0)
+  repairFund         Float   @default(0)
+
+  // Vlastní položky
+  customFields       Json    @default("[]")
+
+  // Výpočtové pole (sum účtovatelných složek nájmu)
+  totalBillableRent  Float   @default(0)
 
   payments   Payment[]
   createdAt  DateTime @default(now())
