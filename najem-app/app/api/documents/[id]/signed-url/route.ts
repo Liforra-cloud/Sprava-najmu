@@ -1,16 +1,17 @@
-// /app/api/documents/[id]/signed-url/route.ts
-
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // <- používáme service role key
+)
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = supabaseRouteClient()
-
   try {
-    // 1. Načti dokument z DB
+    // 1. Načti dokument z tabulky 'documents'
     const { data, error } = await supabase
       .from('documents')
       .select('file_name, mime_type')
@@ -22,10 +23,10 @@ export async function GET(
       return NextResponse.json({ error: error?.message ?? 'Dokument nenalezen' }, { status: 404 })
     }
 
-    // 2. Zkus vygenerovat podepsanou URL pro bucket 'documents'
+    // 2. Vygeneruj podepsanou URL pro soubor z bucketu 'documents'
     const { data: urlData, error: urlError } = await supabase.storage
       .from('documents')
-      .createSignedUrl(data.file_name, 60 * 60) // 1 hodina
+      .createSignedUrl(data.file_name, 60 * 60)
 
     if (urlError || !urlData?.signedUrl) {
       console.error('Storage error:', urlError)
@@ -39,8 +40,7 @@ export async function GET(
     })
 
   } catch (err) {
-    // Vypiš cokoliv dalšího
     console.error('API route crash:', err)
-    return NextResponse.json({ error: 'Unknown error', detail: String(err) }, { status: 500 })
+    return NextResponse.json({ error: 'Neznámá chyba', detail: String(err) }, { status: 500 })
   }
 }
