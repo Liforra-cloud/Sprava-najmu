@@ -59,11 +59,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: storageError.message }, { status: 500 })
   }
 
-  // Sestav základní URL (cestu) ke stažení souboru z bucketu (není to public URL!)
+  // Sestav základní URL ke stažení souboru z bucketu (není to public URL!)
   const file_url = uniqueName
 
-
-  // Ulož metadata do tabulky
+  // Ulož metadata do tabulky včetně mime_type!
   const { data, error } = await supabase
     .from('documents')
     .insert([{
@@ -77,7 +76,8 @@ export async function POST(request: NextRequest) {
       date,
       user_id: session.user.id,
       uploaded_by: session.user.id,
-      file_url // <- tímhle naplníš NOT NULL sloupec v tabulce!
+      file_url,
+      mime_type: file.type || null, // <-- Důležité
     }])
     .select()
     .single()
