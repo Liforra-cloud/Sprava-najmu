@@ -1,5 +1,6 @@
 // app/api/units/route.ts
 
+
 import { NextResponse } from "next/server";
 import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 
@@ -9,7 +10,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const propertyId = searchParams.get("propertyId");
   const stav = searchParams.get("stav");
-  const search = searchParams.get("search"); // Nový parametr!
+  const search = searchParams.get("search");
+  const floor = searchParams.get("floor");
+  const areaMin = searchParams.get("areaMin");
+  const areaMax = searchParams.get("areaMax");
 
   const {
     data: { session },
@@ -25,18 +29,16 @@ export async function GET(request: Request) {
       .select("*")
       .eq("user_id", session.user.id);
 
-    if (propertyId) {
-      query = query.eq("property_id", propertyId);
-    }
-    if (stav) {
-      query = query.eq("occupancy_status", stav);
-    }
+    if (propertyId) query = query.eq("property_id", propertyId);
+    if (stav) query = query.eq("occupancy_status", stav);
     if (search) {
-      // Hledání podle názvu jednotky nebo popisu
       query = query.or(
         `identifier.ilike.%${search}%,description.ilike.%${search}%`
       );
     }
+    if (floor) query = query.eq("floor", floor);
+    if (areaMin) query = query.gte("area", Number(areaMin));
+    if (areaMax) query = query.lte("area", Number(areaMax));
 
     query = query.order("date_added", { ascending: false });
 
@@ -47,7 +49,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(data || []);
-   } catch {
+  } catch {
     return NextResponse.json({ error: "Server error." }, { status: 500 });
   }
 }
@@ -94,3 +96,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json(data[0]);
 }
+
