@@ -32,8 +32,8 @@ export async function GET(request: Request) {
 
   // Filtrování podle stavu, pokud je zadáno
   if (stav) {
-    query = query.eq("stav", stav); // Uprav "stav" podle názvu tvého sloupce
-  }
+  query = query.eq("occupancy_status", stav);
+}
 
   query = query.order("date_added", { ascending: false });
 
