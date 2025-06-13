@@ -83,8 +83,20 @@ export default function DocumentList({ propertyId, unitId, tenantId, expenseId, 
 
     fetch('/api/documents?' + params.toString(), { credentials: 'include' })
       .then(r => r.json())
-      .then(docs => setDocuments(Array.isArray(docs) ? docs : []))
-      .catch(() => setError('Chyba při načítání dokumentů.'))
+      .then(res => {
+        if (Array.isArray(res)) {
+          setDocuments(res)
+        } else if (Array.isArray(res.documents)) {
+          setDocuments(res.documents)
+        } else {
+          throw new Error('Neplatná odpověď z API')
+        }
+      })
+      .catch(err => {
+        console.error(err)
+        setError('Chyba při načítání dokumentů.')
+        setDocuments([])
+      })
       .finally(() => setLoading(false))
   }, [propertyId, unitId, tenantId, expenseId, onChange])
 
@@ -106,24 +118,22 @@ export default function DocumentList({ propertyId, unitId, tenantId, expenseId, 
   return (
     <div className="mt-2">
       <ul className="space-y-2">
-        {documents.map(doc => {
-          console.log('DOC:', doc) // <-- Tady budeš vidět, jaká id se opravdu používají!
-          return (
-            <li key={doc.id} className="flex items-center gap-3 border p-2 rounded bg-white shadow-sm">
-              <DocumentViewer docId={doc.id} fileName={doc.name || doc.file_name} />
-              <span className="ml-2 text-sm">{doc.name || doc.file_name}</span>
-              {doc.date && <span className="text-xs text-gray-500">({doc.date})</span>}
-              <button
-                onClick={() => handleDelete(doc.id)}
-                className="ml-auto text-red-600 px-2 py-1 rounded hover:bg-red-100"
-                title="Smazat dokument"
-              >
-                Smazat
-              </button>
-            </li>
-          )
-        })}
+        {documents.map(doc => (
+          <li key={doc.id} className="flex items-center gap-3 border p-2 rounded bg-white shadow-sm">
+            <DocumentViewer docId={doc.id} fileName={doc.name || doc.file_name} />
+            <span className="ml-2 text-sm">{doc.name || doc.file_name}</span>
+            {doc.date && <span className="text-xs text-gray-500">({doc.date})</span>}
+            <button
+              onClick={() => handleDelete(doc.id)}
+              className="ml-auto text-red-600 px-2 py-1 rounded hover:bg-red-100"
+              title="Smazat dokument"
+            >
+              Smazat
+            </button>
+          </li>
+        ))}
       </ul>
     </div>
   )
 }
+
