@@ -36,9 +36,9 @@ export async function POST(request: NextRequest) {
   const unit_id = formData.get('unit_id')
   const tenant_id = formData.get('tenant_id')
   const expense_id = formData.get('expense_id')
-  const name = formData.get('name') || ''
+  const name = formData.get('name')?.toString() || ''
   const userFileName = file?.name || 'dokument.pdf'
-  const date = formData.get('date') || new Date().toISOString().slice(0, 10)
+  const date = formData.get('date')?.toString() || new Date().toISOString().slice(0, 10)
 
   if (!file) return NextResponse.json({ error: 'Chybí soubor.' }, { status: 400 })
   if (!property_id && !unit_id && !tenant_id && !expense_id) {
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       user_id: session.user.id,
       uploaded_by: session.user.id,
       file_url,
-      mime_type: file.type || null, // <-- Důležité
+      mime_type: (file as File).type || null, // <-- Důležité
     }])
     .select()
     .single()
