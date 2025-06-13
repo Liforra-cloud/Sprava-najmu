@@ -1,5 +1,4 @@
 // prisma/schema.prisma
-// --- Data model for správa nájmů ---
 
 datasource db {
   provider = "postgresql"
@@ -83,7 +82,10 @@ model Lease {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@map("leases")
 }
+
 model Payment {
   id         String   @id @default(uuid())
   lease      Lease    @relation(fields: [leaseId], references: [id])
