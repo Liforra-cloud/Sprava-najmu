@@ -15,7 +15,7 @@ type Unit = {
 }
 
 export default function LeaseForm({ tenantId }: LeaseFormProps) {
-  const [units, setUnits] = useState<Unit[]>([])
+  const [units, setUnits] = useState<{ id: string; identifier: string }[]>([])
   const [unitId, setUnitId] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
