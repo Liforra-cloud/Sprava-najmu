@@ -9,7 +9,7 @@ export async function GET(
 ) {
   const supabase = supabaseRouteClient()
 
-  // Najdi jméno souboru v databázi podle ID dokumentu
+  // Najdi jméno souboru a mime_type v databázi podle ID dokumentu
   const { data, error } = await supabase
     .from('documents')
     .select('file_name, mime_type')
