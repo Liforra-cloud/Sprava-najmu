@@ -1,8 +1,14 @@
+//app/api/units/route.ts
+
 import { NextResponse } from "next/server";
 import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = supabaseRouteClient();
+
+  const { searchParams } = new URL(request.url);
+  const propertyId = searchParams.get("propertyId");
+  const stav = searchParams.get("stav"); // např. "volné" nebo "obsazené"
 
   const {
     data: { session },
@@ -13,12 +19,25 @@ export async function GET() {
     return NextResponse.json([]);
   }
 
-  // Získáme pouze jednotky aktuálního uživatele
-  const { data, error } = await supabase
+  // Základní query pouze pro aktuálního uživatele
+  let query = supabase
     .from("units")
     .select("*")
-    .eq("user_id", session.user.id)
-    .order("date_added", { ascending: false });
+    .eq("user_id", session.user.id);
+
+  // Filtrování podle propertyId, pokud je zadáno
+  if (propertyId) {
+    query = query.eq("property_id", propertyId);
+  }
+
+  // Filtrování podle stavu, pokud je zadáno
+  if (stav) {
+    query = query.eq("stav", stav); // Uprav "stav" podle názvu tvého sloupce
+  }
+
+  query = query.order("date_added", { ascending: false });
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
