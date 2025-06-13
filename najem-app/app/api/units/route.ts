@@ -33,6 +33,7 @@ export async function GET(request: Request) {
   }
 
   try {
+    // 1. Základní SELECT jednotek uživatele
     let query = supabase
       .from("units")
       .select("*")
@@ -49,20 +50,48 @@ export async function GET(request: Request) {
     if (areaMin) query = query.gte("area", Number(areaMin));
     if (areaMax) query = query.lte("area", Number(areaMax));
 
-    // Ošetření, aby šlo třídit jen podle povolených sloupců (kvůli bezpečnosti)
+    // Bezpečné třídění
     if (ALLOWED_ORDER_FIELDS.includes(orderBy)) {
       query = query.order(orderBy, { ascending: orderDir === "asc" });
     } else {
       query = query.order("date_added", { ascending: false });
     }
 
-    const { data, error } = await query;
+    const { data: units, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data || []);
+    // 2. Pro každou jednotku zjisti aktuálního nájemníka z unit_tenants a jeho jméno z tenants
+    const unitIds = (units ?? []).map((u: any) => u.id);
+
+    let tenantsMap: Record<string, { id: string, full_name: string } | null> = {};
+    if (unitIds.length > 0) {
+      const { data: ut, error: utErr } = await supabase
+        .from('unit_tenants')
+        .select('unit_id, tenant:tenants (id, full_name)')
+        .is('date_to', null)
+        .in('unit_id', unitIds);
+
+      if (!utErr && ut) {
+        ut.forEach((rec: any) => {
+          tenantsMap[rec.unit_id] = rec.tenant ? {
+            id: rec.tenant.id,
+            full_name: rec.tenant.full_name,
+          } : null;
+        });
+      }
+    }
+
+    // 3. Spoj výsledek: jednotka + tenant info
+    const result = (units ?? []).map((unit: any) => ({
+      ...unit,
+      tenant_id: tenantsMap[unit.id]?.id ?? null,
+      tenant_full_name: tenantsMap[unit.id]?.full_name ?? null,
+    }));
+
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: "Server error." }, { status: 500 });
   }
