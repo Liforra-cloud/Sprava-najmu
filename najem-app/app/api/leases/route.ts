@@ -1,5 +1,4 @@
 // najem-app/app/api/leases/route.ts
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -13,11 +12,11 @@ export async function POST(request: NextRequest) {
         tenantId: body.tenantId,
         startDate: new Date(body.startDate),
         endDate: body.endDate ? new Date(body.endDate) : null,
-        rentAmount: body.rentAmount,
-        monthlyWater: body.monthlyWater ?? 0,
-        monthlyGas: body.monthlyGas ?? 0,
-        monthlyElectricity: body.monthlyElectricity ?? 0,
-        monthlyServices: body.monthlyServices ?? 0
+        rentAmount: Number(body.rentAmount),
+        monthlyWater: Number(body.monthlyWater ?? 0),
+        monthlyGas: Number(body.monthlyGas ?? 0),
+        monthlyElectricity: Number(body.monthlyElectricity ?? 0),
+        monthlyServices: Number(body.monthlyServices ?? 0)
       }
     })
 
