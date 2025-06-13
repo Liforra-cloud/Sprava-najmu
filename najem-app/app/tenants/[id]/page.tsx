@@ -1,216 +1,60 @@
 // app/tenants/[id]/page.tsx
 
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import DocumentUpload from '@/components/DocumentUpload';
-import DocumentList from '@/components/DocumentList';
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
 
 type Tenant = {
-  id: string;
-  full_name: string;
-  email: string;
-  phone?: string;
-  personal_id?: string;
-  address?: string;
-  employer?: string;
-  note?: string;
-  date_registered: string;
-};
+  id: string
+  full_name: string
+  email: string
+  phone?: string
+  personal_id?: string
+  address?: string
+  employer?: string
+  note?: string
+  date_registered: string
+}
 
 export default function TenantDetailPage() {
-  const id = (useParams() as Record<string, string>).id;
-  const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-
-  // Refresh pro dokumenty
-  const [refreshKey, setRefreshKey] = useState(0);
-  const refreshDokumenty = () => setRefreshKey(k => k + 1);
-
-  const [editedData, setEditedData] = useState({
-    full_name: '',
-    email: '',
-    phone: '',
-    personal_id: '',
-    address: '',
-    employer: '',
-    note: '',
-  });
+  const id = (useParams() as Record<string, string>).id
+  const [tenant, setTenant] = useState<Tenant | null>(null)
+  const [totalRent, setTotalRent] = useState<number>(0)
+  const [totalDebt, setTotalDebt] = useState<number>(0)
 
   useEffect(() => {
     const fetchTenant = async () => {
-      const res = await fetch(`/api/tenants/${id}`);
+      const res = await fetch(`/api/tenants/${id}`)
       if (!res.ok) {
-        setTenant(null);
-        return;
+        setTenant(null)
+        return
       }
-      const data: Tenant = await res.json();
-      setTenant(data);
-      setEditedData({
-        full_name: data.full_name || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        personal_id: data.personal_id || '',
-        address: data.address || '',
-        employer: data.employer || '',
-        note: data.note || '',
-      });
-    };
-    fetchTenant();
-  }, [id, saveSuccess]); // refresh při změně
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    setSaveSuccess(false);
-    try {
-      const payload = { ...editedData };
-      const res = await fetch(`/api/tenants/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error('Chyba při ukládání');
-      const updated: Tenant = await res.json();
-      setTenant(updated);
-      setSaveSuccess(true);
-      setIsEditing(false);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    } catch {
-      alert('Nepodařilo se uložit změnu.');
-    } finally {
-      setIsSaving(false);
+      const data = await res.json()
+      setTenant(data.tenant)
+      setTotalRent(data.totalRent)
+      setTotalDebt(data.totalDebt)
     }
-  };
+    fetchTenant()
+  }, [id])
 
-  if (!tenant) return <p>Načítání...</p>;
+  if (!tenant) return <p>Načítání...</p>
 
   return (
     <div className="space-y-6 p-6 max-w-xl mx-auto">
       <div className="flex items-center space-x-2">
-        <h1 className="text-3xl font-bold">
-          {isEditing ? (
-            <input
-              value={editedData.full_name}
-              onChange={e => setEditedData(d => ({ ...d, full_name: e.target.value }))}
-              className="border px-2 py-1 rounded text-xl"
-            />
-          ) : (
-            tenant.full_name
-          )}
-        </h1>
-        <button
-          onClick={() => {
-            setIsEditing(!isEditing);
-            setSaveSuccess(false);
-          }}
-          className="text-blue-600 hover:text-blue-800"
-          title={isEditing ? 'Zrušit úpravu' : 'Upravit nájemníka'}
-        >
-          {isEditing ? 'Zrušit' : 'Upravit'}
-        </button>
+        <h1 className="text-3xl font-bold">{tenant.full_name}</h1>
       </div>
 
-      <div>
-        <strong>Email:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.email}
-            onChange={e => setEditedData(d => ({ ...d, email: e.target.value }))}
-            className="border px-2 py-1 rounded"
-            type="email"
-          />
-        ) : (
-          tenant.email
-        )}
-      </div>
-      <div>
-        <strong>Telefon:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.phone}
-            onChange={e => setEditedData(d => ({ ...d, phone: e.target.value }))}
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          tenant.phone || '—'
-        )}
-      </div>
-      <div>
-        <strong>Rodné číslo:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.personal_id}
-            onChange={e => setEditedData(d => ({ ...d, personal_id: e.target.value }))}
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          tenant.personal_id || '—'
-        )}
-      </div>
-      <div>
-        <strong>Adresa:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.address}
-            onChange={e => setEditedData(d => ({ ...d, address: e.target.value }))}
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          tenant.address || '—'
-        )}
-      </div>
-      <div>
-        <strong>Zaměstnavatel:</strong>{' '}
-        {isEditing ? (
-          <input
-            value={editedData.employer}
-            onChange={e => setEditedData(d => ({ ...d, employer: e.target.value }))}
-            className="border px-2 py-1 rounded"
-          />
-        ) : (
-          tenant.employer || '—'
-        )}
-      </div>
-      <div>
-        <strong>Poznámka:</strong>{' '}
-        {isEditing ? (
-          <textarea
-            value={editedData.note}
-            onChange={e => setEditedData(d => ({ ...d, note: e.target.value }))}
-            className="border px-2 py-1 rounded w-full"
-            rows={2}
-            placeholder='Poznámka k nájemníkovi'
-          />
-        ) : (
-          tenant.note || '—'
-        )}
-      </div>
-      <div>
-        <strong>Registrován:</strong>{' '}
-        {new Date(tenant.date_registered).toLocaleDateString()}
-      </div>
-      {isEditing && (
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="mt-2 px-4 py-1 bg-blue-600 text-white rounded"
-        >
-          {isSaving ? 'Ukládám...' : 'Uložit změny'}
-        </button>
-      )}
-      {saveSuccess && (
-        <p className="text-green-600 font-medium">✅ Změny byly uloženy.</p>
-      )}
-
-      {/* Dokumenty k nájemníkovi */}
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-2">Dokumenty k nájemníkovi</h2>
-        <DocumentUpload tenantId={id} onUpload={refreshDokumenty} />
-        <DocumentList tenantId={id} onChange={refreshDokumenty} key={refreshKey} />
+      {/* Zobrazení celkového nájemného a dluhu */}
+      <div className="mt-4">
+        <div>
+          <strong>Celkové nájemné:</strong> {totalRent} Kč
+        </div>
+        <div className={`mt-2 ${totalDebt > 0 ? 'text-red-600' : ''}`}>
+          <strong>Celkový dluh:</strong> {totalDebt} Kč
+        </div>
       </div>
     </div>
-  );
+  )
 }
