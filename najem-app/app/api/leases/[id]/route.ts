@@ -8,12 +8,12 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const lease = await prisma.lease.findUnique({
-      where: { id: params.id },
-      include: {
-        tenant: { select: { name: true } },
-        unit: { select: { identifier: true } }
-      }
+   const lease = await prisma.lease.findUnique({
+  where: { id: params.id },
+  include: {
+    tenant: { select: { name: true } },
+    unit: { select: { identifier: true } }
+  }
     })
 
     if (!lease) {
