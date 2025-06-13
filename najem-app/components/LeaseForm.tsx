@@ -1,3 +1,5 @@
+//najem-app/components/LeaseForm.tsx
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -27,7 +29,7 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
   const [units, setUnits] = useState<Unit[]>([])
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [unitId, setUnitId] = useState('')
-  const [name, setName] = useState('')
+  const [name, setName] = useState('') // Název smlouvy
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [success, setSuccess] = useState(false)
@@ -51,9 +53,8 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
       ])
       const unitsData = await unitsRes.json()
       const propsData = await propsRes.json()
-
-      setUnits(unitsData || [])            // ⬅️ správný formát
-      setProperties(propsData || [])       // ⬅️ správný formát
+      setUnits(unitsData || [])
+      setProperties(propsData || [])
     }
     fetchAll()
   }, [])
@@ -86,22 +87,23 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
         name,
         startDate,
         endDate,
-        rentAmount: parseFloat(rentAmount.value) || 0,
-        monthlyWater: parseFloat(monthlyWater.value) || 0,
-        monthlyGas: parseFloat(monthlyGas.value) || 0,
-        monthlyElectricity: parseFloat(monthlyElectricity.value) || 0,
-        monthlyServices: parseFloat(monthlyServices.value) || 0,
-        repairFund: parseFloat(monthlyFund.value) || 0,
+        rentAmount: Number(rentAmount.value),
+        monthlyWater: Number(monthlyWater.value),
+        monthlyGas: Number(monthlyGas.value),
+        monthlyElectricity: Number(monthlyElectricity.value),
+        monthlyServices: Number(monthlyServices.value),
+        repairFund: Number(monthlyFund.value),
         customFields: customFields.map(f => ({
-          key: f.key,
-          value: parseFloat(f.value) || 0,
-          billable: f.billable
+          ...f,
+          value: Number(f.value)
         }))
       }),
     })
 
     if (res.ok) {
       setSuccess(true)
+    } else {
+      console.error(await res.json())
     }
   }
 
@@ -211,3 +213,4 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
     </form>
   )
 }
+
