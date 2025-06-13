@@ -1,4 +1,4 @@
-//app/api/units/route.ts
+// app/api/units/route.ts
 
 import { NextResponse } from "next/server";
 import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
@@ -8,7 +8,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const propertyId = searchParams.get("propertyId");
-  const stav = searchParams.get("stav"); // např. "volné" nebo "obsazené"
+  const stav = searchParams.get("stav"); // "volné" nebo "obsazené"
 
   const {
     data: { session },
@@ -19,31 +19,31 @@ export async function GET(request: Request) {
     return NextResponse.json([]);
   }
 
-  // Základní query pouze pro aktuálního uživatele
-  let query = supabase
-    .from("units")
-    .select("*")
-    .eq("user_id", session.user.id);
+  try {
+    let query = supabase
+      .from("units")
+      .select("*")
+      .eq("user_id", session.user.id);
 
-  // Filtrování podle propertyId, pokud je zadáno
-  if (propertyId) {
-    query = query.eq("property_id", propertyId);
+    if (propertyId) {
+      query = query.eq("property_id", propertyId);
+    }
+    if (stav) {
+      query = query.eq("occupancy_status", stav);
+    }
+
+    query = query.order("date_added", { ascending: false });
+
+    const { data, error } = await query;
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data || []);
+  } catch (err) {
+    return NextResponse.json({ error: "Server error." }, { status: 500 });
   }
-
-  // Filtrování podle stavu, pokud je zadáno
-  if (stav) {
-  query = query.eq("occupancy_status", stav);
-}
-
-  query = query.order("date_added", { ascending: false });
-
-  const { data, error } = await query;
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json(data || []);
 }
 
 // POST funkce už je správně (ponech jak máš)
