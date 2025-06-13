@@ -17,29 +17,35 @@ model User {
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@map("users")
 }
 
 model Property {
-  id            String    @id @default(uuid())
+  id            String   @id @default(uuid())
   name          String
   address       String
   property_type String
-  description   String?  
-  date_added    DateTime  @default(now())
+  description   String?
+  date_added    DateTime @default(now())
   units         Unit[]
+
+  @@map("properties")
 }
 
 model Unit {
   id          String   @id @default(uuid())
   property    Property @relation(fields: [propertyId], references: [id])
   propertyId  String
-  identifier  String   // např. č. bytu
+  identifier  String
   floor       Int?
   area        Float?
   isOccupied  Boolean  @default(false)
   leases      Lease[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@map("units")
 }
 
 model Tenant {
@@ -50,11 +56,13 @@ model Tenant {
   leases     Lease[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@map("tenants")
 }
 
 model Lease {
   id         String   @id @default(uuid())
-  name       String 
+  name       String
   unit       Unit     @relation(fields: [unitId], references: [id])
   unitId     String
   tenant     Tenant   @relation(fields: [tenantId], references: [id])
@@ -63,22 +71,19 @@ model Lease {
   endDate    DateTime?
   rentAmount Float
 
-  // Měsíční náklady
-  monthlyWater       Float   @default(0)
-  monthlyGas         Float   @default(0)
-  monthlyElectricity Float   @default(0)
-  monthlyServices    Float   @default(0)
-  repairFund         Float   @default(0)
-
-  // Vlastní položky
-  customFields       Json    @default("[]")
-
-  // Výpočtové pole (sum účtovatelných složek nájmu)
-  totalBillableRent  Float   @default(0)
+  monthlyWater       Float @default(0)
+  monthlyGas         Float @default(0)
+  monthlyElectricity Float @default(0)
+  monthlyServices    Float @default(0)
+  repairFund         Float @default(0)
+  customFields       Json  @default("[]")
+  totalBillableRent  Float @default(0)
 
   payments   Payment[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@map("leases")
 }
 
 model Payment {
@@ -90,4 +95,6 @@ model Payment {
   note       String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@map("payments")
 }
