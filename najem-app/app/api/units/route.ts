@@ -47,7 +47,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(data || []);
-  } catch (err) {
+   } catch {
     return NextResponse.json({ error: "Server error." }, { status: 500 });
   }
 }
