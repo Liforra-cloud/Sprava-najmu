@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 type Unit = {
@@ -27,6 +27,9 @@ export default function UnitsPage() {
   const [error, setError] = useState<string>('')
   const [stav, setStav] = useState<string>('')
   const [propertyId, setPropertyId] = useState<string>('')
+  const [searchInput, setSearchInput] = useState<string>('') // Aktuální hodnota inputu
+  const [search, setSearch] = useState<string>('') // Debounced hodnota
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null)
 
   // Načtení nemovitostí do dropdownu
   useEffect(() => {
@@ -45,6 +48,7 @@ export default function UnitsPage() {
     const params = []
     if (stav) params.push(`stav=${encodeURIComponent(stav)}`)
     if (propertyId) params.push(`propertyId=${encodeURIComponent(propertyId)}`)
+    if (search) params.push(`search=${encodeURIComponent(search)}`)
     url += params.join('&')
     fetch(url)
       .then(async res => {
@@ -56,7 +60,20 @@ export default function UnitsPage() {
         }
       })
       .catch(err => setError(err.message))
-  }, [stav, propertyId])
+  }, [stav, propertyId, search])
+
+  // Debounce logika pro vyhledávání
+  useEffect(() => {
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current)
+    }
+    searchTimeout.current = setTimeout(() => {
+      setSearch(searchInput)
+    }, 400)
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current)
+    }
+  }, [searchInput])
 
   return (
     <div className="p-6">
@@ -70,7 +87,7 @@ export default function UnitsPage() {
       </div>
 
       {/* FILTRY */}
-      <div className="mb-4 flex gap-4">
+      <div className="mb-4 flex gap-4 flex-wrap">
         <div>
           <label className="mr-2 font-semibold">Filtr stavu:</label>
           <select
@@ -97,6 +114,16 @@ export default function UnitsPage() {
               </option>
             ))}
           </select>
+        </div>
+        <div>
+          <label className="mr-2 font-semibold">Hledat:</label>
+          <input
+            className="border px-2 py-1 rounded"
+            type="text"
+            placeholder="Zadejte hledaný text"
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+          />
         </div>
       </div>
 
