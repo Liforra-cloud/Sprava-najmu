@@ -11,7 +11,7 @@ export async function GET(
     const lease = await prisma.lease.findUnique({
       where: { id: params.id },
       include: {
-        tenant: { select: { full_name: true } },
+        tenant: { select: { name: true } },
         unit: { select: { identifier: true } }
       }
     })
