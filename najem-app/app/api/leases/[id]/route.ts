@@ -11,7 +11,7 @@ export async function GET(
     const lease = await prisma.lease.findUnique({
       where: { id: params.id },
       include: {
-        tenant: { select: { name: true } },
+        tenant: { select: { full_name: true } },
         unit: { select: { identifier: true } }
       }
     })
@@ -20,7 +20,22 @@ export async function GET(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    return NextResponse.json(lease)
+    const customTotal = lease.customFields?.reduce((sum, field) => {
+      return field.billable ? sum + (field.value || 0) : sum
+    }, 0) || 0
+
+    const totalBillableRent =
+      Number(lease.rentAmount) +
+      Number(lease.monthlyWater) +
+      Number(lease.monthlyGas) +
+      Number(lease.monthlyElectricity) +
+      Number(lease.monthlyServices) +
+      customTotal
+
+    return NextResponse.json({
+      ...lease,
+      totalBillableRent
+    })
   } catch (error) {
     console.error('Chyba při načítání smlouvy:', error)
     return NextResponse.json({ error: 'Chyba serveru' }, { status: 500 })
