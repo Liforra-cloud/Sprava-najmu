@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
 
     const lease = await prisma.lease.create({
       data: {
+        name: body.name,
         unitId: body.unitId,
         tenantId: body.tenantId,
         startDate: new Date(body.startDate),
