@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid'
 
 type Unit = {
   id: string
@@ -21,20 +22,32 @@ type Property = {
   name: string
 }
 
+const SORTABLE_FIELDS = [
+  { key: 'identifier', label: 'Označení' },
+  { key: 'monthly_rent', label: 'Nájem' },
+  { key: 'floor', label: 'Patro' },
+  { key: 'area', label: 'Plocha' },
+  { key: 'occupancy_status', label: 'Stav' },
+]
+
 export default function UnitsPage() {
   const [list, setList] = useState<Unit[]>([])
   const [properties, setProperties] = useState<Property[]>([])
   const [error, setError] = useState<string>('')
   const [stav, setStav] = useState<string>('')
   const [propertyId, setPropertyId] = useState<string>('')
-  const [searchInput, setSearchInput] = useState<string>('') // Aktuální hodnota inputu
-  const [search, setSearch] = useState<string>('') // Debounced hodnota
-  const [floor, setFloor] = useState<string>('')    // Patro
-  const [areaMin, setAreaMin] = useState<string>('')// Plocha od
-  const [areaMax, setAreaMax] = useState<string>('')// Plocha do
+  const [searchInput, setSearchInput] = useState<string>('')
+  const [search, setSearch] = useState<string>('')
+  const [floor, setFloor] = useState<string>('')
+  const [areaMin, setAreaMin] = useState<string>('')
+  const [areaMax, setAreaMax] = useState<string>('')
+
+  // Třídění
+  const [orderBy, setOrderBy] = useState<string>('date_added')
+  const [orderDir, setOrderDir] = useState<'asc' | 'desc'>('desc')
+
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
 
-  // Načtení nemovitostí do dropdownu
   useEffect(() => {
     fetch('/api/properties')
       .then(async res => {
@@ -45,7 +58,6 @@ export default function UnitsPage() {
       })
   }, [])
 
-  // Načtení jednotek při změně filtru
   useEffect(() => {
     let url = '/api/units?'
     const params = []
@@ -55,6 +67,8 @@ export default function UnitsPage() {
     if (floor) params.push(`floor=${encodeURIComponent(floor)}`)
     if (areaMin) params.push(`areaMin=${encodeURIComponent(areaMin)}`)
     if (areaMax) params.push(`areaMax=${encodeURIComponent(areaMax)}`)
+    if (orderBy) params.push(`orderBy=${encodeURIComponent(orderBy)}`)
+    if (orderDir) params.push(`orderDir=${encodeURIComponent(orderDir)}`)
     url += params.join('&')
     fetch(url)
       .then(async res => {
@@ -66,9 +80,8 @@ export default function UnitsPage() {
         }
       })
       .catch(err => setError(err.message))
-  }, [stav, propertyId, search, floor, areaMin, areaMax])
+  }, [stav, propertyId, search, floor, areaMin, areaMax, orderBy, orderDir])
 
-  // Debounce logika pro vyhledávání
   useEffect(() => {
     if (searchTimeout.current) {
       clearTimeout(searchTimeout.current)
@@ -80,6 +93,23 @@ export default function UnitsPage() {
       if (searchTimeout.current) clearTimeout(searchTimeout.current)
     }
   }, [searchInput])
+
+  // Kliknutí na hlavičku tříděného sloupce
+  function handleSort(field: string) {
+    if (orderBy === field) {
+      setOrderDir(orderDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setOrderBy(field)
+      setOrderDir('asc')
+    }
+  }
+
+  function renderSortIcon(field: string) {
+    if (orderBy !== field) return null
+    return orderDir === 'asc'
+      ? <ChevronUpIcon className="inline w-4 h-4 ml-1" />
+      : <ChevronDownIcon className="inline w-4 h-4 ml-1" />
+  }
 
   return (
     <div className="p-6">
@@ -165,46 +195,51 @@ export default function UnitsPage() {
 
       {error && <p className="text-red-600 mb-4">{error}</p>}
 
-      <ul className="space-y-4">
-        {list.map(unit => (
-          <li
-            key={unit.id}
-            className="p-4 border rounded flex justify-between items-start"
-          >
-            <div>
-              <h2 className="font-bold text-xl">{unit.identifier}</h2>
-              {unit.occupancy_status && (
-                <div className="text-sm text-gray-600">
-                  Stav: {unit.occupancy_status}
-                </div>
-              )}
-              {unit.floor !== undefined && unit.floor !== null && (
-                <div className="text-sm text-gray-600">
-                  Patro: {unit.floor}
-                </div>
-              )}
-              {unit.area !== undefined && unit.area !== null && (
-                <div className="text-sm text-gray-600">
-                  Plocha: {unit.area} m²
-                </div>
-              )}
-              {unit.monthly_rent !== undefined && unit.monthly_rent !== null && (
-                <div className="text-sm text-gray-600">
-                  Nájem: {unit.monthly_rent} Kč
-                </div>
-              )}
-              {unit.description && (
-                <p className="mt-2 text-gray-800">{unit.description}</p>
-              )}
-            </div>
-            <Link href={`/units/${unit.id}`}>
-              <button className="bg-gray-200 text-gray-800 px-3 py-1 rounded">
-                Detail
-              </button>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {/* TABULKA */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border">
+          <thead>
+            <tr>
+              {SORTABLE_FIELDS.map(field => (
+                <th
+                  key={field.key}
+                  className="px-4 py-2 cursor-pointer select-none"
+                  onClick={() => handleSort(field.key)}
+                >
+                  {field.label}
+                  {renderSortIcon(field.key)}
+                </th>
+              ))}
+              <th className="px-4 py-2">Akce</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map(unit => (
+              <tr key={unit.id} className="border-t">
+                <td className="px-4 py-2">{unit.identifier}</td>
+                <td className="px-4 py-2">{unit.monthly_rent ?? '-'}</td>
+                <td className="px-4 py-2">{unit.floor ?? '-'}</td>
+                <td className="px-4 py-2">{unit.area ?? '-'}{unit.area ? ' m²' : ''}</td>
+                <td className="px-4 py-2">{unit.occupancy_status ?? '-'}</td>
+                <td className="px-4 py-2">
+                  <Link href={`/units/${unit.id}`}>
+                    <button className="bg-gray-200 text-gray-800 px-3 py-1 rounded">
+                      Detail
+                    </button>
+                  </Link>
+                </td>
+              </tr>
+            ))}
+            {list.length === 0 && (
+              <tr>
+                <td colSpan={SORTABLE_FIELDS.length + 1} className="px-4 py-8 text-center text-gray-400">
+                  Žádné jednotky neodpovídají zadaným filtrům.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
