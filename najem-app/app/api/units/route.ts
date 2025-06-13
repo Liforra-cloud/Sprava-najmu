@@ -11,6 +11,26 @@ const ALLOWED_ORDER_FIELDS = [
   "occupancy_status"
 ];
 
+// Typ pro Unit, podle struktury v databázi
+type Unit = {
+  id: string;
+  property_id: string;
+  identifier: string;
+  floor?: number;
+  area?: number;
+  description?: string;
+  occupancy_status?: string;
+  monthly_rent?: number;
+  user_id?: string;
+  [key: string]: any;
+};
+
+// Typ pro výsledek joinu tenantů
+type TenantInfo = {
+  id: string;
+  full_name: string;
+} | null;
+
 export async function GET(request: Request) {
   const supabase = supabaseRouteClient();
 
@@ -64,9 +84,9 @@ export async function GET(request: Request) {
     }
 
     // 2. Pro každou jednotku zjisti aktuálního nájemníka z unit_tenants a jeho jméno z tenants
-    const unitIds = (units ?? []).map((u: any) => u.id);
+    const unitIds = (units ?? []).map((u: Unit) => u.id);
 
-    let tenantsMap: Record<string, { id: string, full_name: string } | null> = {};
+    const tenantsMap: Record<string, TenantInfo> = {};
     if (unitIds.length > 0) {
       const { data: ut, error: utErr } = await supabase
         .from('unit_tenants')
@@ -75,17 +95,16 @@ export async function GET(request: Request) {
         .in('unit_id', unitIds);
 
       if (!utErr && ut) {
-        ut.forEach((rec: any) => {
-          tenantsMap[rec.unit_id] = rec.tenant ? {
-            id: rec.tenant.id,
-            full_name: rec.tenant.full_name,
-          } : null;
+        (ut as { unit_id: string; tenant: { id: string; full_name: string } }[]).forEach((rec) => {
+          tenantsMap[rec.unit_id] = rec.tenant
+            ? { id: rec.tenant.id, full_name: rec.tenant.full_name }
+            : null;
         });
       }
     }
 
     // 3. Spoj výsledek: jednotka + tenant info
-    const result = (units ?? []).map((unit: any) => ({
+    const result = (units ?? []).map((unit: Unit) => ({
       ...unit,
       tenant_id: tenantsMap[unit.id]?.id ?? null,
       tenant_full_name: tenantsMap[unit.id]?.full_name ?? null,
