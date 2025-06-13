@@ -3,10 +3,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   const supabase = supabaseRouteClient()
 
-  // Najdi dokument podle ID
+  // Získej jméno souboru podle ID dokumentu
   const { data, error } = await supabase
     .from('documents')
     .select('file_name, mime_type')
@@ -17,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: error?.message ?? 'Dokument nenalezen' }, { status: 404 })
   }
 
-  // Vygeneruj signed URL
+  // Vygeneruj podepsanou URL pro bucket 'documents'
   const { data: urlData, error: urlError } = await supabase.storage
     .from('documents')
     .createSignedUrl(data.file_name, 60 * 60) // 1 hodina
@@ -28,8 +31,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   return NextResponse.json({
     url: urlData.signedUrl,
-    mimeType: data.mime_type ?? undefined,
-    fileName: data.file_name
+    mimeType: data.mime_type,
+    fileName: data.file_name,
   })
 }
-
