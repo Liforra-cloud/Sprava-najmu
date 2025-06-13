@@ -1,19 +1,21 @@
 // components/SidebarLayout.tsx
 
-'use client'
-
-import { useState } from 'react'
+import { redirect } from 'next/navigation'
+import { supabaseServerClient } from '@/lib/supabaseServerClient'
 import Link from 'next/link'
 import { LogOut, Menu } from 'lucide-react'
-import { supabaseServerClient } from '@/lib/supabaseServerClient'
-import { redirect } from 'next/navigation'
+import { useState } from 'react'
 
 export default async function SidebarLayout({ children }: { children: React.ReactNode }) {
-  // Server-side user auth
+  // Načti uživatele serverově
   const supabase = supabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
+  if (!user) {
+    redirect('/login')
+  }
+
+  // Sidebar navigace
   const navItems = [
     { href: '/', label: 'Dashboard' },
     { href: '/properties', label: 'Nemovitosti' },
@@ -26,63 +28,69 @@ export default async function SidebarLayout({ children }: { children: React.Reac
     { href: '/expenses/new', label: 'Přidat náklad' },
   ]
 
-  // Client-side only for sidebar toggle
-  // Všimni si - hook se dá použít jen v client komponentě (proto je v async wrapperu dole)
-  return <SidebarLayoutClient user={user} navItems={navItems}>{children}</SidebarLayoutClient>
+  // --- Přidáno: Hamburger menu a stav zobrazení sidebaru
+  // Protože jsi chtěl async komponentu, řeším stav přes "useState" ve vnořené client komponentě
+
+  return (
+    <SidebarWithHamburger navItems={navItems} user={user}>
+      {children}
+    </SidebarWithHamburger>
+  )
 }
 
-// Tohle je samostatná client-side komponenta kvůli useState
-function SidebarLayoutClient({ user, navItems, children }: any) {
+// Client-only wrapper pro stav hamburger menu
+'use client'
+import { ReactNode } from 'react'
+
+function SidebarWithHamburger({ navItems, user, children }: {
+  navItems: { href: string, label: string }[]
+  user: any
+  children: ReactNode
+}) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
     <div className="flex h-screen w-screen">
-      {/* Hamburger menu pouze na mobilech */}
+      {/* Hamburger only on small screens */}
       <button
-        className="fixed top-4 left-4 z-30 md:hidden bg-white rounded-full p-2 shadow border border-gray-200"
+        className="md:hidden fixed z-30 top-4 left-4 bg-white p-2 rounded shadow border"
         aria-label="Otevřít menu"
         onClick={() => setSidebarOpen(true)}
+        type="button"
       >
         <Menu className="w-6 h-6" />
       </button>
 
-      {/* Sidebar overlay – pouze na mobilech */}
-      <div
-        className={`
-          fixed inset-0 bg-black bg-opacity-30 transition-opacity duration-200 z-20
-          ${sidebarOpen ? 'block' : 'hidden'} md:hidden
-        `}
-        onClick={() => setSidebarOpen(false)}
-      />
-
       {/* Sidebar */}
       <aside
         className={`
-          fixed z-30 top-0 left-0 h-full w-64 bg-gray-100 border-r border-gray-300 p-4 flex flex-col justify-between
-          transform transition-transform duration-200
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          md:static md:translate-x-0 md:flex
+          fixed md:static z-20
+          top-0 left-0 h-full w-64 bg-gray-100 border-r border-gray-300 p-4 flex flex-col justify-between
+          transition-transform duration-300
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
         `}
+        style={{ minWidth: 256 }}
       >
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
             <h1 className="text-xl font-bold">Správa nájmu</h1>
-            {/* Zavřít button na mobilech */}
+            {/* Close btn only on mobile */}
             <button
-              className="md:hidden text-gray-500 p-1"
-              onClick={() => setSidebarOpen(false)}
+              className="md:hidden p-1 rounded"
               aria-label="Zavřít menu"
+              onClick={() => setSidebarOpen(false)}
+              type="button"
             >
               <span className="text-2xl">&times;</span>
             </button>
           </div>
           <nav className="space-y-2">
-            {navItems.map(({ href, label }: any) => (
+            {navItems.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
                 className="block px-3 py-2 rounded transition"
-                onClick={() => setSidebarOpen(false)} // Zavřít menu po kliknutí na mobilu
+                onClick={() => setSidebarOpen(false)}
               >
                 {label}
               </Link>
@@ -99,6 +107,15 @@ function SidebarLayoutClient({ user, navItems, children }: any) {
           </form>
         </div>
       </aside>
+
+      {/* Overlay pro mobil při otevřeném menu */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-10 bg-black/30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <main className="flex-1 overflow-y-auto p-6">{children}</main>
     </div>
   )
