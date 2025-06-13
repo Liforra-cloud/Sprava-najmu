@@ -1,5 +1,3 @@
-//components/LeaseForm.tsx
-
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -34,7 +32,6 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
   const [endDate, setEndDate] = useState('')
   const [success, setSuccess] = useState(false)
 
-  // Měsíční položky
   const [rentAmount, setRentAmount] = useState<FieldState>({ value: '', billable: true })
   const [monthlyWater, setMonthlyWater] = useState<FieldState>({ value: '', billable: true })
   const [monthlyGas, setMonthlyGas] = useState<FieldState>({ value: '', billable: true })
@@ -54,8 +51,9 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
       ])
       const unitsData = await unitsRes.json()
       const propsData = await propsRes.json()
-      setUnits(unitsData.units || [])
-      setProperties(propsData.properties || [])
+
+      setUnits(unitsData || [])            // ⬅️ správný formát
+      setProperties(propsData || [])       // ⬅️ správný formát
     }
     fetchAll()
   }, [])
@@ -88,13 +86,17 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
         name,
         startDate,
         endDate,
-        rentAmount,
-        monthlyWater,
-        monthlyGas,
-        monthlyElectricity,
-        monthlyServices,
-        monthlyFund,
-        customFields
+        rentAmount: parseFloat(rentAmount.value) || 0,
+        monthlyWater: parseFloat(monthlyWater.value) || 0,
+        monthlyGas: parseFloat(monthlyGas.value) || 0,
+        monthlyElectricity: parseFloat(monthlyElectricity.value) || 0,
+        monthlyServices: parseFloat(monthlyServices.value) || 0,
+        repairFund: parseFloat(monthlyFund.value) || 0,
+        customFields: customFields.map(f => ({
+          key: f.key,
+          value: parseFloat(f.value) || 0,
+          billable: f.billable
+        }))
       }),
     })
 
