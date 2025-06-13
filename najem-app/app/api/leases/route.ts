@@ -34,7 +34,7 @@ export async function GET() {
   try {
     const leases = await prisma.lease.findMany({
       include: {
-        tenant: { select: { full_name: true } },
+        tenant: { select: {name: true } },
         unit: { select: { identifier: true } }
       },
       orderBy: { startDate: 'desc' }
