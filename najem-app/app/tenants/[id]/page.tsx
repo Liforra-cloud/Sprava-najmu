@@ -1,4 +1,4 @@
-// app/tenants/[id]/page.tsx
+// najem-app/app/tenants/[id]/page.tsx
 
 'use client'
 
@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import DocumentUpload from '@/components/DocumentUpload'
 import DocumentList from '@/components/DocumentList'
+import PaymentSummary from '@/components/PaymentSummary' // ✅ přidáno
 
 type Tenant = {
   id: string
@@ -22,8 +23,6 @@ type Tenant = {
 export default function TenantDetailPage() {
   const id = (useParams() as Record<string, string>).id
   const [tenant, setTenant] = useState<Tenant | null>(null)
-  const [totalRent, setTotalRent] = useState<number>(0)
-  const [totalDebt, setTotalDebt] = useState<number>(0)
 
   useEffect(() => {
     const fetchTenant = async () => {
@@ -34,8 +33,6 @@ export default function TenantDetailPage() {
       }
       const data = await res.json()
       setTenant(data.tenant)
-      setTotalRent(data.totalRent)
-      setTotalDebt(data.totalDebt)
     }
     fetchTenant()
   }, [id])
@@ -59,11 +56,8 @@ export default function TenantDetailPage() {
         <div><strong>Registrován:</strong> {new Date(tenant.date_registered).toLocaleDateString()}</div>
       </div>
 
-      {/* Zobrazení celkového nájemného a dluhu */}
-      <div className="mt-4">
-        <div><strong>Celkové nájemné:</strong> {totalRent} Kč</div>
-        <div className={`mt-2 ${totalDebt > 0 ? 'text-red-600' : ''}`}><strong>Celkový dluh:</strong> {totalDebt} Kč</div>
-      </div>
+      {/* ✅ Nová komponenta pro souhrn plateb */}
+      <PaymentSummary tenantId={id} />
 
       {/* Dokumenty k nájemníkovi */}
       <div className="mt-8">
