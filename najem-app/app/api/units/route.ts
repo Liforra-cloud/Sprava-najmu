@@ -22,7 +22,7 @@ type Unit = {
   occupancy_status?: string;
   monthly_rent?: number;
   user_id?: string;
-  [key: string]: any;
+
 };
 
 // Typ pro výsledek joinu tenantů
