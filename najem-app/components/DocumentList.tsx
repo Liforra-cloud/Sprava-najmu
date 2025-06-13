@@ -83,11 +83,11 @@ export default function DocumentList({ propertyId, unitId, tenantId, expenseId, 
 
     fetch('/api/documents?' + params.toString(), { credentials: 'include' })
       .then(r => r.json())
-      .then(res => {
-        if (Array.isArray(res)) {
-          setDocuments(res)
-        } else if (Array.isArray(res.documents)) {
-          setDocuments(res.documents)
+      .then(data => {
+        if (Array.isArray(data)) {
+          setDocuments(data)
+        } else if (Array.isArray(data.documents)) {
+          setDocuments(data.documents)
         } else {
           throw new Error('Neplatná odpověď z API')
         }
@@ -136,4 +136,3 @@ export default function DocumentList({ propertyId, unitId, tenantId, expenseId, 
     </div>
   )
 }
-
