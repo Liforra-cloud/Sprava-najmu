@@ -1,8 +1,15 @@
 // app/api/units/route.ts
 
-
 import { NextResponse } from "next/server";
 import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
+
+const ALLOWED_ORDER_FIELDS = [
+  "identifier",
+  "monthly_rent",
+  "floor",
+  "area",
+  "occupancy_status"
+];
 
 export async function GET(request: Request) {
   const supabase = supabaseRouteClient();
@@ -14,6 +21,8 @@ export async function GET(request: Request) {
   const floor = searchParams.get("floor");
   const areaMin = searchParams.get("areaMin");
   const areaMax = searchParams.get("areaMax");
+  const orderBy = searchParams.get("orderBy") || "date_added";
+  const orderDir = searchParams.get("orderDir") === "asc" ? "asc" : "desc";
 
   const {
     data: { session },
@@ -40,7 +49,12 @@ export async function GET(request: Request) {
     if (areaMin) query = query.gte("area", Number(areaMin));
     if (areaMax) query = query.lte("area", Number(areaMax));
 
-    query = query.order("date_added", { ascending: false });
+    // Ošetření, aby šlo třídit jen podle povolených sloupců (kvůli bezpečnosti)
+    if (ALLOWED_ORDER_FIELDS.includes(orderBy)) {
+      query = query.order(orderBy, { ascending: orderDir === "asc" });
+    } else {
+      query = query.order("date_added", { ascending: false });
+    }
 
     const { data, error } = await query;
 
@@ -54,7 +68,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST funkce už je správně (ponech jak máš)
+// POST funkce zůstává stejná
 export async function POST(request: Request) {
   const supabase = supabaseRouteClient();
   const body = await request.json();
@@ -96,4 +110,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json(data[0]);
 }
-
