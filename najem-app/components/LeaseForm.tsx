@@ -1,4 +1,3 @@
-
 //components/LeaseForm.tsx
 
 'use client'
@@ -28,9 +27,19 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
 
   useEffect(() => {
     const fetchUnits = async () => {
-      const res = await fetch('/api/units')
-      const data = await res.json()
-      setUnits(data.units)
+      try {
+        const res = await fetch('/api/units')
+        const data = await res.json()
+        if (Array.isArray(data.units)) {
+          setUnits(data.units)
+        } else {
+          console.error('Neplatný formát jednotek', data)
+          setUnits([])
+        }
+      } catch (err) {
+        console.error('Chyba při načítání jednotek:', err)
+        setUnits([])
+      }
     }
     fetchUnits()
   }, [])
@@ -55,6 +64,8 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
 
     if (res.ok) {
       setSuccess(true)
+    } else {
+      console.error('Chyba při odesílání formuláře', await res.text())
     }
   }
 
@@ -64,11 +75,21 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <label className="block">
         Byt:
-        <select value={unitId} onChange={e => setUnitId(e.target.value)} className="w-full border p-2 rounded">
+        <select
+          value={unitId}
+          onChange={e => setUnitId(e.target.value)}
+          className="w-full border p-2 rounded"
+        >
           <option value="">-- Vyber byt --</option>
-          {units.map(unit => (
-            <option key={unit.id} value={unit.id}>{unit.identifier}</option>
-          ))}
+          {Array.isArray(units) && units.length > 0 ? (
+            units.map(unit => (
+              <option key={unit.id} value={unit.id}>
+                {unit.identifier}
+              </option>
+            ))
+          ) : (
+            <option disabled>Žádné dostupné byty</option>
+          )}
         </select>
       </label>
 
@@ -92,3 +113,4 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
     </form>
   )
 }
+
