@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import DocumentUpload from '@/components/DocumentUpload'
 import DocumentList from '@/components/DocumentList'
-import PaymentSummary from '@/components/PaymentSummary' // ✅ přidáno
+import PaymentSummary from '@/components/PaymentSummary'
 
 type Tenant = {
   id: string
@@ -23,6 +23,8 @@ type Tenant = {
 export default function TenantDetailPage() {
   const id = (useParams() as Record<string, string>).id
   const [tenant, setTenant] = useState<Tenant | null>(null)
+  const [showDocForm, setShowDocForm] = useState(false)
+  const [showLeaseForm, setShowLeaseForm] = useState(false)
 
   useEffect(() => {
     const fetchTenant = async () => {
@@ -56,14 +58,36 @@ export default function TenantDetailPage() {
         <div><strong>Registrován:</strong> {new Date(tenant.date_registered).toLocaleDateString()}</div>
       </div>
 
-      {/* ✅ Nová komponenta pro souhrn plateb */}
+      {/* Souhrn plateb */}
       <PaymentSummary tenantId={id} />
 
-      {/* Dokumenty k nájemníkovi */}
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-2">Dokumenty k nájemníkovi</h2>
-        <DocumentUpload tenantId={id} />
+      {/* Sekce dokumenty */}
+      <div className="mt-8 space-y-4">
+        <h2 className="text-xl font-semibold">Dokumenty k nájemníkovi</h2>
+        {!showDocForm && (
+          <button onClick={() => setShowDocForm(true)} className="bg-blue-600 text-white px-4 py-2 rounded">
+            Přidat dokument
+          </button>
+        )}
+        {showDocForm && <DocumentUpload tenantId={id} />}
         <DocumentList tenantId={id} />
+      </div>
+
+      {/* Sekce přidání smlouvy */}
+      <div className="mt-8 space-y-4">
+        <h2 className="text-xl font-semibold">Smlouvy</h2>
+        {!showLeaseForm && (
+          <button onClick={() => setShowLeaseForm(true)} className="bg-green-600 text-white px-4 py-2 rounded">
+            Přidat smlouvu
+          </button>
+        )}
+        {showLeaseForm && (
+          <div className="border p-4 rounded bg-gray-50">
+            {/* Zde bude formulář pro zadání nájemní smlouvy */}
+            <p className="text-sm text-gray-600">Formulář pro vytvoření nové smlouvy zde...</p>
+            {/* TODO: komponenta <LeaseForm tenantId={id} /> */}
+          </div>
+        )}
       </div>
     </div>
   )
