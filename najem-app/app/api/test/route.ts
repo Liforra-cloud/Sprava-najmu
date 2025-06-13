@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs' // zajistí běh na serveru
@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   console.log('SERVICE KEY (first 10 chars):', process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 10))
 
   const { data, error } = await supabase
