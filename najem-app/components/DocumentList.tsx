@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from 'react'
 
-// ---- DocumentViewer ----
 function DocumentViewer({ docId, fileName }: { docId: string, fileName?: string }) {
   const [url, setUrl] = useState<string | null>(null)
   const [mimeType, setMimeType] = useState<string | null>(null)
@@ -31,7 +30,6 @@ function DocumentViewer({ docId, fileName }: { docId: string, fileName?: string 
   if (error) return <span className="text-xs text-red-400">{error}</span>
   if (!url) return null
 
-  // Náhled obrázku
   if (mimeType?.startsWith('image/')) {
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" title="Otevřít obrázek">
@@ -39,7 +37,6 @@ function DocumentViewer({ docId, fileName }: { docId: string, fileName?: string 
       </a>
     )
   }
-  // PDF zobrazíme náhled ikony a stáhnutí
   if (mimeType === "application/pdf") {
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline" title="Otevřít PDF">
@@ -47,7 +44,6 @@ function DocumentViewer({ docId, fileName }: { docId: string, fileName?: string 
       </a>
     )
   }
-  // Ostatní typy – nabídka stažení/otevření
   return (
     <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline" download={fileName}>
       {fileName || 'Stáhnout dokument'}
@@ -55,14 +51,12 @@ function DocumentViewer({ docId, fileName }: { docId: string, fileName?: string 
   )
 }
 
-// ---- Typy ----
-type DocumentListProps = {
+type Props = {
   propertyId?: string
   unitId?: string
   tenantId?: string
   expenseId?: string
-  onChange?: () => void // zavolá se po smazání dokumentu
-  key?: number | string
+  onChange?: () => void
 }
 
 type Document = {
@@ -73,14 +67,7 @@ type Document = {
   uploaded_at?: string
 }
 
-// ---- Hlavní komponenta ----
-export default function DocumentList({
-  propertyId,
-  unitId,
-  tenantId,
-  expenseId,
-  onChange,
-}: DocumentListProps) {
+export default function DocumentList({ propertyId, unitId, tenantId, expenseId, onChange }: Props) {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -119,20 +106,23 @@ export default function DocumentList({
   return (
     <div className="mt-2">
       <ul className="space-y-2">
-        {documents.map(doc => (
-          <li key={doc.id} className="flex items-center gap-3 border p-2 rounded bg-white shadow-sm">
-            <DocumentViewer docId={doc.id} fileName={doc.name || doc.file_name} />
-            <span className="ml-2 text-sm">{doc.name || doc.file_name}</span>
-            {doc.date && <span className="text-xs text-gray-500">({doc.date})</span>}
-            <button
-              onClick={() => handleDelete(doc.id)}
-              className="ml-auto text-red-600 px-2 py-1 rounded hover:bg-red-100"
-              title="Smazat dokument"
-            >
-              Smazat
-            </button>
-          </li>
-        ))}
+        {documents.map(doc => {
+          console.log('DOC:', doc) // <-- Tady budeš vidět, jaká id se opravdu používají!
+          return (
+            <li key={doc.id} className="flex items-center gap-3 border p-2 rounded bg-white shadow-sm">
+              <DocumentViewer docId={doc.id} fileName={doc.name || doc.file_name} />
+              <span className="ml-2 text-sm">{doc.name || doc.file_name}</span>
+              {doc.date && <span className="text-xs text-gray-500">({doc.date})</span>}
+              <button
+                onClick={() => handleDelete(doc.id)}
+                className="ml-auto text-red-600 px-2 py-1 rounded hover:bg-red-100"
+                title="Smazat dokument"
+              >
+                Smazat
+              </button>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
