@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation'
 import DocumentUpload from '@/components/DocumentUpload'
 import DocumentList from '@/components/DocumentList'
 import PaymentSummary from '@/components/PaymentSummary'
+import LeaseForm from '@/components/LeaseForm'
 
 type Tenant = {
   id: string
@@ -47,7 +48,7 @@ export default function TenantDetailPage() {
         <h1 className="text-3xl font-bold">{tenant.full_name}</h1>
       </div>
 
-      {/* Zobrazení všech informací o nájemníkovi */}
+      {/* Informace o nájemníkovi */}
       <div className="mt-4">
         <div><strong>Email:</strong> {tenant.email}</div>
         <div><strong>Telefon:</strong> {tenant.phone || '—'}</div>
@@ -61,7 +62,7 @@ export default function TenantDetailPage() {
       {/* Souhrn plateb */}
       <PaymentSummary tenantId={id} />
 
-      {/* Sekce dokumenty */}
+      {/* Dokumenty */}
       <div className="mt-8 space-y-4">
         <h2 className="text-xl font-semibold">Dokumenty k nájemníkovi</h2>
         {!showDocForm && (
@@ -73,7 +74,7 @@ export default function TenantDetailPage() {
         <DocumentList tenantId={id} />
       </div>
 
-      {/* Sekce přidání smlouvy */}
+      {/* Smlouvy */}
       <div className="mt-8 space-y-4">
         <h2 className="text-xl font-semibold">Smlouvy</h2>
         {!showLeaseForm && (
@@ -83,12 +84,11 @@ export default function TenantDetailPage() {
         )}
         {showLeaseForm && (
           <div className="border p-4 rounded bg-gray-50">
-            {/* Zde bude formulář pro zadání nájemní smlouvy */}
-            <p className="text-sm text-gray-600">Formulář pro vytvoření nové smlouvy zde...</p>
-            {/* TODO: komponenta <LeaseForm tenantId={id} /> */}
+            <LeaseForm tenantId={id} />
           </div>
         )}
       </div>
     </div>
   )
 }
+
