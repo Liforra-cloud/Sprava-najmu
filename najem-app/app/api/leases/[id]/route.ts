@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    // @ts-ignore – víme, že customFields existuje v databázi
+    // @ts-expect-error: customFields není v typech, ale je v DB
     const customTotal = lease.customFields?.reduce((sum, field) => {
       return field.billable ? sum + (field.value || 0) : sum
     }, 0) || 0
