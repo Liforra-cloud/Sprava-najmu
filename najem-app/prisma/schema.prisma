@@ -54,6 +54,7 @@ model Tenant {
 
 model Lease {
   id         String   @id @default(uuid())
+  name       String 
   unit       Unit     @relation(fields: [unitId], references: [id])
   unitId     String
   tenant     Tenant   @relation(fields: [tenantId], references: [id])
