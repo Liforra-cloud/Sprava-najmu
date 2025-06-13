@@ -8,14 +8,14 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const propertyId = searchParams.get("propertyId");
-  const stav = searchParams.get("stav"); // "volné" nebo "obsazené"
+  const stav = searchParams.get("stav");
+  const search = searchParams.get("search"); // Nový parametr!
 
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session) {
-    // Pokud není přihlášený uživatel, vrať prázdné pole
     return NextResponse.json([]);
   }
 
@@ -30,6 +30,12 @@ export async function GET(request: Request) {
     }
     if (stav) {
       query = query.eq("occupancy_status", stav);
+    }
+    if (search) {
+      // Hledání podle názvu jednotky nebo popisu
+      query = query.or(
+        `identifier.ilike.%${search}%,description.ilike.%${search}%`
+      );
     }
 
     query = query.order("date_added", { ascending: false });
@@ -55,7 +61,10 @@ export async function POST(request: Request) {
   const { property_id, floor, area, description } = body;
 
   if (!identifier) {
-    return NextResponse.json({ error: "Chybí unit_number/identifier!" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Chybí unit_number/identifier!" },
+      { status: 400 }
+    );
   }
 
   const {
