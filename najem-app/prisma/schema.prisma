@@ -21,15 +21,14 @@ model User {
 }
 
 model Property {
-  id           String    @id @default(uuid())
-  name         String
-  address      String
+  id            String    @id @default(uuid())
+  name          String
+  address       String
   property_type String
   description   String?  
   date_added    DateTime  @default(now())
-  units        Unit[]
+  units         Unit[]
 }
-
 
 model Unit {
   id          String   @id @default(uuid())
@@ -63,6 +62,13 @@ model Lease {
   startDate  DateTime
   endDate    DateTime?
   rentAmount Float
+
+  // 🆕 Nové měsíční náklady
+  monthlyWater       Float   @default(0)
+  monthlyGas         Float   @default(0)
+  monthlyElectricity Float   @default(0)
+  monthlyServices    Float   @default(0)
+
   payments   Payment[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
