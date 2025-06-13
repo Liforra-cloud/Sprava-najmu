@@ -15,6 +15,8 @@ type Unit = {
   description?: string
   occupancy_status?: string
   monthly_rent?: number
+  tenant_id?: string | null
+  tenant_full_name?: string | null
 }
 
 type Property = {
@@ -24,7 +26,8 @@ type Property = {
 
 const SORTABLE_FIELDS = [
   { key: 'identifier', label: 'Označení' },
-  { key: 'property', label: 'Nemovitost' }, // přidáme nový sloupec
+  { key: 'property', label: 'Nemovitost' },
+  { key: 'tenant', label: 'Nájemník' },
   { key: 'monthly_rent', label: 'Nájem' },
   { key: 'floor', label: 'Patro' },
   { key: 'area', label: 'Plocha' },
@@ -68,7 +71,7 @@ export default function UnitsPage() {
     if (floor) params.push(`floor=${encodeURIComponent(floor)}`)
     if (areaMin) params.push(`areaMin=${encodeURIComponent(areaMin)}`)
     if (areaMax) params.push(`areaMax=${encodeURIComponent(areaMax)}`)
-    if (orderBy && orderBy !== "property") params.push(`orderBy=${encodeURIComponent(orderBy)}`)
+    if (orderBy && orderBy !== "property" && orderBy !== "tenant") params.push(`orderBy=${encodeURIComponent(orderBy)}`)
     if (orderDir) params.push(`orderDir=${encodeURIComponent(orderDir)}`)
     url += params.join('&')
     fetch(url)
@@ -208,7 +211,8 @@ export default function UnitsPage() {
             <tr>
               <th className="px-4 py-2">Označení</th>
               <th className="px-4 py-2">Nemovitost</th>
-              {SORTABLE_FIELDS.filter(f => f.key !== 'identifier' && f.key !== 'property').map(field => (
+              <th className="px-4 py-2">Nájemník</th>
+              {SORTABLE_FIELDS.filter(f => !['identifier', 'property', 'tenant'].includes(f.key)).map(field => (
                 <th
                   key={field.key}
                   className="px-4 py-2 cursor-pointer select-none"
@@ -232,6 +236,18 @@ export default function UnitsPage() {
                   >
                     {getPropertyName(unit.property_id)}
                   </Link>
+                </td>
+                <td className="px-4 py-2">
+                  {unit.tenant_id && unit.tenant_full_name ? (
+                    <Link
+                      href={`/tenants/${unit.tenant_id}`}
+                      className="text-blue-700 underline hover:text-blue-900"
+                    >
+                      {unit.tenant_full_name}
+                    </Link>
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  )}
                 </td>
                 <td className="px-4 py-2">{unit.monthly_rent ?? '-'}</td>
                 <td className="px-4 py-2">{unit.floor ?? '-'}</td>
