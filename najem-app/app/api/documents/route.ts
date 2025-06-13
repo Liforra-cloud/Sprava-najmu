@@ -60,7 +60,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Sestav základní URL (cestu) ke stažení souboru z bucketu (není to public URL!)
-  const file_url = `{uniqueName}`
+  const file_url = uniqueName
+
 
   // Ulož metadata do tabulky
   const { data, error } = await supabase
