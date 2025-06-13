@@ -8,28 +8,29 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-   const lease = await prisma.lease.findUnique({
-  where: { id: params.id },
-  include: {
-    tenant: { select: { name: true } },
-    unit: { select: { identifier: true } }
-  }
+    const lease = await prisma.lease.findUnique({
+      where: { id: params.id },
+      include: {
+        tenant: { select: { name: true } },
+        unit: { select: { identifier: true } }
+      }
     })
 
     if (!lease) {
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
+    // @ts-ignore – víme, že customFields existuje v databázi
     const customTotal = lease.customFields?.reduce((sum, field) => {
       return field.billable ? sum + (field.value || 0) : sum
     }, 0) || 0
 
     const totalBillableRent =
-      Number(lease.rentAmount) +
-      Number(lease.monthlyWater) +
-      Number(lease.monthlyGas) +
-      Number(lease.monthlyElectricity) +
-      Number(lease.monthlyServices) +
+      Number(lease.rentAmount || lease.monthlyRent || 0) +
+      Number(lease.monthlyWater || 0) +
+      Number(lease.monthlyGas || 0) +
+      Number(lease.monthlyElectricity || 0) +
+      Number(lease.monthlyServices || 0) +
       customTotal
 
     return NextResponse.json({
