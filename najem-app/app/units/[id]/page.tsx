@@ -5,8 +5,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamicImport from 'next/dynamic';
+import Link from 'next/link';
 import DocumentUpload from '@/components/DocumentUpload';
-import DocumentList from '@/components/DocumentList'; // ← DŮLEŽITÝ IMPORT!
+import DocumentList from '@/components/DocumentList';
 
 const ExpensesList = dynamicImport(() => import('@/components/ExpensesList'), { ssr: false });
 
@@ -31,7 +32,6 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const router = useRouter();
 
-  // --- Tohle obstará refresh výpisu dokumentů po nahrání/smazání ---
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshDokumenty = () => setRefreshKey(k => k + 1);
 
@@ -49,6 +49,9 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Najdeme název nemovitosti (property) podle property_id
+  const propertyName = properties.find(p => p.id === form.property_id)?.name;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -110,6 +113,20 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
   return (
     <div className="max-w-xl mx-auto mt-10 p-6 bg-white shadow rounded">
       <h1 className="text-2xl font-bold mb-4">Editace jednotky</h1>
+
+      {/* Nový blok s odkazem na nemovitost */}
+      {form.property_id && propertyName && (
+        <div className="mb-6">
+          <span className="font-semibold">Nemovitost:&nbsp;</span>
+          <Link
+            href={`/properties/${form.property_id}`}
+            className="text-blue-700 underline hover:text-blue-900"
+          >
+            {propertyName}
+          </Link>
+        </div>
+      )}
+
       <form onSubmit={handleSave} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Nemovitost</label>
@@ -140,4 +157,4 @@ export default function EditUnitPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
+ý
