@@ -24,9 +24,12 @@ export async function GET(
   try {
     const lease = await prisma.lease.findUnique({
       where: { id: params.id },
-      include: {
+     include: {
         tenant: { select: { full_name: true } },
-        unit: { select: { identifier: true } }
+        unit: { select: { identifier: true } },
+        payments: {
+          orderBy: { payment_date: 'desc' }
+        }
       }
     })
 
