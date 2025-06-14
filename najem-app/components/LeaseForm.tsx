@@ -6,6 +6,27 @@ import { useEffect, useState } from 'react'
 
 type LeaseFormProps = {
   tenantId: string
+  existingLease?: LeaseFromAPI
+}
+
+type LeaseFromAPI = {
+  id: string
+  unit_id: string
+  name?: string
+  start_date: string
+  end_date?: string | null
+  rent_amount: number
+  monthly_water: number
+  monthly_gas: number
+  monthly_electricity: number
+  monthly_services: number
+  repair_fund: number
+  charge_flags: Record<string, boolean>
+  custom_charges: {
+    name: string
+    amount: number
+    enabled: boolean
+  }[]
 }
 
 type Property = {
@@ -24,27 +45,51 @@ type FieldState = {
   billable: boolean
 }
 
-export default function LeaseForm({ tenantId }: LeaseFormProps) {
+export default function LeaseForm({ tenantId, existingLease }: LeaseFormProps) {
   const [properties, setProperties] = useState<Property[]>([])
   const [units, setUnits] = useState<Unit[]>([])
+
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
-  const [unitId, setUnitId] = useState('')
-  const [name, setName] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [unitId, setUnitId] = useState(existingLease?.unit_id || '')
+  const [name, setName] = useState(existingLease?.name || '')
+  const [startDate, setStartDate] = useState(existingLease?.start_date.slice(0, 10) || '')
+  const [endDate, setEndDate] = useState(existingLease?.end_date?.slice(0, 10) || '')
+
+  const [rentAmount, setRentAmount] = useState<FieldState>({
+    value: existingLease?.rent_amount?.toString() || '',
+    billable: existingLease?.charge_flags?.rent_amount ?? true
+  })
+  const [monthlyWater, setMonthlyWater] = useState<FieldState>({
+    value: existingLease?.monthly_water?.toString() || '',
+    billable: existingLease?.charge_flags?.monthly_water ?? true
+  })
+  const [monthlyGas, setMonthlyGas] = useState<FieldState>({
+    value: existingLease?.monthly_gas?.toString() || '',
+    billable: existingLease?.charge_flags?.monthly_gas ?? true
+  })
+  const [monthlyElectricity, setMonthlyElectricity] = useState<FieldState>({
+    value: existingLease?.monthly_electricity?.toString() || '',
+    billable: existingLease?.charge_flags?.monthly_electricity ?? true
+  })
+  const [monthlyServices, setMonthlyServices] = useState<FieldState>({
+    value: existingLease?.monthly_services?.toString() || '',
+    billable: existingLease?.charge_flags?.monthly_services ?? true
+  })
+  const [monthlyFund, setMonthlyFund] = useState<FieldState>({
+    value: existingLease?.repair_fund?.toString() || '',
+    billable: existingLease?.charge_flags?.repair_fund ?? false
+  })
+
+  const [customFields, setCustomFields] = useState<{ label: string; value: string; billable: boolean }[]>(
+    existingLease?.custom_charges?.map(c => ({
+      label: c.name,
+      value: c.amount.toString(),
+      billable: c.enabled
+    })) || [{ label: '', value: '', billable: true }]
+  )
+
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
-
-  const [rentAmount, setRentAmount] = useState<FieldState>({ value: '', billable: true })
-  const [monthlyWater, setMonthlyWater] = useState<FieldState>({ value: '', billable: true })
-  const [monthlyGas, setMonthlyGas] = useState<FieldState>({ value: '', billable: true })
-  const [monthlyElectricity, setMonthlyElectricity] = useState<FieldState>({ value: '', billable: true })
-  const [monthlyServices, setMonthlyServices] = useState<FieldState>({ value: '', billable: true })
-  const [monthlyFund, setMonthlyFund] = useState<FieldState>({ value: '', billable: false })
-
-  const [customFields, setCustomFields] = useState<{ label: string; value: string; billable: boolean }[]>([
-    { label: '', value: '', billable: true }
-  ])
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -52,11 +97,17 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
         fetch('/api/units'),
         fetch('/api/properties')
       ])
-      setUnits(await unitsRes.json())
+      const fetchedUnits = await unitsRes.json()
+      setUnits(fetchedUnits)
       setProperties(await propsRes.json())
+
+      if (existingLease) {
+        const unit = fetchedUnits.find((u: Unit) => u.id === existingLease.unit_id)
+        if (unit) setSelectedPropertyId(unit.property_id)
+      }
     }
     fetchAll()
-  }, [])
+  }, [existingLease])
 
   const filteredUnits = selectedPropertyId
     ? units.filter(unit => unit.property_id === selectedPropertyId)
@@ -109,12 +160,15 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
         amount: Number(f.value || 0),
         enabled: f.billable
       })),
-      custom_fields: {}, // můžeš rozšířit pokud chceš
+      custom_fields: {},
       total_billable_rent: 0
     }
 
-    const res = await fetch('/api/leases', {
-      method: 'POST',
+    const method = existingLease ? 'PUT' : 'POST'
+    const url = existingLease ? `/api/leases/${existingLease.id}` : '/api/leases'
+
+    const res = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
@@ -128,7 +182,7 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
     }
   }
 
-  if (success) return <p className="text-green-600">Smlouva byla úspěšně přidána.</p>
+  if (success) return <p className="text-green-600">Smlouva byla úspěšně {existingLease ? 'aktualizována' : 'přidána'}.</p>
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -206,7 +260,9 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
         )}
       </div>
 
-      <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Uložit smlouvu</button>
+      <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
+        {existingLease ? 'Uložit změny' : 'Uložit smlouvu'}
+      </button>
     </form>
   )
 
@@ -238,3 +294,4 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
     )
   }
 }
+
