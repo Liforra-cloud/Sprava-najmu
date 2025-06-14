@@ -3,15 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateMonthlyObligationsForAllLeases } from '@/scripts/generateMonthlyObligations'
 
-export async function POST(req: NextRequest) {
-  // Ověření autorizačního headeru
-  const expected = `Bearer ${process.env.CRON_SECRET}`
-  const received = req.headers.get('authorization') || ''
-  if (received !== expected) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Automaticky nastav aktuální měsíc a rok
+export async function POST() {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth() + 1
@@ -19,7 +11,10 @@ export async function POST(req: NextRequest) {
   try {
     await generateMonthlyObligationsForAllLeases(year, month)
     return NextResponse.json({ success: true })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+  } catch (error) {
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ error: 'Neznámá chyba' }, { status: 500 })
   }
 }
