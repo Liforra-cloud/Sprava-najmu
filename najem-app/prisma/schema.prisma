@@ -14,8 +14,8 @@ model User {
   email     String   @unique
   password  String
   name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt       @map("updated_at")
 
   @@map("users")
 }
@@ -35,14 +35,14 @@ model Property {
 model Unit {
   id          String   @id @default(uuid())
   property    Property @relation(fields: [propertyId], references: [id])
-  propertyId  String
+  propertyId  String   @map("property_id")
   identifier  String
   floor       Int?
   area        Float?
-  isOccupied  Boolean  @default(false)
+  isOccupied  Boolean  @default(false) @map("is_occupied")
   leases      Lease[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt       @map("updated_at")
 
   @@map("units")
 }
@@ -53,8 +53,8 @@ model Tenant {
   email      String   @unique
   phone      String?
   leases     Lease[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt       @map("updated_at")
 
   @@map("tenants")
 }
@@ -62,39 +62,40 @@ model Tenant {
 model Lease {
   id         String   @id @default(uuid())
   name       String
-  unitId     String
-  tenantId   String
-  startDate  DateTime
-  endDate    DateTime?
-  rentAmount Float
 
-  monthlyWater       Float   @default(0)
-  monthlyGas         Float   @default(0)
-  monthlyElectricity Float   @default(0)
-  monthlyServices    Float   @default(0)
-  repairFund         Float   @default(0)
-  customFields       Json    @default("[]")
-  totalBillableRent  Float   @default(0)
+  unitId     String   @map("unit_id")
+  tenantId   String   @map("tenant_id")
+  startDate  DateTime @map("start_date")
+  endDate    DateTime? @map("end_date")
+  rentAmount Float    @map("rent_amount")
+
+  monthlyWater       Float   @default(0) @map("monthly_water")
+  monthlyGas         Float   @default(0) @map("monthly_gas")
+  monthlyElectricity Float   @default(0) @map("monthly_electricity")
+  monthlyServices    Float   @default(0) @map("monthly_services")
+  repairFund         Float   @default(0) @map("repair_fund")
+  customFields       Json    @default("[]") @map("custom_fields")
+  totalBillableRent  Float   @default(0) @map("total_billable_rent")
 
   unit     Unit   @relation(fields: [unitId], references: [id])
   tenant   Tenant @relation(fields: [tenantId], references: [id])
   payments Payment[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt       @map("updated_at")
 
   @@map("leases")
 }
 
 model Payment {
-  id         String   @id @default(uuid())
-  lease      Lease    @relation(fields: [leaseId], references: [id])
-  leaseId    String
-  amount     Float
-  paidAt     DateTime @default(now())
-  note       String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid())
+  lease     Lease    @relation(fields: [leaseId], references: [id])
+  leaseId   String   @map("lease_id")
+  amount    Float
+  paidAt    DateTime @default(now()) @map("paid_at")
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt       @map("updated_at")
 
   @@map("payments")
 }
