@@ -21,9 +21,19 @@ type Tenant = {
   date_registered: string
 }
 
+type Lease = {
+  id: string
+  name?: string
+  unit_id: string
+  rent_amount: number
+  start_date: string
+  end_date?: string
+}
+
 export default function TenantDetailPage() {
   const id = (useParams() as Record<string, string>).id
   const [tenant, setTenant] = useState<Tenant | null>(null)
+  const [leases, setLeases] = useState<Lease[]>([])
   const [showDocForm, setShowDocForm] = useState(false)
   const [showLeaseForm, setShowLeaseForm] = useState(false)
 
@@ -32,10 +42,12 @@ export default function TenantDetailPage() {
       const res = await fetch(`/api/tenants/${id}`)
       if (!res.ok) {
         setTenant(null)
+        setLeases([])
         return
       }
       const data = await res.json()
       setTenant(data.tenant)
+      setLeases(data.leases || [])
     }
     fetchTenant()
   }, [id])
@@ -77,6 +89,17 @@ export default function TenantDetailPage() {
       {/* Smlouvy */}
       <div className="mt-8 space-y-4">
         <h2 className="text-xl font-semibold">Smlouvy</h2>
+        <ul>
+          {leases.length === 0 && <li>Žádné smlouvy nenalezeny</li>}
+          {leases.map(lease => (
+            <li key={lease.id} className="border-b py-2">
+              <strong>{lease.name || 'Bez názvu'}</strong><br />
+              Jednotka: {lease.unit_id}<br />
+              Nájem: {lease.rent_amount} Kč<br />
+              Od: {lease.start_date} Do: {lease.end_date || '—'}
+            </li>
+          ))}
+        </ul>
         {!showLeaseForm && (
           <button onClick={() => setShowLeaseForm(true)} className="bg-green-600 text-white px-4 py-2 rounded">
             Přidat smlouvu
