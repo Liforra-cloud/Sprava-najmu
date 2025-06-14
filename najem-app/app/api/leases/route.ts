@@ -40,11 +40,13 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const leases = await prisma.lease.findMany({
-      include: {
-        tenant: { select: { name: true } },
-        unit: { select: { identifier: true } }
-      },
+   const leases = await prisma.lease.findMany({
+  include: {
+    tenant: { select: { full_name: true } },
+    unit: { select: { identifier: true } }
+  },
+  orderBy: { start_date: 'desc' }
+})
       orderBy: { startDate: 'desc' }
     })
 
