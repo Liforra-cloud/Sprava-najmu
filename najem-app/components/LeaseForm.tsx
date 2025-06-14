@@ -77,23 +77,40 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!tenantId || !unitId || !startDate) {
+      setError('Chybí požadovaná pole (nájemník, jednotka nebo začátek nájmu)')
+      return
+    }
+
+    const charge_flags = {
+      rent_amount: rentAmount.billable,
+      monthly_water: monthlyWater.billable,
+      monthly_gas: monthlyGas.billable,
+      monthly_electricity: monthlyElectricity.billable,
+      monthly_services: monthlyServices.billable,
+      repair_fund: monthlyFund.billable,
+    }
+
     const payload = {
-      tenantId,
-      unitId,
       name,
-      startDate,
-      endDate,
-      rentAmount: Number(rentAmount.value),
-      monthlyWater: Number(monthlyWater.value),
-      monthlyGas: Number(monthlyGas.value),
-      monthlyElectricity: Number(monthlyElectricity.value),
-      monthlyServices: Number(monthlyServices.value),
-      repairFund: Number(monthlyFund.value),
-      customFields: customFields.map(f => ({
-        label: f.label,
-        value: Number(f.value),
-        billable: f.billable
-      }))
+      unit_id: unitId,
+      tenant_id: tenantId,
+      start_date: new Date(startDate),
+      end_date: endDate ? new Date(endDate) : null,
+      rent_amount: Number(rentAmount.value || 0),
+      monthly_water: Number(monthlyWater.value || 0),
+      monthly_gas: Number(monthlyGas.value || 0),
+      monthly_electricity: Number(monthlyElectricity.value || 0),
+      monthly_services: Number(monthlyServices.value || 0),
+      repair_fund: Number(monthlyFund.value || 0),
+      charge_flags,
+      custom_charges: customFields.map(f => ({
+        name: f.label,
+        amount: Number(f.value || 0),
+        enabled: f.billable
+      })),
+      custom_fields: {}, // můžeš rozšířit pokud chceš
+      total_billable_rent: 0
     }
 
     const res = await fetch('/api/leases', {
@@ -115,7 +132,7 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <p className="text-red-600 font-bold">Chyba serveru</p>}
+      {error && <p className="text-red-600 font-bold">{error}</p>}
 
       <label className="block">Název smlouvy:
         <input value={name} onChange={e => setName(e.target.value)} className="w-full border p-2 rounded" />
