@@ -1,12 +1,16 @@
 // najem-app/app/leases/[id]/edit/page.tsx
 
-
-
 'use client'
 
 import { useEffect, useState } from 'react'
 import LeaseForm from '@/components/LeaseForm'
 import { useParams } from 'next/navigation'
+
+type CustomCharge = {
+  name: string
+  amount: number
+  enabled: boolean
+}
 
 type LeaseFromAPI = {
   id: string
@@ -22,19 +26,16 @@ type LeaseFromAPI = {
   monthly_services: number
   repair_fund: number
   charge_flags: Record<string, boolean>
-  custom_charges: {
-    name: string
-    amount: number
-    enabled: boolean
-  }[]
-  custom_fields: Record<string, any>
+  custom_charges: CustomCharge[]
+  custom_fields: Record<string, string | number | boolean | null>
   total_billable_rent: number
   created_at: string
   updated_at: string
 }
 
 export default function EditLeasePage() {
-  const { id } = useParams()
+  const params = useParams()
+  const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : ''
   const [lease, setLease] = useState<LeaseFromAPI | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,25 +45,26 @@ export default function EditLeasePage() {
       try {
         const res = await fetch(`/api/leases/${id}`)
         if (!res.ok) throw new Error('Chyba při načítání smlouvy')
-        const data = await res.json()
+        const data: LeaseFromAPI = await res.json()
 
+        // Defenzivní doplnění polí (pro případ, že backend některá pole nevrací)
         setLease({
           ...data,
-          name: data.name ?? undefined,
+          name: data.name ?? '',
           end_date: data.end_date ?? undefined,
           charge_flags: data.charge_flags ?? {},
           custom_charges: data.custom_charges ?? [],
+          custom_fields: data.custom_fields ?? {},
         })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Neočekávaná chyba'
-        console.error(err)
         setError(message)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchLease()
+    if (id) fetchLease()
   }, [id])
 
   if (loading) return <p>Načítám…</p>
@@ -76,3 +78,4 @@ export default function EditLeasePage() {
     </div>
   )
 }
+
