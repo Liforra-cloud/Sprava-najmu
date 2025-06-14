@@ -3,12 +3,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Typ pro vlastní poplatky, uprav podle své struktury
 type CustomCharge = {
-  enabled: boolean
+  name: string
   amount: number
+  enabled: boolean
 }
-
 type ChargeFlags = {
   rent_amount?: boolean
   monthly_water?: boolean
@@ -35,13 +34,19 @@ export async function GET(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    // Pokud už používáš custom_charges:
-    const customCharges = (lease.custom_charges ?? []) as CustomCharge[]
-    const chargeFlags: ChargeFlags = lease.charge_flags ?? {}
+    // Bezpečné načtení JSON polí
+    const customCharges: CustomCharge[] =
+      Array.isArray(lease.custom_charges) ? lease.custom_charges as CustomCharge[] : []
 
-    const customTotal = customCharges.reduce((sum, field) => {
-      return field.enabled ? sum + (field.amount || 0) : sum
-    }, 0)
+    const chargeFlags: ChargeFlags =
+      lease.charge_flags && typeof lease.charge_flags === 'object' && !Array.isArray(lease.charge_flags)
+        ? lease.charge_flags as ChargeFlags
+        : {}
+
+    const customTotal = customCharges.reduce(
+      (sum, field) => (field.enabled ? sum + (field.amount || 0) : sum),
+      0
+    )
 
     const totalBillableRent =
       (chargeFlags.rent_amount ? Number(lease.rent_amount || 0) : 0) +
@@ -63,4 +68,3 @@ export async function GET(
     return NextResponse.json({ error: 'Chyba serveru' }, { status: 500 })
   }
 }
-
