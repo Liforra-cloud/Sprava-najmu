@@ -1,24 +1,21 @@
 // najem-app/app/leases/[id]/edit/page.tsx
 
-import LeaseForm from '@/components/LeaseForm'
 import { notFound } from 'next/navigation'
+import LeaseForm from '@/components/LeaseForm'
+import { Lease } from '@prisma/client'
 
-async function getLease(id: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/leases/${id}`, {
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL
+
+export default async function LeaseEditPage({ params }: { params: { id: string } }) {
+  const id = params.id
+
+  const res = await fetch(`${SITE_URL}/api/leases/${id}`, {
     cache: 'no-store',
   })
-  if (!res.ok) return null
-  return res.json()
-}
 
-export default async function EditLeasePage({ params }: { params: { id: string } }) {
-  const lease = await getLease(params.id)
-  if (!lease) return notFound()
+  if (!res.ok) return notFound()
 
-  // Ensure charge_flags always exists
-  if (!lease.charge_flags) {
-    lease.charge_flags = {}
-  }
+  const lease: Lease = await res.json()
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -27,5 +24,3 @@ export default async function EditLeasePage({ params }: { params: { id: string }
     </div>
   )
 }
-
-
