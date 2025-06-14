@@ -3,8 +3,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 
-function DocumentViewer({ docId, fileName }: { docId: string, fileName?: string }) {
+function DocumentViewer({ docId, fileName }: { docId: string; fileName?: string }) {
   const [url, setUrl] = useState<string | null>(null)
   const [mimeType, setMimeType] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -19,10 +20,10 @@ function DocumentViewer({ docId, fileName }: { docId: string, fileName?: string 
           setUrl(data.url)
           setMimeType(data.mimeType)
         } else {
-          setError(data.error || "Chyba při získávání URL")
+          setError(data.error || 'Chyba při získávání URL')
         }
       })
-      .catch(() => setError("Chyba při získávání URL"))
+      .catch(() => setError('Chyba při získávání URL'))
       .finally(() => setLoading(false))
   }, [docId])
 
@@ -33,17 +34,25 @@ function DocumentViewer({ docId, fileName }: { docId: string, fileName?: string 
   if (mimeType?.startsWith('image/')) {
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" title="Otevřít obrázek">
-        <img src={url} alt={fileName} className="h-10 rounded shadow" />
+        <Image
+          src={url}
+          alt={fileName || 'Dokument'}
+          width={80}
+          height={80}
+          className="h-10 w-auto rounded shadow object-cover"
+        />
       </a>
     )
   }
-  if (mimeType === "application/pdf") {
+
+  if (mimeType === 'application/pdf') {
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline" title="Otevřít PDF">
         {fileName || 'PDF dokument'}
       </a>
     )
   }
+
   return (
     <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline" download={fileName}>
       {fileName || 'Stáhnout dokument'}
@@ -75,6 +84,7 @@ export default function DocumentList({ propertyId, unitId, tenantId, expenseId, 
   useEffect(() => {
     setLoading(true)
     setError(null)
+
     const params = new URLSearchParams()
     if (propertyId) params.append('property_id', propertyId)
     if (unitId) params.append('unit_id', unitId)
@@ -121,8 +131,10 @@ export default function DocumentList({ propertyId, unitId, tenantId, expenseId, 
         {documents.map(doc => (
           <li key={doc.id} className="flex items-center gap-3 border p-2 rounded bg-white shadow-sm">
             <DocumentViewer docId={doc.id} fileName={doc.name || doc.file_name} />
-            <span className="ml-2 text-sm">{doc.name || doc.file_name}</span>
-            {doc.date && <span className="text-xs text-gray-500">({doc.date})</span>}
+            <div className="flex flex-col flex-grow">
+              <span className="text-sm">{doc.name || doc.file_name}</span>
+              {doc.date && <span className="text-xs text-gray-500">{doc.date}</span>}
+            </div>
             <button
               onClick={() => handleDelete(doc.id)}
               className="ml-auto text-red-600 px-2 py-1 rounded hover:bg-red-100"
