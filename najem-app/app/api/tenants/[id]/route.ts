@@ -16,39 +16,41 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   if (tenantError) return NextResponse.json({ error: tenantError.message }, { status: 500 })
 
-  // Získání nájemních smluv pro nájemníka
+  // Získání smluv včetně jednotky a nemovitosti
   const { data: leases, error: leasesError } = await supabase
     .from('leases')
-    .select('id, rent_amount, tenant_id, unit_id')
+    .select(`
+      id,
+      name,
+      rent_amount,
+      start_date,
+      end_date,
+      monthly_water,
+      monthly_gas,
+      monthly_electricity,
+      monthly_services,
+      repair_fund,
+      custom_fields,
+      unit:unit_id (
+        id,
+        identifier,
+        property:property_id (
+          id,
+          name
+        )
+      )
+    `)
     .eq('tenant_id', id)
 
   if (leasesError) return NextResponse.json({ error: leasesError.message }, { status: 500 })
 
-  // Získání všech plateb, které jsou spojené s těmito nájemními smlouvami
-  const leaseIds = leases.map(lease => lease.id)
-  const { data: payments, error: paymentsError } = await supabase
-    .from('payments')
-    .select('amount, payment_type, lease_id')
-    .in('lease_id', leaseIds)
-
-  if (paymentsError) return NextResponse.json({ error: paymentsError.message }, { status: 500 })
-
-  // Výpočet celkového nájemného a dluhu
-  let totalRent = 0
-  let totalDebt = 0
-
-  payments?.forEach(payment => {
-    if (payment.payment_type === 'nájemné') {
-      totalRent += Number(payment.amount)
-    }
-    if (payment.payment_type === 'neuhrazeno') {
-      totalDebt += Number(payment.amount)
-    }
-  })
+  // (Volitelné) Můžeš stále vracet totalRent/totalDebt pokud potřebuješ:
+  // ...platební logika zde, případně ji můžeš odstranit
 
   return NextResponse.json({
     tenant,
-    totalRent,
-    totalDebt,
+    leases,
+    // totalRent,
+    // totalDebt,
   })
 }
