@@ -29,10 +29,11 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
   const [units, setUnits] = useState<Unit[]>([])
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [unitId, setUnitId] = useState('')
-  const [name, setName] = useState('') // Název smlouvy
+  const [name, setName] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [success, setSuccess] = useState(false)
+  const [error, setError] = useState('')
 
   const [rentAmount, setRentAmount] = useState<FieldState>({ value: '', billable: true })
   const [monthlyWater, setMonthlyWater] = useState<FieldState>({ value: '', billable: true })
@@ -78,6 +79,22 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // VALIDACE
+    if (!selectedPropertyId) {
+      setError('Musíte vybrat nemovitost.')
+      return
+    }
+    if (!unitId) {
+      setError('Musíte vybrat jednotku.')
+      return
+    }
+    if (!name.trim()) {
+      setError('Zadejte název smlouvy.')
+      return
+    }
+
+    setError('')
+
     const res = await fetch('/api/leases', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -103,7 +120,9 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
     if (res.ok) {
       setSuccess(true)
     } else {
-      console.error(await res.json())
+      const err = await res.json()
+      setError(err?.error || 'Chyba při ukládání.')
+      console.error(err)
     }
   }
 
@@ -137,6 +156,8 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && <p className="text-red-600 font-semibold">{error}</p>}
+
       <label className="block">Název smlouvy:
         <input value={name} onChange={e => setName(e.target.value)} className="w-full border p-2 rounded" />
       </label>
@@ -209,8 +230,13 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
         )}
       </div>
 
-      <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Uložit smlouvu</button>
+      <button
+        type="submit"
+        className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        disabled={!unitId || !selectedPropertyId || !name}
+      >
+        Uložit smlouvu
+      </button>
     </form>
   )
 }
-
