@@ -1,5 +1,4 @@
 // prisma/schema.prisma
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -33,22 +32,22 @@ model Property {
 }
 
 model Unit {
-  id          String   @id @default(uuid())
-  propertyId  String   @map("property_id")
-  identifier  String
-  floor       Int?
-  area        Float?
-  disposition String?
+  id               String   @id @default(uuid())
+  propertyId       String   @map("property_id")
+  identifier       String
+  floor            Int?
+  area             Float?
+  disposition      String?
   occupancy_status String?
   monthly_rent     Float?
-  deposit         Float?
-  date_added      DateTime? @map("date_added")
-  user_id         String?
-  description     String?
+  deposit          Float?
+  date_added       DateTime? @map("date_added")
+  user_id          String?
+  description      String?
 
-  property    Property @relation(fields: [propertyId], references: [id])
-  leases      Lease[]
-  
+  property Property @relation(fields: [propertyId], references: [id])
+  leases   Lease[]
+
   @@map("units")
 }
 
@@ -63,7 +62,7 @@ model Tenant {
   date_registered DateTime? @map("date_registered")
   note            String?
   leases          Lease[]
-  
+
   @@map("tenants")
 }
 
@@ -81,14 +80,14 @@ model Lease {
   monthly_services    Float
   repair_fund         Float
   custom_fields       Json
+  custom_charges      Json
+  charge_flags        Json
   total_billable_rent Float
   created_at          DateTime @default(now())
   updated_at          DateTime @updatedAt
-  custom_charges      Json
-  charge_flags        Json
 
-  unit    Unit   @relation(fields: [unit_id], references: [id])
-  tenant  Tenant @relation(fields: [tenant_id], references: [id])
+  unit     Unit     @relation(fields: [unit_id], references: [id])
+  tenant   Tenant   @relation(fields: [tenant_id], references: [id])
   payments Payment[]
 
   @@map("leases")
