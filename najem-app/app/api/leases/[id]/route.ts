@@ -11,7 +11,7 @@ export async function GET(
     const lease = await prisma.lease.findUnique({
       where: { id: params.id },
       include: {
-        tenant: { select: { name: true } },
+        tenant: { select: { full_name: true } },
         unit: { select: { identifier: true } }
       }
     })
@@ -20,8 +20,12 @@ export async function GET(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    // @ts-expect-error: customFields není v typech, ale existuje v databázi
-    const customTotal = lease.customFields?.reduce((sum, field) => {
+    // @ts-expect-error: custom_fields není v typech, ale existuje v databázi
+    const customFields = lease.customFields as
+      | { billable: boolean; value: number }[]
+      | undefined
+
+    const customTotal = customFields?.reduce((sum, field) => {
       return field.billable ? sum + (field.value || 0) : sum
     }, 0) || 0
 
