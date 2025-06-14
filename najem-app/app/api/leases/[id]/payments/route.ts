@@ -1,4 +1,4 @@
-/app/api/leases/[id]/payments/route.ts
+//app/api/leases/[id]/payments/route.ts
 
 
 import { NextRequest, NextResponse } from 'next/server'
