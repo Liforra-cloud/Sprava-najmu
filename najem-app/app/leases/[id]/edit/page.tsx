@@ -1,34 +1,39 @@
 // najem-app/app/leases/[id]/edit/page.tsx
 
 
+
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
 import LeaseForm from '@/components/LeaseForm'
+import { useParams } from 'next/navigation'
 
 type LeaseFromAPI = {
   id: string
-  name?: string | null
+  name?: string
   unit_id: string
   tenant_id: string
   start_date: string
-  end_date?: string | null
+  end_date?: string
   rent_amount: number
   monthly_water: number
   monthly_gas: number
   monthly_electricity: number
   monthly_services: number
   repair_fund: number
-  charge_flags?: Record<string, boolean>
-  custom_charges?: {
+  charge_flags: Record<string, boolean>
+  custom_charges: {
     name: string
     amount: number
     enabled: boolean
   }[]
+  custom_fields: Record<string, any>
+  total_billable_rent: number
+  created_at: string
+  updated_at: string
 }
 
-export default function LeaseEditPage() {
+export default function EditLeasePage() {
   const { id } = useParams()
   const [lease, setLease] = useState<LeaseFromAPI | null>(null)
   const [loading, setLoading] = useState(true)
@@ -41,17 +46,17 @@ export default function LeaseEditPage() {
         if (!res.ok) throw new Error('Chyba při načítání smlouvy')
         const data = await res.json()
 
-        // Transformace null → undefined pro TS kompatibilitu
         setLease({
           ...data,
           name: data.name ?? undefined,
           end_date: data.end_date ?? undefined,
           charge_flags: data.charge_flags ?? {},
-          custom_charges: data.custom_charges ?? []
+          custom_charges: data.custom_charges ?? [],
         })
-      } catch (err: any) {
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Neočekávaná chyba'
         console.error(err)
-        setError(err.message || 'Neočekávaná chyba')
+        setError(message)
       } finally {
         setLoading(false)
       }
@@ -60,8 +65,9 @@ export default function LeaseEditPage() {
     fetchLease()
   }, [id])
 
-  if (loading) return <p>Načítám...</p>
-  if (error || !lease) return <p className="text-red-600">Chyba: {error || 'Smlouva nenalezena'}</p>
+  if (loading) return <p>Načítám…</p>
+  if (error) return <p className="text-red-600">{error}</p>
+  if (!lease) return <p>Smlouva nenalezena.</p>
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
