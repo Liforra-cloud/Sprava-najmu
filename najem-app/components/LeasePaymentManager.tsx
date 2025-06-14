@@ -2,14 +2,14 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 type Payment = {
   id: string
   amount: number
   payment_date: string
-  payment_type?: string
   note?: string
+  payment_type?: string
   variable_symbol?: string
   payment_month?: string
 }
@@ -20,128 +20,109 @@ type Props = {
 
 export default function LeasePaymentManager({ leaseId }: Props) {
   const [payments, setPayments] = useState<Payment[]>([])
-  const [loading, setLoading] = useState(true)
+  const [amount, setAmount] = useState('')
+  const [date, setDate] = useState('')
+  const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [newPayment, setNewPayment] = useState({
-    amount: '',
-    payment_date: '',
-    payment_type: '',
-    note: ''
-  })
+
+  const loadPayments = useCallback(async () => {
+    const res = await fetch(`/api/leases/${leaseId}/payments`)
+    if (res.ok) {
+      const data = await res.json()
+      setPayments(data)
+    } else {
+      setError('Nepodařilo se načíst platby.')
+    }
+  }, [leaseId])
 
   useEffect(() => {
     loadPayments()
-  }, [leaseId])
-
-  const loadPayments = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/leases/${leaseId}/payments`)
-      const data = await res.json()
-      setPayments(data)
-    } catch (err) {
-      console.error(err)
-      setError('Chyba při načítání plateb.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    const confirmed = confirm('Opravdu chcete platbu smazat?')
-    if (!confirmed) return
-
-    await fetch(`/api/payments/${id}`, { method: 'DELETE' })
-    await loadPayments()
-  }
+  }, [loadPayments])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const payload = {
-      amount: parseFloat(newPayment.amount),
-      payment_date: newPayment.payment_date,
-      payment_type: newPayment.payment_type,
-      note: newPayment.note
-    }
     const res = await fetch(`/api/leases/${leaseId}/payments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        amount: Number(amount),
+        payment_date: date,
+        note
+      })
     })
+
     if (res.ok) {
-      setNewPayment({ amount: '', payment_date: '', payment_type: '', note: '' })
+      setAmount('')
+      setDate('')
+      setNote('')
       loadPayments()
     } else {
-      const err = await res.json()
-      alert(err.error || 'Chyba při uložení')
+      setError('Nepodařilo se uložit platbu.')
+    }
+  }
+
+  const handleDelete = async (paymentId: string) => {
+    const res = await fetch(`/api/payments/${paymentId}`, {
+      method: 'DELETE'
+    })
+
+    if (res.ok) {
+      loadPayments()
+    } else {
+      setError('Chyba při mazání platby.')
     }
   }
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="space-y-2">
-        <h4 className="font-semibold">Přidat novou platbu</h4>
-        <div className="flex flex-wrap gap-2">
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Částka"
-            value={newPayment.amount}
-            onChange={e => setNewPayment({ ...newPayment, amount: e.target.value })}
-            className="border p-2 rounded w-32"
-            required
-          />
-          <input
-            type="date"
-            value={newPayment.payment_date}
-            onChange={e => setNewPayment({ ...newPayment, payment_date: e.target.value })}
-            className="border p-2 rounded"
-            required
-          />
-          <input
-            type="text"
-            placeholder="Typ platby"
-            value={newPayment.payment_type}
-            onChange={e => setNewPayment({ ...newPayment, payment_type: e.target.value })}
-            className="border p-2 rounded w-40"
-          />
-          <input
-            type="text"
-            placeholder="Poznámka"
-            value={newPayment.note}
-            onChange={e => setNewPayment({ ...newPayment, note: e.target.value })}
-            className="border p-2 rounded flex-1"
-          />
-          <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
-            Přidat
-          </button>
-        </div>
+    <div className="space-y-4 mt-6">
+      <h3 className="text-lg font-semibold">Platby</h3>
+
+      {error && <p className="text-red-600">{error}</p>}
+
+      <form onSubmit={handleSubmit} className="flex gap-2 flex-wrap items-end">
+        <input
+          type="number"
+          placeholder="Částka"
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          className="border p-2 rounded"
+        />
+        <input
+          type="date"
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          className="border p-2 rounded"
+        />
+        <input
+          type="text"
+          placeholder="Poznámka"
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          className="border p-2 rounded"
+        />
+        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
+          Přidat platbu
+        </button>
       </form>
 
-      {loading ? (
-        <p>Načítání plateb…</p>
-      ) : payments.length === 0 ? (
-        <p>Žádné platby</p>
-      ) : (
-        <ul className="divide-y border rounded">
-          {payments.map(p => (
-            <li key={p.id} className="p-2 flex justify-between items-center">
-              <div>
-                <div className="font-medium">
-                  {new Date(p.payment_date).toLocaleDateString('cs-CZ')} – {p.amount} Kč
-                </div>
-                <div className="text-sm text-gray-500">{p.note}</div>
+      <ul className="divide-y border rounded text-sm">
+        {payments.map(payment => (
+          <li key={payment.id} className="flex justify-between items-center p-2">
+            <div>
+              <div className="font-medium">
+                {new Date(payment.payment_date).toLocaleDateString('cs-CZ')} – {payment.amount} Kč
               </div>
-              <button
-                onClick={() => handleDelete(p.id)}
-                className="text-red-600 text-sm hover:underline"
-              >
-                Smazat
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+              {payment.note && <div className="text-xs text-gray-500">{payment.note}</div>}
+            </div>
+            <button
+              onClick={() => handleDelete(payment.id)}
+              className="text-red-600 text-xs"
+            >
+              Smazat
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
