@@ -42,8 +42,8 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
   const [monthlyServices, setMonthlyServices] = useState<FieldState>({ value: '', billable: true })
   const [monthlyFund, setMonthlyFund] = useState<FieldState>({ value: '', billable: false })
 
-  const [customFields, setCustomFields] = useState<{ key: string; value: string; billable: boolean }[]>([
-    { key: '', value: '', billable: true }
+  const [customFields, setCustomFields] = useState<{ label: string; value: string; billable: boolean }[]>([
+    { label: '', value: '', billable: true }
   ])
 
   useEffect(() => {
@@ -52,10 +52,8 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
         fetch('/api/units'),
         fetch('/api/properties')
       ])
-      const unitsData = await unitsRes.json()
-      const propsData = await propsRes.json()
-      setUnits(unitsData || [])
-      setProperties(propsData || [])
+      setUnits(await unitsRes.json())
+      setProperties(await propsRes.json())
     }
     fetchAll()
   }, [])
@@ -64,99 +62,60 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
     ? units.filter(unit => unit.property_id === selectedPropertyId)
     : units
 
-  const handleCustomFieldChange = (index: number, key: string, value: string, billable: boolean) => {
+  const handleCustomFieldChange = (index: number, label: string, value: string, billable: boolean) => {
     const updated = [...customFields]
-    updated[index] = { key, value, billable }
+    updated[index] = { label, value, billable }
     setCustomFields(updated)
   }
 
   const addCustomField = () => {
     if (customFields.length < 5) {
-      setCustomFields([...customFields, { key: '', value: '', billable: true }])
+      setCustomFields([...customFields, { label: '', value: '', billable: true }])
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // VALIDACE
-    if (!selectedPropertyId) {
-      setError('Musíte vybrat nemovitost.')
-      return
+    const payload = {
+      tenantId,
+      unitId,
+      name,
+      startDate,
+      endDate,
+      rentAmount: Number(rentAmount.value),
+      monthlyWater: Number(monthlyWater.value),
+      monthlyGas: Number(monthlyGas.value),
+      monthlyElectricity: Number(monthlyElectricity.value),
+      monthlyServices: Number(monthlyServices.value),
+      repairFund: Number(monthlyFund.value),
+      customFields: customFields.map(f => ({
+        label: f.label,
+        value: Number(f.value),
+        billable: f.billable
+      }))
     }
-    if (!unitId) {
-      setError('Musíte vybrat jednotku.')
-      return
-    }
-    if (!name.trim()) {
-      setError('Zadejte název smlouvy.')
-      return
-    }
-
-    setError('')
 
     const res = await fetch('/api/leases', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tenantId,
-        unitId,
-        name,
-        startDate,
-        endDate,
-        rentAmount: Number(rentAmount.value),
-        monthlyWater: Number(monthlyWater.value),
-        monthlyGas: Number(monthlyGas.value),
-        monthlyElectricity: Number(monthlyElectricity.value),
-        monthlyServices: Number(monthlyServices.value),
-        repairFund: Number(monthlyFund.value),
-        customFields: customFields.map(f => ({
-          ...f,
-          value: Number(f.value)
-        }))
-      }),
+      body: JSON.stringify(payload)
     })
 
     if (res.ok) {
       setSuccess(true)
     } else {
       const err = await res.json()
-      setError(err?.error || 'Chyba při ukládání.')
+      setError(err.error || 'Chyba při odesílání')
       console.error(err)
     }
   }
 
   if (success) return <p className="text-green-600">Smlouva byla úspěšně přidána.</p>
 
-  const renderField = (
-    label: string,
-    state: FieldState,
-    setState: (val: FieldState) => void
-  ) => (
-    <div className="flex items-center gap-4">
-      <label className="w-1/2">
-        {label}:
-        <input
-          type="number"
-          value={state.value}
-          onChange={e => setState({ ...state, value: e.target.value })}
-          className="w-full border p-2 rounded"
-        />
-      </label>
-      <label className="flex items-center gap-1">
-        <input
-          type="checkbox"
-          checked={state.billable}
-          onChange={e => setState({ ...state, billable: e.target.checked })}
-        />
-        Účtovat
-      </label>
-    </div>
-  )
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <p className="text-red-600 font-semibold">{error}</p>}
+      {error && <p className="text-red-600 font-bold">Chyba serveru</p>}
 
       <label className="block">Název smlouvy:
         <input value={name} onChange={e => setName(e.target.value)} className="w-full border p-2 rounded" />
@@ -202,7 +161,7 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
             <input
               type="text"
               placeholder="Název"
-              value={field.key}
+              value={field.label}
               onChange={e => handleCustomFieldChange(index, e.target.value, field.value, field.billable)}
               className="w-1/3 border p-2 rounded"
             />
@@ -210,14 +169,14 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
               type="number"
               placeholder="Částka"
               value={field.value}
-              onChange={e => handleCustomFieldChange(index, field.key, e.target.value, field.billable)}
+              onChange={e => handleCustomFieldChange(index, field.label, e.target.value, field.billable)}
               className="w-1/3 border p-2 rounded"
             />
             <label className="flex items-center gap-1 w-1/3">
               <input
                 type="checkbox"
                 checked={field.billable}
-                onChange={e => handleCustomFieldChange(index, field.key, field.value, e.target.checked)}
+                onChange={e => handleCustomFieldChange(index, field.label, field.value, e.target.checked)}
               />
               Účtovat
             </label>
@@ -230,13 +189,35 @@ export default function LeaseForm({ tenantId }: LeaseFormProps) {
         )}
       </div>
 
-      <button
-        type="submit"
-        className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50"
-        disabled={!unitId || !selectedPropertyId || !name}
-      >
-        Uložit smlouvu
-      </button>
+      <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Uložit smlouvu</button>
     </form>
   )
+
+  function renderField(
+    label: string,
+    state: FieldState,
+    setState: (val: FieldState) => void
+  ) {
+    return (
+      <div className="flex items-center gap-4">
+        <label className="w-1/2">
+          {label}:
+          <input
+            type="number"
+            value={state.value}
+            onChange={e => setState({ ...state, value: e.target.value })}
+            className="w-full border p-2 rounded"
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={state.billable}
+            onChange={e => setState({ ...state, billable: e.target.checked })}
+          />
+          Účtovat
+        </label>
+      </div>
+    )
+  }
 }
