@@ -1,6 +1,6 @@
 //app/api/cron/route.ts
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { generateMonthlyObligationsForAllLeases } from '@/scripts/generateMonthlyObligations'
 
 export async function POST() {
