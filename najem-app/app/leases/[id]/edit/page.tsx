@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import LeaseForm from '@/components/LeaseForm'
+import LeasePaymentManager from '@/components/LeasePaymentManager'
 import { useParams } from 'next/navigation'
 
 type CustomCharge = {
@@ -47,7 +48,6 @@ export default function EditLeasePage() {
         if (!res.ok) throw new Error('Chyba při načítání smlouvy')
         const data: LeaseFromAPI = await res.json()
 
-        // Defenzivní doplnění polí (pro případ, že backend některá pole nevrací)
         setLease({
           ...data,
           name: data.name ?? '',
@@ -72,9 +72,16 @@ export default function EditLeasePage() {
   if (!lease) return <p>Smlouva nenalezena.</p>
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Upravit smlouvu</h1>
-     <LeaseForm existingLease={lease} />
+    <div className="p-6 max-w-3xl mx-auto space-y-10">
+      <div>
+        <h1 className="text-2xl font-bold mb-4">Upravit smlouvu</h1>
+        <LeaseForm existingLease={lease} />
+      </div>
+
+      <div>
+        <h2 className="text-xl font-semibold mb-2">Platby</h2>
+        <LeasePaymentManager leaseId={lease.id} />
+      </div>
     </div>
   )
 }
