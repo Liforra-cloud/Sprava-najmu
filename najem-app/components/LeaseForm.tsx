@@ -3,6 +3,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import TenantPaymentHistory from './TenantPaymentHistory'
 
 type LeaseFormProps = {
   existingLease?: LeaseFromAPI
@@ -27,13 +28,6 @@ type LeaseFromAPI = {
     amount: number
     enabled: boolean
   }[]
-}
-
-type Payment = {
-  id: string
-  amount: number
-  paid_at: string
-  note?: string
 }
 
 type Property = {
@@ -61,7 +55,6 @@ export default function LeaseForm({ existingLease }: LeaseFormProps) {
   const [properties, setProperties] = useState<Property[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [tenants, setTenants] = useState<Tenant[]>([])
-  const [payments, setPayments] = useState<Payment[]>([])
 
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [unitId, setUnitId] = useState(existingLease?.unit_id || '')
@@ -121,12 +114,6 @@ export default function LeaseForm({ existingLease }: LeaseFormProps) {
       if (existingLease) {
         const unit = fetchedUnits.find((u: Unit) => u.id === existingLease.unit_id)
         if (unit) setSelectedPropertyId(unit.property_id)
-
-        const paymentRes = await fetch(`/api/leases/${existingLease.id}/payments`)
-        if (paymentRes.ok) {
-          const paymentData = await paymentRes.json()
-          setPayments(paymentData)
-        }
       }
     }
     fetchAll()
@@ -296,17 +283,8 @@ export default function LeaseForm({ existingLease }: LeaseFormProps) {
         {existingLease ? 'Uložit změny' : 'Uložit smlouvu'}
       </button>
 
-      {existingLease && payments.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-lg font-bold mb-2">Historie plateb</h3>
-          <ul className="space-y-1 text-sm">
-            {payments.map(p => (
-              <li key={p.id} className="border-b py-1">
-                {new Date(p.paid_at).toLocaleDateString('cs-CZ')} – {p.amount} Kč {p.note && `(${p.note})`}
-              </li>
-            ))}
-          </ul>
-        </div>
+      {existingLease && tenantId && (
+        <TenantPaymentHistory tenantId={tenantId} />
       )}
     </form>
   )
@@ -339,5 +317,6 @@ export default function LeaseForm({ existingLease }: LeaseFormProps) {
     )
   }
 }
+
 
 
