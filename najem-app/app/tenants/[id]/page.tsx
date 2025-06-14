@@ -1,5 +1,7 @@
 // najem-app/app/tenants/[id]/page.tsx
 
+// najem-app/app/tenants/[id]/page.tsx
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -21,13 +23,27 @@ type Tenant = {
   date_registered: string
 }
 
+type Unit = {
+  id: string
+  identifier: string
+  property: {
+    name: string
+  }
+}
+
 type Lease = {
   id: string
   name?: string
-  unit_id: string
+  unit: Unit
   rent_amount: number
   start_date: string
   end_date?: string
+  custom_fields?: { label: string; value: number; billable: boolean }[]
+  monthly_water?: number
+  monthly_gas?: number
+  monthly_electricity?: number
+  monthly_services?: number
+  repair_fund?: number
 }
 
 export default function TenantDetailPage() {
@@ -37,7 +53,6 @@ export default function TenantDetailPage() {
   const [showDocForm, setShowDocForm] = useState(false)
   const [showLeaseForm, setShowLeaseForm] = useState(false)
 
-  // FETCH TENANT + LEASES
   useEffect(() => {
     const fetchTenantAndLeases = async () => {
       const res = await fetch(`/api/tenants/${id}`)
@@ -48,21 +63,37 @@ export default function TenantDetailPage() {
       }
       const data = await res.json()
       setTenant(data.tenant)
-      // Pokud API nevrací data.leases, zkus fallback na další fetch
-      if (Array.isArray(data.leases)) {
-        setLeases(data.leases)
-      } else {
-        // fallback: zkus načíst leases samostatně (pokud starší API)
-        const resLeases = await fetch(`/api/leases?tenant_id=${id}`)
-        if (resLeases.ok) {
-          setLeases(await resLeases.json())
-        }
-      }
+      // Leases musí přijít s includem jednotky i nemovitosti
+      setLeases(Array.isArray(data.leases) ? data.leases : [])
     }
     fetchTenantAndLeases()
   }, [id])
 
   if (!tenant) return <p>Načítání...</p>
+
+  // Pomocná funkce na datum
+  function formatDate(dateStr?: string) {
+    if (!dateStr) return '—'
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('cs-CZ')
+  }
+
+  // Pomocná funkce na výpočet celkového nájemného
+  function getTotalBillable(lease: Lease) {
+    let total = 0
+    total += Number(lease.rent_amount || 0)
+    total += Number(lease.monthly_water || 0)
+    total += Number(lease.monthly_gas || 0)
+    total += Number(lease.monthly_electricity || 0)
+    total += Number(lease.monthly_services || 0)
+    total += Number(lease.repair_fund || 0)
+    if (lease.custom_fields && Array.isArray(lease.custom_fields)) {
+      total += lease.custom_fields
+        .filter(field => field.billable)
+        .reduce((sum, field) => sum + Number(field.value || 0), 0)
+    }
+    return total
+  }
 
   return (
     <div className="space-y-6 p-6 max-w-xl mx-auto">
@@ -78,7 +109,7 @@ export default function TenantDetailPage() {
         <div><strong>Adresa:</strong> {tenant.address || '—'}</div>
         <div><strong>Zaměstnavatel:</strong> {tenant.employer || '—'}</div>
         <div><strong>Poznámka:</strong> {tenant.note || '—'}</div>
-        <div><strong>Registrován:</strong> {new Date(tenant.date_registered).toLocaleDateString()}</div>
+        <div><strong>Registrován:</strong> {formatDate(tenant.date_registered)}</div>
       </div>
 
       {/* Souhrn plateb */}
@@ -104,9 +135,10 @@ export default function TenantDetailPage() {
           {leases.map(lease => (
             <li key={lease.id} className="border-b py-2">
               <strong>{lease.name || 'Bez názvu'}</strong><br />
-              Jednotka: {lease.unit_id}<br />
-              Nájem: {lease.rent_amount} Kč<br />
-              Od: {lease.start_date} Do: {lease.end_date || '—'}
+              Jednotka: {lease.unit?.identifier || '—'}<br />
+              Nemovitost: {lease.unit?.property?.name || '—'}<br />
+              Celkové nájemné: {getTotalBillable(lease)} Kč<br />
+              Od: {formatDate(lease.start_date)} Do: {formatDate(lease.end_date)}
             </li>
           ))}
         </ul>
