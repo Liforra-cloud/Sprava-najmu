@@ -20,11 +20,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await req.json()
-
     const payment = await prisma.payment.create({
       data: {
         lease_id: params.id,
-        amount: body.amount,
+        amount: Number(body.amount),
         payment_date: new Date(body.payment_date),
         payment_type: body.payment_type || null,
         note: body.note || null,
@@ -32,7 +31,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         payment_month: body.payment_month || null
       }
     })
-
     return NextResponse.json(payment)
   } catch (error) {
     console.error(error)
