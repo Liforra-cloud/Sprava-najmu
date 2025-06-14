@@ -13,9 +13,24 @@ type Payment = {
   note?: string
 }
 
+type Lease = {
+  id: string
+  name: string
+  start_date: string
+  end_date?: string | null
+  tenant?: {
+    full_name: string
+  }
+  unit?: {
+    identifier: string
+  }
+  totalBillableRent: number
+  payments: Payment[]
+}
+
 export default function LeaseDetailPage() {
   const { id } = useParams()
-  const [lease, setLease] = useState<any>(null)
+  const [lease, setLease] = useState<Lease | null>(null)
 
   useEffect(() => {
     const fetchLease = async () => {
@@ -41,7 +56,7 @@ export default function LeaseDetailPage() {
         <p>Žádné platby zatím nebyly zaznamenány.</p>
       ) : (
         <ul className="border rounded divide-y">
-          {lease.payments.map((payment: Payment) => (
+          {lease.payments.map((payment) => (
             <li key={payment.id} className="p-2 flex justify-between">
               <span>{new Date(payment.payment_date).toLocaleDateString()}</span>
               <span>{payment.amount} Kč</span>
@@ -53,4 +68,5 @@ export default function LeaseDetailPage() {
     </div>
   )
 }
+
 
