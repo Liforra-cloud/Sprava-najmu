@@ -1,6 +1,7 @@
 //lib/createMonthlyObligation.ts
 
 import { prisma } from './prisma'
+import { Lease } from '@prisma/client'
 
 type ChargeFlags = {
   rent_amount?: boolean
@@ -26,25 +27,14 @@ export async function createMonthlyObligation({
 
   if (!lease) throw new Error('Smlouva nenalezena')
 
-  // Přetypuj lease na správný typ
-  const {
-    rent_amount,
-    monthly_water,
-    monthly_gas,
-    monthly_electricity,
-    monthly_services,
-    repair_fund,
-    charge_flags
-  } = lease as any
+  const flags: ChargeFlags = (lease.charge_flags ?? {}) as ChargeFlags
 
-  const flags: ChargeFlags = (charge_flags ?? {}) as ChargeFlags
-
-  const rent = flags.rent_amount ? Number(rent_amount ?? 0) : 0
-  const water = flags.monthly_water ? Number(monthly_water ?? 0) : 0
-  const gas = flags.monthly_gas ? Number(monthly_gas ?? 0) : 0
-  const electricity = flags.monthly_electricity ? Number(monthly_electricity ?? 0) : 0
-  const services = flags.monthly_services ? Number(monthly_services ?? 0) : 0
-  const repairs = flags.repair_fund ? Number(repair_fund ?? 0) : 0
+  const rent = flags.rent_amount ? Number(lease.rent_amount ?? 0) : 0
+  const water = flags.monthly_water ? Number(lease.monthly_water ?? 0) : 0
+  const gas = flags.monthly_gas ? Number(lease.monthly_gas ?? 0) : 0
+  const electricity = flags.monthly_electricity ? Number(lease.monthly_electricity ?? 0) : 0
+  const services = flags.monthly_services ? Number(lease.monthly_services ?? 0) : 0
+  const repairs = flags.repair_fund ? Number(lease.repair_fund ?? 0) : 0
 
   const total = rent + water + gas + electricity + services + repairs
 
