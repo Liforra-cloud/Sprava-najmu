@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   // Získání nájemních smluv pro nájemníka
   const { data: leases, error: leasesError } = await supabase
     .from('leases')
-    .select('id, monthly_rent, tenant_id, unit_id')
+    .select('id, rent_amount, tenant_id, unit_id')
     .eq('tenant_id', id)
 
   if (leasesError) return NextResponse.json({ error: leasesError.message }, { status: 500 })
