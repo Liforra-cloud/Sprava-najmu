@@ -84,6 +84,8 @@ model Lease {
   total_billable_rent Float
   created_at          DateTime @default(now())
   updated_at          DateTime @updatedAt
+  custom_charges      Json
+  charge_flags        Json
 
   unit    Unit   @relation(fields: [unit_id], references: [id])
   tenant  Tenant @relation(fields: [tenant_id], references: [id])
