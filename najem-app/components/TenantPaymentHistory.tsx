@@ -1,4 +1,4 @@
-/najem-app/components/TenantPaymentHistory.tsx
+//najem-app/components/TenantPaymentHistory.tsx
 
 
 'use client'
