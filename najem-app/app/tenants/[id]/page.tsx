@@ -149,7 +149,7 @@ export default function TenantDetailPage() {
         )}
         {showLeaseForm && (
           <div className="border p-4 rounded bg-gray-50">
-            <LeaseForm tenantId={id} />
+            <LeaseForm />
           </div>
         )}
       </div>
