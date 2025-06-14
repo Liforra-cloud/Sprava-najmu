@@ -1,5 +1,7 @@
 // najem-app/app/api/leases/[id]/route.ts
 
+// najem-app/app/api/leases/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -20,8 +22,8 @@ export async function GET(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    // @ts-expect-error: custom_fields není v typech, ale existuje v databázi
-    const customFields = lease.customFields as
+    // Bezpečné přetypování custom_fields
+    const customFields = lease.custom_fields as
       | { billable: boolean; value: number }[]
       | undefined
 
@@ -30,11 +32,11 @@ export async function GET(
     }, 0) || 0
 
     const totalBillableRent =
-      Number(lease.rentAmount || 0) +
-      Number(lease.monthlyWater || 0) +
-      Number(lease.monthlyGas || 0) +
-      Number(lease.monthlyElectricity || 0) +
-      Number(lease.monthlyServices || 0) +
+      Number(lease.rent_amount || 0) +
+      Number(lease.monthly_water || 0) +
+      Number(lease.monthly_gas || 0) +
+      Number(lease.monthly_electricity || 0) +
+      Number(lease.monthly_services || 0) +
       customTotal
 
     return NextResponse.json({
@@ -46,3 +48,4 @@ export async function GET(
     return NextResponse.json({ error: 'Chyba serveru' }, { status: 500 })
   }
 }
+
