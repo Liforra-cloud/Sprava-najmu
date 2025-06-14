@@ -37,8 +37,9 @@ export default function TenantDetailPage() {
   const [showDocForm, setShowDocForm] = useState(false)
   const [showLeaseForm, setShowLeaseForm] = useState(false)
 
+  // FETCH TENANT + LEASES
   useEffect(() => {
-    const fetchTenant = async () => {
+    const fetchTenantAndLeases = async () => {
       const res = await fetch(`/api/tenants/${id}`)
       if (!res.ok) {
         setTenant(null)
@@ -47,9 +48,18 @@ export default function TenantDetailPage() {
       }
       const data = await res.json()
       setTenant(data.tenant)
-      setLeases(data.leases || [])
+      // Pokud API nevrací data.leases, zkus fallback na další fetch
+      if (Array.isArray(data.leases)) {
+        setLeases(data.leases)
+      } else {
+        // fallback: zkus načíst leases samostatně (pokud starší API)
+        const resLeases = await fetch(`/api/leases?tenant_id=${id}`)
+        if (resLeases.ok) {
+          setLeases(await resLeases.json())
+        }
+      }
     }
-    fetchTenant()
+    fetchTenantAndLeases()
   }, [id])
 
   if (!tenant) return <p>Načítání...</p>
@@ -114,4 +124,3 @@ export default function TenantDetailPage() {
     </div>
   )
 }
-
