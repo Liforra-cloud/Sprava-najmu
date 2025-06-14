@@ -3,7 +3,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createMonthlyObligation } from '@/lib/createMonthlyObligation'
 
-// Přijímá POST na /api/leases/[id]/monthly-obligations
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -15,12 +14,15 @@ export async function POST(
 
   try {
     const obligation = await createMonthlyObligation({
-      leaseId: params.id,       // ← sjednoceno na "id"
+      leaseId: params.id,
       year: Number(year),
       month: Number(month),
     })
     return NextResponse.json({ success: true, obligation })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error) {
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ error: 'Neznámá chyba' }, { status: 500 })
   }
 }
