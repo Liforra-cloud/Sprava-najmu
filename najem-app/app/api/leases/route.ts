@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
 
     const custom_charges: CustomCharge[] = Array.isArray(body.custom_charges)
       ? body.custom_charges.map((item: unknown) => {
-          // Zkontroluj strukturu pro typovou bezpečnost
           if (
             typeof item === 'object' &&
             item !== null &&
@@ -36,7 +35,6 @@ export async function POST(request: NextRequest) {
               enabled: Boolean((item as { enabled: unknown }).enabled),
             }
           }
-          // Fallback pro nevalidní položky
           return { name: '', amount: 0, enabled: false }
         })
       : []
@@ -69,7 +67,7 @@ export async function POST(request: NextRequest) {
         repair_fund: Number(body.repair_fund ?? 0),
         charge_flags: charge_flags,
         custom_charges: custom_charges,
-        total_billable_rent: 0, // nebo vypočítej pokud chceš
+        total_billable_rent: 0,
       }
     })
 
@@ -93,11 +91,18 @@ export async function GET() {
     })
 
     const leasesWithTotal = leases.map(lease => {
-      const customCharges = (lease.custom_charges ?? []) as CustomCharge[]
-      const chargeFlags: ChargeFlags = lease.charge_flags ?? {}
+      // Bezpečné načtení JSON polí
+      const customCharges: CustomCharge[] =
+        Array.isArray(lease.custom_charges) ? lease.custom_charges as CustomCharge[] : []
 
-      const customTotal = customCharges.reduce((sum, item) =>
-        item.enabled ? sum + (item.amount || 0) : sum, 0
+      const chargeFlags: ChargeFlags =
+        lease.charge_flags && typeof lease.charge_flags === 'object' && !Array.isArray(lease.charge_flags)
+          ? lease.charge_flags as ChargeFlags
+          : {}
+
+      const customTotal = customCharges.reduce(
+        (sum, item) => (item.enabled ? sum + (item.amount || 0) : sum),
+        0
       )
 
       const totalBillableRent =
@@ -123,3 +128,4 @@ export async function GET() {
     return NextResponse.json({ error: 'Chyba serveru' }, { status: 500 })
   }
 }
+
