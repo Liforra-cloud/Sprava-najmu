@@ -1,43 +1,24 @@
 // najem-app/app/leases/[id]/edit/page.tsx
 
-'use client'
-
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
 import LeaseForm from '@/components/LeaseForm'
+import { notFound } from 'next/navigation'
 
-type Lease = {
-  id: string
-  name: string
-  unit_id: string
-  tenant_id: string
-  start_date: string
-  end_date?: string | null
-  rent_amount: number
-  monthly_water: number
-  monthly_gas: number
-  monthly_electricity: number
-  monthly_services: number
-  repair_fund: number
-  custom_fields?: { label: string; value: number; billable: boolean }[]
-  charge_flags?: Record<string, boolean>
-  custom_charges?: { name: string; amount: number; enabled: boolean }[]
+async function getLease(id: string) {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/leases/${id}`, {
+    cache: 'no-store',
+  })
+  if (!res.ok) return null
+  return res.json()
 }
 
-export default function EditLeasePage() {
-  const { id } = useParams()
-  const [lease, setLease] = useState<Lease | null>(null)
+export default async function EditLeasePage({ params }: { params: { id: string } }) {
+  const lease = await getLease(params.id)
+  if (!lease) return notFound()
 
-  useEffect(() => {
-    const fetchLease = async () => {
-      const res = await fetch(`/api/leases/${id}`)
-      const data = await res.json()
-      setLease(data)
-    }
-    fetchLease()
-  }, [id])
-
-  if (!lease) return <p>Načítání…</p>
+  // Ensure charge_flags always exists
+  if (!lease.charge_flags) {
+    lease.charge_flags = {}
+  }
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -46,4 +27,5 @@ export default function EditLeasePage() {
     </div>
   )
 }
+
 
