@@ -5,13 +5,13 @@
 import { useEffect, useState } from 'react'
 
 type LeaseFormProps = {
-  tenantId: string
   existingLease?: LeaseFromAPI
 }
 
 type LeaseFromAPI = {
   id: string
   unit_id: string
+  tenant_id: string
   name?: string
   start_date: string
   end_date?: string | null
@@ -29,6 +29,13 @@ type LeaseFromAPI = {
   }[]
 }
 
+type Payment = {
+  id: string
+  amount: number
+  paid_at: string
+  note?: string
+}
+
 type Property = {
   id: string
   name: string
@@ -40,17 +47,25 @@ type Unit = {
   property_id: string
 }
 
+type Tenant = {
+  id: string
+  name: string
+}
+
 type FieldState = {
   value: string
   billable: boolean
 }
 
-export default function LeaseForm({ tenantId, existingLease }: LeaseFormProps) {
+export default function LeaseForm({ existingLease }: LeaseFormProps) {
   const [properties, setProperties] = useState<Property[]>([])
   const [units, setUnits] = useState<Unit[]>([])
+  const [tenants, setTenants] = useState<Tenant[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
 
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [unitId, setUnitId] = useState(existingLease?.unit_id || '')
+  const [tenantId, setTenantId] = useState(existingLease?.tenant_id || '')
   const [name, setName] = useState(existingLease?.name || '')
   const [startDate, setStartDate] = useState(existingLease?.start_date.slice(0, 10) || '')
   const [endDate, setEndDate] = useState(existingLease?.end_date?.slice(0, 10) || '')
@@ -93,17 +108,25 @@ export default function LeaseForm({ tenantId, existingLease }: LeaseFormProps) {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [unitsRes, propsRes] = await Promise.all([
+      const [unitsRes, propsRes, tenantsRes] = await Promise.all([
         fetch('/api/units'),
-        fetch('/api/properties')
+        fetch('/api/properties'),
+        fetch('/api/tenants')
       ])
       const fetchedUnits = await unitsRes.json()
       setUnits(fetchedUnits)
       setProperties(await propsRes.json())
+      setTenants(await tenantsRes.json())
 
       if (existingLease) {
         const unit = fetchedUnits.find((u: Unit) => u.id === existingLease.unit_id)
         if (unit) setSelectedPropertyId(unit.property_id)
+
+        const paymentRes = await fetch(`/api/leases/${existingLease.id}/payments`)
+        if (paymentRes.ok) {
+          const paymentData = await paymentRes.json()
+          setPayments(paymentData)
+        }
       }
     }
     fetchAll()
@@ -188,6 +211,15 @@ export default function LeaseForm({ tenantId, existingLease }: LeaseFormProps) {
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <p className="text-red-600 font-bold">{error}</p>}
 
+      <label className="block">Nájemník:
+        <select value={tenantId} onChange={e => setTenantId(e.target.value)} className="w-full border p-2 rounded">
+          <option value="">-- Vyber nájemníka --</option>
+          {tenants.map(tenant => (
+            <option key={tenant.id} value={tenant.id}>{tenant.name}</option>
+          ))}
+        </select>
+      </label>
+
       <label className="block">Název smlouvy:
         <input value={name} onChange={e => setName(e.target.value)} className="w-full border p-2 rounded" />
       </label>
@@ -263,6 +295,19 @@ export default function LeaseForm({ tenantId, existingLease }: LeaseFormProps) {
       <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
         {existingLease ? 'Uložit změny' : 'Uložit smlouvu'}
       </button>
+
+      {existingLease && payments.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-bold mb-2">Historie plateb</h3>
+          <ul className="space-y-1 text-sm">
+            {payments.map(p => (
+              <li key={p.id} className="border-b py-1">
+                {new Date(p.paid_at).toLocaleDateString('cs-CZ')} – {p.amount} Kč {p.note && `(${p.note})`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </form>
   )
 
@@ -294,4 +339,5 @@ export default function LeaseForm({ tenantId, existingLease }: LeaseFormProps) {
     )
   }
 }
+
 
