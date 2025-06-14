@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Typ pro vlastní náklady (customFields)
+// Typ pro vlastní náklady (custom_fields)
 type CustomField = {
   label: string
   value: number
@@ -17,17 +17,17 @@ export async function POST(request: NextRequest) {
     const lease = await prisma.lease.create({
       data: {
         name: body.name,
-        unitId: body.unitId,
-        tenantId: body.tenantId,
-        startDate: new Date(body.startDate),
-        endDate: body.endDate ? new Date(body.endDate) : null,
-        rentAmount: Number(body.rentAmount),
-        monthlyWater: Number(body.monthlyWater ?? 0),
-        monthlyGas: Number(body.monthlyGas ?? 0),
-        monthlyElectricity: Number(body.monthlyElectricity ?? 0),
-        monthlyServices: Number(body.monthlyServices ?? 0),
-        repairFund: Number(body.repairFund ?? 0),
-        customFields: body.customFields ?? []
+        unit_id: body.unit_id,             // POZOR: snake_case
+        tenant_id: body.tenant_id,         // POZOR: snake_case
+        start_date: new Date(body.start_date),
+        end_date: body.end_date ? new Date(body.end_date) : null,
+        rent_amount: Number(body.rent_amount),
+        monthly_water: Number(body.monthly_water ?? 0),
+        monthly_gas: Number(body.monthly_gas ?? 0),
+        monthly_electricity: Number(body.monthly_electricity ?? 0),
+        monthly_services: Number(body.monthly_services ?? 0),
+        repair_fund: Number(body.repair_fund ?? 0),
+        custom_fields: body.custom_fields ?? []
       }
     })
 
@@ -45,23 +45,23 @@ export async function GET() {
         tenant: { select: { full_name: true } },
         unit: { select: { identifier: true } }
       },
-      orderBy: { startDate: 'desc' }
+      orderBy: { start_date: 'desc' }
     })
 
     const leasesWithTotal = leases.map(lease => {
-      // Bezpečné přetypování customFields
-      const customFields = lease.customFields as CustomField[] ?? []
+      // Bezpečné přetypování custom_fields
+      const customFields = lease.custom_fields as CustomField[] ?? []
 
       const customTotal = customFields.reduce((sum, field) => {
         return field.billable ? sum + (field.value || 0) : sum
       }, 0)
 
       const totalBillableRent =
-        Number(lease.rentAmount ?? 0) +
-        Number(lease.monthlyWater ?? 0) +
-        Number(lease.monthlyGas ?? 0) +
-        Number(lease.monthlyElectricity ?? 0) +
-        Number(lease.monthlyServices ?? 0) +
+        Number(lease.rent_amount ?? 0) +
+        Number(lease.monthly_water ?? 0) +
+        Number(lease.monthly_gas ?? 0) +
+        Number(lease.monthly_electricity ?? 0) +
+        Number(lease.monthly_services ?? 0) +
         customTotal
 
       return {
