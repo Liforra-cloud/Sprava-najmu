@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       ...(body.charge_flags || {}),
     }
 
+    // Musíš poslat všechny povinné JSON sloupce dle schema.prisma!
     const lease = await prisma.lease.create({
       data: {
         name: body.name,
@@ -67,6 +68,11 @@ export async function POST(request: NextRequest) {
         repair_fund: Number(body.repair_fund ?? 0),
         charge_flags: charge_flags,
         custom_charges: custom_charges,
+        // custom_fields je v DB povinné: buď použij co posíláš v body, nebo prázdné {}
+        custom_fields:
+          typeof body.custom_fields === 'object' && body.custom_fields !== null
+            ? body.custom_fields
+            : {},
         total_billable_rent: 0,
       }
     })
