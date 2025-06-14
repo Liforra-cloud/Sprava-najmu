@@ -3,18 +3,50 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Typ pro vlastní náklady (custom_fields)
-type CustomField = {
-  label: string
-  value: number
-  billable: boolean
+// Typ pro vlastní náklad
+type CustomCharge = {
+  name: string
+  amount: number
+  enabled: boolean
+}
+
+// Typ pro charge_flags
+type ChargeFlags = {
+  rent_amount: boolean
+  monthly_water: boolean
+  monthly_gas: boolean
+  monthly_electricity: boolean
+  monthly_services: boolean
+  repair_fund: boolean
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Zápis musí obsahovat všechna required pole v DB
+    // Zkontroluj, že custom_charges je pole objektů se správnými klíči
+    const custom_charges: CustomCharge[] = Array.isArray(body.custom_charges)
+      ? body.custom_charges.map((item: any) => ({
+          name: String(item.name),
+          amount: Number(item.amount ?? 0),
+          enabled: !!item.enabled,
+        }))
+      : []
+
+    // Zkontroluj, že charge_flags je objekt se správnými klíči
+    const defaultFlags: ChargeFlags = {
+      rent_amount: true,
+      monthly_water: true,
+      monthly_gas: true,
+      monthly_electricity: true,
+      monthly_services: true,
+      repair_fund: true,
+    }
+    const charge_flags: ChargeFlags = {
+      ...defaultFlags,
+      ...(body.charge_flags || {}),
+    }
+
     const lease = await prisma.lease.create({
       data: {
         name: body.name,
@@ -28,8 +60,9 @@ export async function POST(request: NextRequest) {
         monthly_electricity: Number(body.monthly_electricity ?? 0),
         monthly_services: Number(body.monthly_services ?? 0),
         repair_fund: Number(body.repair_fund ?? 0),
-        custom_fields: body.custom_fields ?? [],
-        total_billable_rent: 0, // nebo vypočítej pokud chceš, ale musí být přítomné
+        charge_flags: charge_flags,                 // ← Ukládáš nové pole!
+        custom_charges: custom_charges,             // ← Ukládáš nové pole!
+        total_billable_rent: 0,                     // nebo můžeš dopočítat
       }
     })
 
@@ -40,6 +73,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// GET zůstává v zásadě stejný, jen pokud chceš ve výpočtu zahrnout nové pole custom_charges místo custom_fields:
 export async function GET() {
   try {
     const leases = await prisma.lease.findMany({
@@ -51,19 +85,17 @@ export async function GET() {
     })
 
     const leasesWithTotal = leases.map(lease => {
-      // Bezpečné přetypování custom_fields
-      const customFields = lease.custom_fields as CustomField[] ?? []
-
-      const customTotal = customFields.reduce((sum, field) => {
-        return field.billable ? sum + (field.value || 0) : sum
-      }, 0)
-
+      const customCharges = lease.custom_charges as CustomCharge[] ?? []
+      const customTotal = customCharges.reduce((sum, item) =>
+        item.enabled ? sum + (item.amount || 0) : sum, 0
+      )
       const totalBillableRent =
-        Number(lease.rent_amount ?? 0) +
-        Number(lease.monthly_water ?? 0) +
-        Number(lease.monthly_gas ?? 0) +
-        Number(lease.monthly_electricity ?? 0) +
-        Number(lease.monthly_services ?? 0) +
+        (lease.charge_flags?.rent_amount ? Number(lease.rent_amount ?? 0) : 0) +
+        (lease.charge_flags?.monthly_water ? Number(lease.monthly_water ?? 0) : 0) +
+        (lease.charge_flags?.monthly_gas ? Number(lease.monthly_gas ?? 0) : 0) +
+        (lease.charge_flags?.monthly_electricity ? Number(lease.monthly_electricity ?? 0) : 0) +
+        (lease.charge_flags?.monthly_services ? Number(lease.monthly_services ?? 0) : 0) +
+        (lease.charge_flags?.repair_fund ? Number(lease.repair_fund ?? 0) : 0) +
         customTotal
 
       return {
