@@ -5,58 +5,52 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 
-type Lease = {
+type Payment = {
   id: string
-  unit: { identifier: string }
-  tenant: { name: string }
-  startDate: string
-  endDate: string | null
-  rentAmount: number
-  monthlyWater: number
-  monthlyGas: number
-  monthlyElectricity: number
-  monthlyServices: number
+  amount: number
+  payment_date: string
+  payment_type?: string
+  note?: string
 }
 
 export default function LeaseDetailPage() {
-  const { id } = useParams() as { id: string }
-  const [lease, setLease] = useState<Lease | null>(null)
+  const { id } = useParams()
+  const [lease, setLease] = useState<any>(null)
 
   useEffect(() => {
     const fetchLease = async () => {
       const res = await fetch(`/api/leases/${id}`)
-      if (!res.ok) return
       const data = await res.json()
       setLease(data)
     }
     fetchLease()
   }, [id])
 
-  if (!lease) return <p>Načítám smlouvu...</p>
-
-  const total = lease.rentAmount + lease.monthlyWater + lease.monthlyGas + lease.monthlyElectricity + lease.monthlyServices
+  if (!lease) return <p>Načítám…</p>
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Detail smlouvy</h1>
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold">{lease.name}</h1>
+      <p>Období: {lease.start_date} – {lease.end_date ?? 'neomezeno'}</p>
+      <p>Nájemce: {lease.tenant?.full_name}</p>
+      <p>Jednotka: {lease.unit?.identifier}</p>
+      <p>Celkový nájem: {lease.totalBillableRent} Kč</p>
 
-      <div className="space-y-2">
-        <p><strong>Jednotka:</strong> {lease.unit.identifier}</p>
-        <p><strong>Nájemník:</strong> {lease.tenant.name}</p>
-        <p><strong>Začátek nájmu:</strong> {new Date(lease.startDate).toLocaleDateString()}</p>
-        <p><strong>Konec nájmu:</strong> {lease.endDate ? new Date(lease.endDate).toLocaleDateString() : '—'}</p>
-
-        <h2 className="text-xl font-semibold mt-4">Měsíční náklady</h2>
-        <ul className="list-disc ml-6">
-          <li>Nájem: {lease.rentAmount} Kč</li>
-          <li>Voda: {lease.monthlyWater} Kč</li>
-          <li>Plyn: {lease.monthlyGas} Kč</li>
-          <li>Elektřina: {lease.monthlyElectricity} Kč</li>
-          <li>Služby: {lease.monthlyServices} Kč</li>
+      <h2 className="text-xl font-semibold mt-6">Platby</h2>
+      {lease.payments.length === 0 ? (
+        <p>Žádné platby zatím nebyly zaznamenány.</p>
+      ) : (
+        <ul className="border rounded divide-y">
+          {lease.payments.map((payment: Payment) => (
+            <li key={payment.id} className="p-2 flex justify-between">
+              <span>{new Date(payment.payment_date).toLocaleDateString()}</span>
+              <span>{payment.amount} Kč</span>
+              <span className="text-sm text-gray-600">{payment.note}</span>
+            </li>
+          ))}
         </ul>
-
-        <p className="mt-3 font-bold">Celkem za měsíc: {total} Kč</p>
-      </div>
+      )}
     </div>
   )
 }
+
