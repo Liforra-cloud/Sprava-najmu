@@ -1,4 +1,4 @@
-components/LeasePaymentList.tsx
+//components/LeasePaymentList.tsx
 
 'use client'
 
