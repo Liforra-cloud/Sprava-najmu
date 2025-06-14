@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Vytvoření lease přes "unchecked" variantu (můžeš zapisovat přes ID)
+    // Zápis musí obsahovat všechna required pole v DB
     const lease = await prisma.lease.create({
       data: {
         name: body.name,
@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
         monthly_services: Number(body.monthly_services ?? 0),
         repair_fund: Number(body.repair_fund ?? 0),
         custom_fields: body.custom_fields ?? [],
-        total_billable_rent: Number(body.total_billable_rent ?? 0),
+        total_billable_rent: 0, // nebo vypočítej pokud chceš, ale musí být přítomné
       }
-    } as any) // ← přidáno "as any" pro rychlou kompilaci přes TS (typicky řeší právě tento problém)
+    })
 
     return NextResponse.json({ id: lease.id }, { status: 201 })
   } catch (error) {
