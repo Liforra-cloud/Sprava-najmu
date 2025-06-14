@@ -21,11 +21,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     const custom_charges: CustomCharge[] = Array.isArray(body.custom_charges)
-      ? body.custom_charges.map((item: CustomCharge) => ({
-          name: String(item.name),
-          amount: Number(item.amount ?? 0),
-          enabled: !!item.enabled,
-        }))
+      ? body.custom_charges.map((item: unknown) => {
+          // Zkontroluj strukturu pro typovou bezpečnost
+          if (
+            typeof item === 'object' &&
+            item !== null &&
+            'name' in item &&
+            'amount' in item &&
+            'enabled' in item
+          ) {
+            return {
+              name: String((item as { name: unknown }).name),
+              amount: Number((item as { amount: unknown }).amount ?? 0),
+              enabled: Boolean((item as { enabled: unknown }).enabled),
+            }
+          }
+          // Fallback pro nevalidní položky
+          return { name: '', amount: 0, enabled: false }
+        })
       : []
 
     const defaultFlags: ChargeFlags = {
@@ -110,4 +123,3 @@ export async function GET() {
     return NextResponse.json({ error: 'Chyba serveru' }, { status: 500 })
   }
 }
-
