@@ -1,11 +1,11 @@
 // najem-app/app/tenants/[id]/page.tsx
 
-// najem-app/app/tenants/[id]/page.tsx
-
 'use client'
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
+
 import DocumentUpload from '@/components/DocumentUpload'
 import DocumentList from '@/components/DocumentList'
 import PaymentSummary from '@/components/PaymentSummary'
@@ -63,7 +63,6 @@ export default function TenantDetailPage() {
       }
       const data = await res.json()
       setTenant(data.tenant)
-      // Leases musí přijít s includem jednotky i nemovitosti
       setLeases(Array.isArray(data.leases) ? data.leases : [])
     }
     fetchTenantAndLeases()
@@ -71,14 +70,12 @@ export default function TenantDetailPage() {
 
   if (!tenant) return <p>Načítání...</p>
 
-  // Pomocná funkce na datum
   function formatDate(dateStr?: string) {
     if (!dateStr) return '—'
     const date = new Date(dateStr)
     return date.toLocaleDateString('cs-CZ')
   }
 
-  // Pomocná funkce na výpočet celkového nájemného
   function getTotalBillable(lease: Lease) {
     let total = 0
     total += Number(lease.rent_amount || 0)
@@ -101,7 +98,6 @@ export default function TenantDetailPage() {
         <h1 className="text-3xl font-bold">{tenant.full_name}</h1>
       </div>
 
-      {/* Informace o nájemníkovi */}
       <div className="mt-4">
         <div><strong>Email:</strong> {tenant.email}</div>
         <div><strong>Telefon:</strong> {tenant.phone || '—'}</div>
@@ -112,10 +108,8 @@ export default function TenantDetailPage() {
         <div><strong>Registrován:</strong> {formatDate(tenant.date_registered)}</div>
       </div>
 
-      {/* Souhrn plateb */}
       <PaymentSummary tenantId={id} />
 
-      {/* Dokumenty */}
       <div className="mt-8 space-y-4">
         <h2 className="text-xl font-semibold">Dokumenty k nájemníkovi</h2>
         {!showDocForm && (
@@ -127,21 +121,27 @@ export default function TenantDetailPage() {
         <DocumentList tenantId={id} />
       </div>
 
-      {/* Smlouvy */}
       <div className="mt-8 space-y-4">
         <h2 className="text-xl font-semibold">Smlouvy</h2>
-        <ul>
+        <ul className="space-y-3">
           {leases.length === 0 && <li>Žádné smlouvy nenalezeny</li>}
           {leases.map(lease => (
-            <li key={lease.id} className="border-b py-2">
+            <li key={lease.id} className="border-b pb-2">
               <strong>{lease.name || 'Bez názvu'}</strong><br />
               Jednotka: {lease.unit?.identifier || '—'}<br />
               Nemovitost: {lease.unit?.property?.name || '—'}<br />
               Celkové nájemné: {getTotalBillable(lease)} Kč<br />
-              Od: {formatDate(lease.start_date)} Do: {formatDate(lease.end_date)}
+              Od: {formatDate(lease.start_date)} Do: {formatDate(lease.end_date)}<br />
+              <Link
+                href={`/leases/${lease.id}/edit`}
+                className="text-blue-600 text-sm underline"
+              >
+                Upravit
+              </Link>
             </li>
           ))}
         </ul>
+
         {!showLeaseForm && (
           <button onClick={() => setShowLeaseForm(true)} className="bg-green-600 text-white px-4 py-2 rounded">
             Přidat smlouvu
