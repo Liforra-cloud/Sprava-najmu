@@ -1,8 +1,6 @@
 //lib/createMonthlyObligation.ts
 
 import { prisma } from './prisma'
-import { Lease } from '@prisma/client'
-
 type ChargeFlags = {
   rent_amount?: boolean
   monthly_water?: boolean
