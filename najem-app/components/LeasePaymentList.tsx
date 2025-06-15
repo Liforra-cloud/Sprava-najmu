@@ -4,8 +4,6 @@
 
 import { useEffect, useState } from 'react'
 
-// TEST - tento řádek byl přidán pro ověření buildu
-
 type Payment = {
   id: string
   amount: number
@@ -36,7 +34,7 @@ export default function LeasePaymentList({ leaseId }: Props) {
       const res = await fetch(`/api/leases/${leaseId}/payments`)
       const data = await res.json()
       setPayments(Array.isArray(data) ? data : [])
-    } catch (e) {
+    } catch {
       setError('Nepodařilo se načíst platby.')
     }
     setLoading(false)
