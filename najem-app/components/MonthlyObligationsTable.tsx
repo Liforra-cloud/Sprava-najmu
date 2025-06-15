@@ -11,6 +11,9 @@ type Payment = {
   note?: string
 }
 
+type CustomCharge = { name: string; amount: number; enabled: boolean }
+type ChargeFlags = Record<string, boolean>
+
 type MonthlyObligation = {
   id: string
   year: number
@@ -18,7 +21,15 @@ type MonthlyObligation = {
   total_due: number
   paid_amount: number
   debt: number
-  payments: Payment[] // předpokládáme, že v API bude pole payments (pokud ne, upravíme)
+  payments: Payment[]
+  rent: number
+  water: number
+  gas: number
+  electricity: number
+  services: number
+  repair_fund: number
+  custom_charges: CustomCharge[]
+  charge_flags: ChargeFlags
 }
 
 type Props = {
@@ -29,7 +40,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
   const [data, setData] = useState<MonthlyObligation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState<string | null>(null) // Pro rozklik detailu
+  const [expanded, setExpanded] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -50,14 +61,57 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
       .finally(() => setLoading(false))
   }, [leaseId])
 
-  // Inline editace zaplacené částky
-  const handleEdit = async (id: string, paidAmount: number) => {
+  // Editace jednotlivých hodnot v rozpadu
+  const handleEdit = async (
+    id: string,
+    key: string,
+    value: any,
+    customChargeIndex?: number
+  ) => {
+    let body: any
+    if (key === 'custom_charges' && typeof customChargeIndex === 'number') {
+      // edit konkrétního vlastního poplatku
+      const original = data.find(row => row.id === id)
+      if (!original) return
+      const updated = [...original.custom_charges]
+      updated[customChargeIndex] = value
+      body = { custom_charges: updated }
+    } else if (key.startsWith('charge_flags.')) {
+      // úprava účtování
+      const field = key.split('.')[1]
+      const original = data.find(row => row.id === id)
+      if (!original) return
+      body = {
+        charge_flags: {
+          ...original.charge_flags,
+          [field]: value,
+        },
+      }
+    } else {
+      body = { [key]: value }
+    }
     await fetch(`/api/monthly-obligations/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paid_amount: paidAmount })
+      body: JSON.stringify(body)
     })
-    setData(data => data.map(row => row.id === id ? { ...row, paid_amount: paidAmount, debt: row.total_due - paidAmount } : row))
+    // Refresh data (zjednodušeně, reálně lépe udělat optimistic update)
+    setData(data => data.map(row => {
+      if (row.id !== id) return row
+      if (key === 'custom_charges' && typeof customChargeIndex === 'number') {
+        const updated = [...row.custom_charges]
+        updated[customChargeIndex] = value
+        return { ...row, custom_charges: updated }
+      }
+      if (key.startsWith('charge_flags.')) {
+        const field = key.split('.')[1]
+        return {
+          ...row,
+          charge_flags: { ...row.charge_flags, [field]: value }
+        }
+      }
+      return { ...row, [key]: value }
+    }))
   }
 
   // Přidání platby k měsíci
@@ -67,7 +121,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount })
     })
-    // Reload
+    // Reload payments for the given month
     const res = await fetch(`/api/monthly-obligations/${monthId}/payments`)
     const payments = res.ok ? await res.json() : []
     setData(data => data.map(row => row.id === monthId ? { ...row, payments } : row))
@@ -91,8 +145,8 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
         </thead>
         <tbody>
           {data.map(row => (
-            <>
-              <tr key={row.id}>
+            <Fragment key={row.id}>
+              <tr>
                 <td>
                   <button
                     onClick={() => setExpanded(expanded === row.id ? null : row.id)}
@@ -107,7 +161,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                     type="number"
                     value={row.paid_amount}
                     min={0}
-                    onChange={e => handleEdit(row.id, Number(e.target.value))}
+                    onChange={e => handleEdit(row.id, 'paid_amount', Number(e.target.value))}
                     className="border rounded p-1 w-20"
                   />
                 </td>
@@ -132,30 +186,93 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
               {expanded === row.id && (
                 <tr>
                   <td colSpan={5} className="bg-gray-50 p-2">
-                    <strong>Platby za měsíc:</strong>
-                    <ul className="pl-4 list-disc">
-                      {row.payments && row.payments.length > 0 ? (
-                        row.payments.map(p => (
-                          <li key={p.id}>
-                            {new Date(p.payment_date).toLocaleDateString('cs-CZ')}: {p.amount} Kč
-                            {p.note && <> – {p.note}</>}
-                          </li>
-                        ))
-                      ) : (
-                        <li>Žádné platby</li>
-                      )}
-                    </ul>
-                    <AddPaymentForm onAdd={amount => handleAddPayment(row.id, amount)} />
+                    <div className="flex flex-wrap gap-8 items-start">
+                      <div>
+                        <strong>Rozpad poplatků:</strong>
+                        <table className="text-xs">
+                          <tbody>
+                            {[
+                              ["Nájem", "rent", row.rent, row.charge_flags.rent_amount],
+                              ["Voda", "water", row.water, row.charge_flags.monthly_water],
+                              ["Plyn", "gas", row.gas, row.charge_flags.monthly_gas],
+                              ["Elektřina", "electricity", row.electricity, row.charge_flags.monthly_electricity],
+                              ["Služby", "services", row.services, row.charge_flags.monthly_services],
+                              ["Fond oprav", "repair_fund", row.repair_fund, row.charge_flags.repair_fund]
+                            ].map(([label, key, amount, flag]) => (
+                              <tr key={key as string}>
+                                <td>{label}</td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    value={amount as number}
+                                    min={0}
+                                    onChange={e => handleEdit(row.id, key as string, Number(e.target.value))}
+                                    className="border w-16 rounded p-1"
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!flag}
+                                    onChange={e => handleEdit(row.id, `charge_flags.${key}`, e.target.checked)}
+                                  /> Účtovat
+                                </td>
+                              </tr>
+                            ))}
+                            {/* Vlastní poplatky */}
+                            {row.custom_charges?.map((cc, idx) => (
+                              <tr key={"cc" + idx}>
+                                <td>{cc.name}</td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    value={cc.amount}
+                                    min={0}
+                                    onChange={e => handleEdit(row.id, 'custom_charges', { ...cc, amount: Number(e.target.value) }, idx)}
+                                    className="border w-16 rounded p-1"
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="checkbox"
+                                    checked={!!cc.enabled}
+                                    onChange={e => handleEdit(row.id, 'custom_charges', { ...cc, enabled: e.target.checked }, idx)}
+                                  /> Účtovat
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <strong>Platby za měsíc:</strong>
+                        <ul className="pl-4 list-disc">
+                          {row.payments && row.payments.length > 0 ? (
+                            row.payments.map(p => (
+                              <li key={p.id}>
+                                {new Date(p.payment_date).toLocaleDateString('cs-CZ')}: {p.amount} Kč
+                                {p.note && <> – {p.note}</>}
+                              </li>
+                            ))
+                          ) : (
+                            <li>Žádné platby</li>
+                          )}
+                        </ul>
+                        <AddPaymentForm onAdd={amount => handleAddPayment(row.id, amount)} />
+                      </div>
+                    </div>
                   </td>
                 </tr>
               )}
-            </>
+            </Fragment>
           ))}
         </tbody>
       </table>
     </div>
   )
 }
+
+import { Fragment } from 'react'
 
 // Malý formulář na přidání platby k měsíci
 function AddPaymentForm({ onAdd }: { onAdd: (amount: number) => void }) {
@@ -181,3 +298,4 @@ function AddPaymentForm({ onAdd }: { onAdd: (amount: number) => void }) {
     </form>
   )
 }
+
