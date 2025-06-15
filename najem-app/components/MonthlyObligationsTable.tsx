@@ -47,10 +47,11 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     fetch(`/api/leases/${leaseId}/monthly-obligations`)
       .then(res => res.json())
       .then(async (obligations: MonthlyObligation[]) => {
+        // Pro každý měsíc stáhneme platby (pokud payments nejsou rovnou v API)
         const withPayments = await Promise.all(
           obligations.map(async (o) => {
             const res = await fetch(`/api/monthly-obligations/${o.id}/payments`)
-            const payments: Payment[] = res.ok ? await res.json() : []
+            const payments = res.ok ? await res.json() : []
             return { ...o, payments }
           })
         )
@@ -64,24 +65,26 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
   const handleEdit = async (
     id: string,
     key: string,
-    value: any,
+    value: number | boolean | CustomCharge,
     customChargeIndex?: number
   ) => {
-    let body: any
+    let body: Record<string, unknown>
     if (key === 'custom_charges' && typeof customChargeIndex === 'number') {
+      // edit konkrétního vlastního poplatku
       const original = data.find(row => row.id === id)
       if (!original) return
       const updated = [...original.custom_charges]
-      updated[customChargeIndex] = value
+      updated[customChargeIndex] = value as CustomCharge
       body = { custom_charges: updated }
     } else if (key.startsWith('charge_flags.')) {
+      // úprava účtování
       const field = key.split('.')[1]
       const original = data.find(row => row.id === id)
       if (!original) return
       body = {
         charge_flags: {
           ...original.charge_flags,
-          [field]: value,
+          [field]: value as boolean,
         },
       }
     } else {
@@ -92,19 +95,19 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     })
-    // Refresh data (můžeš vylepšit na optimistic update)
+    // Refresh data (zjednodušeně, reálně lépe udělat optimistic update)
     setData(data => data.map(row => {
       if (row.id !== id) return row
       if (key === 'custom_charges' && typeof customChargeIndex === 'number') {
         const updated = [...row.custom_charges]
-        updated[customChargeIndex] = value
+        updated[customChargeIndex] = value as CustomCharge
         return { ...row, custom_charges: updated }
       }
       if (key.startsWith('charge_flags.')) {
         const field = key.split('.')[1]
         return {
           ...row,
-          charge_flags: { ...row.charge_flags, [field]: value }
+          charge_flags: { ...row.charge_flags, [field]: value as boolean }
         }
       }
       return { ...row, [key]: value }
@@ -120,7 +123,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     })
     // Reload payments for the given month
     const res = await fetch(`/api/monthly-obligations/${monthId}/payments`)
-    const payments: Payment[] = res.ok ? await res.json() : []
+    const payments = res.ok ? await res.json() : []
     setData(data => data.map(row => row.id === monthId ? { ...row, payments } : row))
   }
 
@@ -156,7 +159,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                 <td>
                   <input
                     type="number"
-                    value={isNaN(row.paid_amount) ? 0 : row.paid_amount}
+                    value={row.paid_amount}
                     min={0}
                     onChange={e => handleEdit(row.id, 'paid_amount', Number(e.target.value))}
                     className="border rounded p-1 w-20"
@@ -201,7 +204,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                 <td>
                                   <input
                                     type="number"
-                                    value={isNaN(amount as number) ? 0 : (amount as number)}
+                                    value={amount as number}
                                     min={0}
                                     onChange={e => handleEdit(row.id, key as string, Number(e.target.value))}
                                     className="border w-16 rounded p-1"
@@ -223,7 +226,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                 <td>
                                   <input
                                     type="number"
-                                    value={isNaN(cc.amount) ? 0 : cc.amount}
+                                    value={cc.amount}
                                     min={0}
                                     onChange={e => handleEdit(row.id, 'custom_charges', { ...cc, amount: Number(e.target.value) }, idx)}
                                     className="border w-16 rounded p-1"
@@ -293,4 +296,3 @@ function AddPaymentForm({ onAdd }: { onAdd: (amount: number) => void }) {
     </form>
   )
 }
-
