@@ -1,4 +1,4 @@
-// app/api/tenants/[id]/payments.ts
+// app/api/tenants/[id]/payments/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
@@ -16,13 +16,28 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   if (tenantError) return NextResponse.json({ error: tenantError.message }, { status: 500 })
 
-  // Získání plateb za nájemníky
-  const { data: payments, error: paymentsError } = await supabase
-    .from('payments')
-    .select('amount, payment_date, payment_type, lease_id')
+  // Najdi všechny leases (nájemní smlouvy) pro daného nájemníka
+  const { data: leases, error: leasesError } = await supabase
+    .from('leases')
+    .select('id')
     .eq('tenant_id', id)
 
-  if (paymentsError) return NextResponse.json({ error: paymentsError.message }, { status: 500 })
+  if (leasesError) return NextResponse.json({ error: leasesError.message }, { status: 500 })
+
+  const leaseIds = leases?.map(l => l.id) || []
+
+  // Získání plateb, kde lease_id je v leaseIds
+  let payments = []
+  if (leaseIds.length > 0) {
+    const { data: paymentsData, error: paymentsError } = await supabase
+      .from('payments')
+      .select('amount, payment_date, payment_type, lease_id')
+      .in('lease_id', leaseIds)
+
+    if (paymentsError) return NextResponse.json({ error: paymentsError.message }, { status: 500 })
+
+    payments = paymentsData
+  }
 
   // Výpočet celkového nájemného a dluhu
   let totalRent = 0
