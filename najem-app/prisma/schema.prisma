@@ -107,6 +107,7 @@ model Payment {
   created_at             DateTime? @map("created_at")
   updated_at             DateTime? @map("updated_at")
   monthly_obligation_id  String? // Nový sloupec
+  payment_breakdown      Json?   // Nové pole - rozpad platby dle poplatků
 
   lease                  Lease    @relation(fields: [lease_id], references: [id])
   monthly_obligation     MonthlyObligation? @relation(fields: [monthly_obligation_id], references: [id])
