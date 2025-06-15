@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createMonthlyObligation } from '@/lib/createMonthlyObligation'
 
-// GET – načti všechny měsíční povinnosti pro danou smlouvu
+// GET – načti všechny měsíční povinnosti pro danou smlouvu včetně plateb
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -13,6 +13,7 @@ export async function GET(
     const obligations = await prisma.monthlyObligation.findMany({
       where: { lease_id: params.id },
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
+      include: { payments: true }, // TADY přidáno!
     })
     return NextResponse.json(obligations)
   } catch (error) {
