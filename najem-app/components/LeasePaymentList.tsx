@@ -47,9 +47,9 @@ export default function LeasePaymentList({ leaseId }: Props) {
 
   // Přidání platby
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError('');
     const res = await fetch(`/api/leases/${leaseId}/payments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
