@@ -16,7 +16,7 @@ export async function GET(
       include: { payments: true }, // TADY přidáno!
     })
     return NextResponse.json(obligations)
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Chyba při načítání měsíčních povinností' },
       { status: 500 }
