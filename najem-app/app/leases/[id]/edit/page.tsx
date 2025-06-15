@@ -2,10 +2,8 @@
 
 'use client'
 
-
 import { useEffect, useState } from 'react'
 import LeaseForm from '@/components/LeaseForm'
-import LeasePaymentManager from '@/components/LeasePaymentManager'
 import MonthlyObligationsTable from '@/components/MonthlyObligationsTable'
 import { useParams } from 'next/navigation'
 
@@ -72,19 +70,13 @@ export default function EditLeasePage() {
   if (!lease) return <p>Smlouva nenalezena.</p>
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-10">
-      <div>
-        <h1 className="text-2xl font-bold mb-4">Upravit smlouvu</h1>
-        <LeaseForm existingLease={lease} />
-      </div>
-
-      {/* Flexbox sekce – na desktopu vedle sebe, na mobilu pod sebou */}
+    <div className="p-6 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Upravit smlouvu</h1>
       <div className="flex flex-col md:flex-row gap-8">
-        <div className="md:w-1/2">
-          <h2 className="text-xl font-semibold mb-2">Platby</h2>
-          <LeasePaymentManager leaseId={lease.id} />
+        <div className="md:w-2/3">
+          <LeaseForm existingLease={lease} />
         </div>
-        <div className="md:w-1/2">
+        <div className="md:w-1/3">
           <MonthlyObligationsTable leaseId={lease.id} />
         </div>
       </div>
