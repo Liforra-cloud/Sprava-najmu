@@ -1,5 +1,7 @@
 // components/LeasePaymentList.tsx
 
+// components/LeasePaymentList.tsx
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -32,9 +34,9 @@ export default function LeasePaymentList({ leaseId }: Props) {
     setLoading(true)
     try {
       const res = await fetch(`/api/leases/${leaseId}/payments`)
-      const data = await res.json()
+      const data: Payment[] = await res.json()
       setPayments(Array.isArray(data) ? data : [])
-    } catch (e) {
+    } catch {
       setError('Nepodařilo se načíst platby.')
     }
     setLoading(false)
@@ -46,7 +48,8 @@ export default function LeasePaymentList({ leaseId }: Props) {
   }, [leaseId])
 
   // Přidání platby
-  const handleSubmit = async () => {
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     setLoading(true)
     setError('')
     const res = await fetch(`/api/leases/${leaseId}/payments`, {
@@ -97,13 +100,7 @@ export default function LeasePaymentList({ leaseId }: Props) {
       <h3 className="text-lg font-semibold">Záznamy plateb</h3>
 
       {/* Formulář pro přidání nové platby */}
-      <form
-        onSubmit={e => {
-          e.preventDefault()
-          handleSubmit()
-        }}
-        className="grid grid-cols-2 gap-3 mb-6"
-      >
+      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-3 mb-6">
         <div className="col-span-1">
           <label className="block mb-1 text-sm">Datum platby:</label>
           <input
@@ -214,3 +211,4 @@ export default function LeasePaymentList({ leaseId }: Props) {
     </div>
   )
 }
+
