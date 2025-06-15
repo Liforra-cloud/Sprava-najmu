@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createMonthlyObligation } from '@/lib/createMonthlyObligation'
 
-// GET – načti všechny měsíční povinnosti pro danou smlouvu včetně plateb
+// GET – načti všechny měsíční povinnosti pro danou smlouvu
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -13,10 +13,9 @@ export async function GET(
     const obligations = await prisma.monthlyObligation.findMany({
       where: { lease_id: params.id },
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
-      include: { payments: true }, // TADY přidáno!
     })
     return NextResponse.json(obligations)
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       { error: 'Chyba při načítání měsíčních povinností' },
       { status: 500 }
@@ -41,10 +40,11 @@ export async function POST(
       month: Number(month),
     })
     return NextResponse.json({ success: true, obligation })
-  } catch {
+  } catch (error) { // OPRAVENO!
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     return NextResponse.json({ error: 'Neznámá chyba' }, { status: 500 })
   }
 }
+
