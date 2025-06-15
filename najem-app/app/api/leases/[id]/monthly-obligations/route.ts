@@ -15,9 +15,9 @@ export async function GET(
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
     })
     return NextResponse.json(obligations)
-  } catch {
+  } catch (error) {
     return NextResponse.json(
-      { error: 'Chyba při načítání měsíčních povinností' },
+      { error: 'Chyba při načítání měsíčních povinností', detail: error instanceof Error ? error.message : undefined },
       { status: 500 }
     )
   }
@@ -41,10 +41,11 @@ export async function POST(
     })
     return NextResponse.json({ success: true, obligation })
   } catch (error) {
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-    return NextResponse.json({ error: 'Neznámá chyba' }, { status: 500 })
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Neznámá chyba' },
+      { status: 500 }
+    )
   }
 }
+
 
