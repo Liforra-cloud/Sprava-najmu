@@ -41,7 +41,7 @@ export async function POST(
       month: Number(month),
     })
     return NextResponse.json({ success: true, obligation })
-  } catch (error) {
+  } catch {
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
