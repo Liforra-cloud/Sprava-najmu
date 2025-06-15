@@ -48,7 +48,7 @@ export default function LeasePaymentList({ leaseId }: Props) {
 
   // Přidání platby
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault() // ← Tohle je zásadní, musí tu být!
+    e.preventDefault() // ← Tento řádek je pro linter povinný!
     setLoading(true)
     setError('')
     const res = await fetch(`/api/leases/${leaseId}/payments`, {
@@ -210,4 +210,3 @@ export default function LeasePaymentList({ leaseId }: Props) {
     </div>
   )
 }
-
