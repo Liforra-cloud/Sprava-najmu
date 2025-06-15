@@ -1,5 +1,6 @@
 //components/LeasePaymentList.tsx
 
+throw new Error("Test error z LeasePaymentList");
 
 'use client'
 
