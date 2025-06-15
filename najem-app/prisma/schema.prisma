@@ -89,24 +89,53 @@ model Lease {
   unit     Unit     @relation(fields: [unit_id], references: [id])
   tenant   Tenant   @relation(fields: [tenant_id], references: [id])
   payments Payment[]
+  monthly_obligations MonthlyObligation[]
 
   @@map("leases")
 }
 
 model Payment {
-  id              String   @id @default(uuid())
-  lease_id        String
-  payment_date    DateTime? @map("payment_date")
-  amount          Float
-  payment_type    String?
-  variable_symbol String?
-  note            String?
-  date_recorded   DateTime? @map("date_recorded")
-  payment_month   String?
-  created_at      DateTime? @map("created_at")
-  updated_at      DateTime? @map("updated_at")
+  id                     String   @id @default(uuid())
+  lease_id               String
+  payment_date           DateTime? @map("payment_date")
+  amount                 Float
+  payment_type           String?
+  variable_symbol        String?
+  note                   String?
+  date_recorded          DateTime? @map("date_recorded")
+  payment_month          String?
+  created_at             DateTime? @map("created_at")
+  updated_at             DateTime? @map("updated_at")
+  monthly_obligation_id  String? // Nový sloupec
 
-  lease Lease @relation(fields: [lease_id], references: [id])
+  lease                  Lease    @relation(fields: [lease_id], references: [id])
+  monthly_obligation     MonthlyObligation? @relation(fields: [monthly_obligation_id], references: [id])
 
   @@map("payments")
+}
+
+model MonthlyObligation {
+  id          String    @id @default(uuid())
+  lease_id    String
+  year        Int
+  month       Int
+  rent        Float
+  water       Float
+  gas         Float
+  electricity Float
+  services    Float
+  repair_fund Float
+  total_due   Float
+  paid_amount Float
+  debt        Float
+  note        String?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  custom_charges Json?
+  charge_flags Json?
+
+  lease       Lease     @relation(fields: [lease_id], references: [id])
+  payments    Payment[] // vazba z druhé strany
+
+  @@map("monthly_obligations")
 }
