@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 type Payment = {
   id: string
@@ -11,85 +11,39 @@ type Payment = {
   payment_month?: string
   note?: string
   payment_type?: string
-  monthly_obligation_id?: string
-  payment_breakdown?: Record<string, number>
-}
-
-type Breakdown = {
-  rent: number
-  water: number
-  gas: number
-  electricity: number
-  services: number
-  repair_fund: number
-  custom_charges?: any
 }
 
 type Props = {
   leaseId: string
 }
 
-const now = new Date()
-const THIS_MONTH = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-
 export default function LeasePaymentList({ leaseId }: Props) {
   const [payments, setPayments] = useState<Payment[]>([])
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState('')
-  const [paymentMonth, setPaymentMonth] = useState(THIS_MONTH)
+  const [paymentMonth, setPaymentMonth] = useState('')
+  const [paymentType, setPaymentType] = useState('nájemné')
   const [note, setNote] = useState('')
-  const [breakdown, setBreakdown] = useState<Breakdown | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [moId, setMoId] = useState<string | undefined>(undefined)
 
-  // 1. Načti platby
-  const loadPayments = async () => {
+  // Opraveno: typy, žádné any, a správně useCallback
+  const loadPayments = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch(`/api/leases/${leaseId}/payments`)
-      setPayments(await res.json())
-    } catch {
+      const data: Payment[] = await res.json()
+      setPayments(Array.isArray(data) ? data : [])
+    } catch (e) {
       setError('Nepodařilo se načíst platby.')
     }
     setLoading(false)
-  }
+  }, [leaseId])
 
   useEffect(() => {
     loadPayments()
-  }, [leaseId])
+  }, [loadPayments])
 
-  // 2. Načti rozpad částek pro daný měsíc
-  useEffect(() => {
-    if (!paymentMonth) {
-      setBreakdown(null)
-      return
-    }
-    const [year, month] = paymentMonth.split('-')
-    fetch(`/api/leases/${leaseId}/monthly-obligation?year=${year}&month=${parseInt(month)}`)
-      .then(r => r.json())
-      .then(obligation => {
-        if (obligation && !obligation.error) {
-          setBreakdown({
-            rent: obligation.rent,
-            water: obligation.water,
-            gas: obligation.gas,
-            electricity: obligation.electricity,
-            services: obligation.services,
-            repair_fund: obligation.repair_fund,
-            custom_charges: obligation.custom_charges,
-          })
-          setAmount(obligation.total_due.toString())
-          setMoId(obligation.id)
-        } else {
-          setBreakdown(null)
-          setAmount('')
-          setMoId(undefined)
-        }
-      })
-  }, [leaseId, paymentMonth])
-
-  // 3. Přidání platby s breakdown
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -101,34 +55,46 @@ export default function LeasePaymentList({ leaseId }: Props) {
         amount: Number(amount),
         payment_date: date,
         payment_month: paymentMonth,
+        payment_type: paymentType,
         note,
-        monthly_obligation_id: moId,
-        payment_breakdown: breakdown,
       }),
     })
+    const data = await res.json()
     if (!res.ok) {
-      setError('Chyba při odesílání platby')
+      setError(data.error || 'Chyba při odesílání platby')
     } else {
       setAmount('')
       setDate('')
-      setPaymentMonth(THIS_MONTH)
+      setPaymentMonth('')
+      setPaymentType('nájemné')
       setNote('')
-      setBreakdown(null)
-      setMoId(undefined)
       await loadPayments()
     }
     setLoading(false)
   }
 
-  // 4. UI pro editaci breakdownu
-  function handleBreakdownChange(key: keyof Breakdown, value: number) {
-    if (!breakdown) return
-    setBreakdown({ ...breakdown, [key]: value })
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Opravdu smazat platbu?')) return
+    setLoading(true)
+    setError('')
+    const res = await fetch(`/api/leases/${leaseId}/payments`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    if (!res.ok) {
+      setError('Chyba při mazání platby')
+    } else {
+      await loadPayments()
+    }
+    setLoading(false)
   }
 
   return (
     <div className="space-y-4 mt-6">
       <h3 className="text-lg font-semibold">Záznamy plateb</h3>
+
+      {/* Formulář pro přidání nové platby */}
       <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-3 mb-6">
         <div className="col-span-1">
           <label className="block mb-1 text-sm">Datum platby:</label>
@@ -150,28 +116,8 @@ export default function LeasePaymentList({ leaseId }: Props) {
             required
           />
         </div>
-        <div className="col-span-2">
-          {breakdown && (
-            <div className="grid grid-cols-3 gap-2 bg-gray-50 p-2 rounded mb-2">
-              {Object.entries(breakdown).map(([key, val]) => (
-                key !== 'custom_charges' && (
-                  <div key={key}>
-                    <label className="block text-xs mb-1">{key}</label>
-                    <input
-                      type="number"
-                      value={val}
-                      onChange={e => handleBreakdownChange(key as keyof Breakdown, Number(e.target.value))}
-                      className="w-full border p-1 rounded text-xs"
-                    />
-                  </div>
-                )
-              ))}
-              {/* custom_charges zobrazit rozpad i zde, pokud chceš */}
-            </div>
-          )}
-        </div>
         <div className="col-span-1">
-          <label className="block mb-1 text-sm">Celková částka:</label>
+          <label className="block mb-1 text-sm">Částka:</label>
           <input
             type="number"
             min="0"
@@ -183,6 +129,18 @@ export default function LeasePaymentList({ leaseId }: Props) {
           />
         </div>
         <div className="col-span-1">
+          <label className="block mb-1 text-sm">Typ platby:</label>
+          <select
+            value={paymentType}
+            onChange={e => setPaymentType(e.target.value)}
+            className="w-full border p-2 rounded"
+          >
+            <option value="nájemné">Nájemné</option>
+            <option value="záloha">Záloha</option>
+            <option value="jiné">Jiné</option>
+          </select>
+        </div>
+        <div className="col-span-2">
           <label className="block mb-1 text-sm">Poznámka (nepovinné):</label>
           <input
             type="text"
@@ -203,7 +161,7 @@ export default function LeasePaymentList({ leaseId }: Props) {
         </div>
       </form>
 
-      {/* Tabulka plateb s breakdownem */}
+      {/* Tabulka plateb */}
       {loading ? (
         <div>Načítání…</div>
       ) : payments.length === 0 ? (
@@ -216,8 +174,9 @@ export default function LeasePaymentList({ leaseId }: Props) {
                 <th className="p-2 text-left">Datum platby</th>
                 <th className="p-2 text-left">Měsíc</th>
                 <th className="p-2 text-right">Částka</th>
+                <th className="p-2 text-left">Typ</th>
                 <th className="p-2 text-left">Poznámka</th>
-                <th className="p-2 text-left">Rozpad</th>
+                <th className="p-2"></th>
               </tr>
             </thead>
             <tbody>
@@ -226,14 +185,17 @@ export default function LeasePaymentList({ leaseId }: Props) {
                   <td className="p-2">{new Date(p.payment_date).toLocaleDateString('cs-CZ')}</td>
                   <td className="p-2">{p.payment_month || '-'}</td>
                   <td className="p-2 text-right">{p.amount} Kč</td>
+                  <td className="p-2">{p.payment_type || '-'}</td>
                   <td className="p-2">{p.note || '-'}</td>
                   <td className="p-2">
-                    {p.payment_breakdown
-                      ? Object.entries(p.payment_breakdown)
-                          .filter(([key]) => key !== 'custom_charges')
-                          .map(([k, v]) => `${k}: ${v} Kč`)
-                          .join(', ')
-                      : '-'}
+                    <button
+                      className="text-red-600 font-bold"
+                      onClick={() => handleDelete(p.id)}
+                      disabled={loading}
+                      title="Smazat platbu"
+                    >
+                      Smazat
+                    </button>
                   </td>
                 </tr>
               ))}
