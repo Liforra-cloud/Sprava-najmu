@@ -1,8 +1,29 @@
-//app/api/leases/[id]/monthly-obligations/route.ts
+// app/api/leases/[id]/monthly-obligations/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 import { createMonthlyObligation } from '@/lib/createMonthlyObligation'
 
+// GET – načti všechny měsíční povinnosti pro danou smlouvu
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const obligations = await prisma.monthlyObligation.findMany({
+      where: { lease_id: params.id },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    })
+    return NextResponse.json(obligations)
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Chyba při načítání měsíčních povinností' },
+      { status: 500 }
+    )
+  }
+}
+
+// POST – vytvoř jeden rozpis pro zvolený měsíc
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
