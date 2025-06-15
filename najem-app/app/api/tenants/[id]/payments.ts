@@ -3,6 +3,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
+type Payment = {
+  amount: number
+  payment_date: string
+  payment_type: string
+  lease_id: string
+}
+
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params
   const supabase = supabaseRouteClient()
@@ -27,7 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const leaseIds = leases?.map(l => l.id) || []
 
   // Získání plateb, kde lease_id je v leaseIds
-  let payments = []
+  let payments: Payment[] = []
   if (leaseIds.length > 0) {
     const { data: paymentsData, error: paymentsError } = await supabase
       .from('payments')
@@ -36,7 +43,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     if (paymentsError) return NextResponse.json({ error: paymentsError.message }, { status: 500 })
 
-    payments = paymentsData
+    payments = paymentsData as Payment[]
   }
 
   // Výpočet celkového nájemného a dluhu
