@@ -1,9 +1,10 @@
 //components/LeasePaymentList.tsx
 
-
 'use client'
 
 import { useEffect, useState } from 'react'
+
+// TEST - tento řádek byl přidán pro ověření buildu
 
 type Payment = {
   id: string
