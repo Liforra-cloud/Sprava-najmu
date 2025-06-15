@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 
 type Payment = {
   id: string
@@ -27,25 +27,26 @@ export default function LeasePaymentList({ leaseId }: Props) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Opraveno: typy, žádné any, a správně useCallback
-  const loadPayments = useCallback(async () => {
+  // Načtení plateb
+  const loadPayments = async () => {
     setLoading(true)
     try {
       const res = await fetch(`/api/leases/${leaseId}/payments`)
-      const data: Payment[] = await res.json()
+      const data = await res.json()
       setPayments(Array.isArray(data) ? data : [])
     } catch (e) {
       setError('Nepodařilo se načíst platby.')
     }
     setLoading(false)
-  }, [leaseId])
+  }
 
   useEffect(() => {
     loadPayments()
-  }, [loadPayments])
+    // eslint-disable-next-line
+  }, [leaseId])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Přidání platby
+  const handleSubmit = async () => {
     setLoading(true)
     setError('')
     const res = await fetch(`/api/leases/${leaseId}/payments`, {
@@ -73,6 +74,7 @@ export default function LeasePaymentList({ leaseId }: Props) {
     setLoading(false)
   }
 
+  // Smazání platby
   const handleDelete = async (id: string) => {
     if (!window.confirm('Opravdu smazat platbu?')) return
     setLoading(true)
@@ -95,7 +97,13 @@ export default function LeasePaymentList({ leaseId }: Props) {
       <h3 className="text-lg font-semibold">Záznamy plateb</h3>
 
       {/* Formulář pro přidání nové platby */}
-      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-3 mb-6">
+      <form
+        onSubmit={e => {
+          e.preventDefault()
+          handleSubmit()
+        }}
+        className="grid grid-cols-2 gap-3 mb-6"
+      >
         <div className="col-span-1">
           <label className="block mb-1 text-sm">Datum platby:</label>
           <input
