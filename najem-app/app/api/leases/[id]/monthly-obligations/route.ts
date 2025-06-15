@@ -15,7 +15,7 @@ export async function GET(
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
     })
     return NextResponse.json(obligations)
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Chyba při načítání měsíčních povinností' },
       { status: 500 }
@@ -40,7 +40,7 @@ export async function POST(
       month: Number(month),
     })
     return NextResponse.json({ success: true, obligation })
-  } catch (error) { // OPRAVENO!
+  } catch (error) {
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
