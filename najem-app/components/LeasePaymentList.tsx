@@ -48,7 +48,7 @@ export default function LeasePaymentList({ leaseId }: Props) {
   }, [leaseId])
 
   // Přidání platby
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async () => {
     e.preventDefault()
     setLoading(true)
     setError('')
