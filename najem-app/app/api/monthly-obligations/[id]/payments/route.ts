@@ -14,7 +14,7 @@ export async function GET(
       orderBy: [{ payment_date: 'asc' }],
     })
     return NextResponse.json(payments)
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Chyba při načítání plateb' },
       { status: 500 }
