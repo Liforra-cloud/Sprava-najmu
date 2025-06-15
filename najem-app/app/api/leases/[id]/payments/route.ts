@@ -23,7 +23,7 @@ export async function GET(
   }
 }
 
-// POST – přidat platbu
+// POST – přidat platbu s rozpadem částky a napojením na měsíční povinnost
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -48,6 +48,8 @@ export async function POST(
         note: body.note || null,
         variable_symbol: body.variable_symbol || null,
         payment_month: body.payment_month || null,
+        monthly_obligation_id: body.monthly_obligation_id || null, // pro napojení na MonthlyObligation
+        payment_breakdown: body.payment_breakdown || null // JSON rozpad částky
       },
     })
 
@@ -61,7 +63,7 @@ export async function POST(
   }
 }
 
-// PUT – upravit platbu
+// PUT – upravit platbu (včetně rozpadu a napojení)
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json()
@@ -82,6 +84,8 @@ export async function PUT(req: NextRequest) {
         note: body.note || null,
         variable_symbol: body.variable_symbol || null,
         payment_month: body.payment_month || null,
+        monthly_obligation_id: body.monthly_obligation_id || null,
+        payment_breakdown: body.payment_breakdown || null
       },
     })
 
