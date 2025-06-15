@@ -51,7 +51,7 @@ export async function POST(
     })
 
     return NextResponse.json(payment)
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Chyba při ukládání platby' },
       { status: 500 }
@@ -84,7 +84,7 @@ export async function PUT(req: NextRequest) {
     })
 
     return NextResponse.json(updated)
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Chyba při úpravě platby' },
       { status: 500 }
@@ -105,7 +105,7 @@ export async function DELETE(req: NextRequest) {
     await prisma.payment.delete({ where: { id } })
 
     return NextResponse.json({ message: 'Platba byla smazána' })
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Chyba při mazání platby' },
       { status: 500 }
