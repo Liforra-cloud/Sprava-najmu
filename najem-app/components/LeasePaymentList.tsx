@@ -48,7 +48,7 @@ export default function LeasePaymentList({ leaseId }: Props) {
 
   // Přidání platby
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // ← Tohle je důvod všech předchozích errorů!
+    e.preventDefault(); // ← Toto je opravdu klíčové!
     setLoading(true)
     setError('')
     const res = await fetch(`/api/leases/${leaseId}/payments`, {
