@@ -1,5 +1,6 @@
 //components/LeasePaymentList.tsx
 
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -47,7 +48,7 @@ export default function LeasePaymentList({ leaseId }: Props) {
 
   // Přidání platby
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault() // ← Tohle je zásadní, musí tu být!
     setLoading(true)
     setError('')
     const res = await fetch(`/api/leases/${leaseId}/payments`, {
