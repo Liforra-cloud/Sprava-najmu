@@ -16,7 +16,10 @@ export async function GET(
     return NextResponse.json(payments)
   } catch (error) {
     return NextResponse.json(
-      { error: 'Chyba při načítání plateb', detail: error instanceof Error ? error.message : undefined },
+      {
+        error: 'Chyba při načítání plateb',
+        detail: error instanceof Error ? error.message : undefined,
+      },
       { status: 500 }
     )
   }
@@ -29,9 +32,10 @@ export async function POST(
 ) {
   try {
     const body = await req.json()
-    if (!body.amount || !body.payment_date || !body.lease_id) {
+
+    if (!body.amount || !body.lease_id) {
       return NextResponse.json(
-        { error: 'Chybí částka, datum platby nebo lease_id' },
+        { error: 'Chybí částka nebo lease_id' },
         { status: 400 }
       )
     }
@@ -41,7 +45,7 @@ export async function POST(
         lease_id: body.lease_id,
         monthly_obligation_id: params.id,
         amount: body.amount,
-        payment_date: new Date(body.payment_date),
+        payment_date: body.payment_date ? new Date(body.payment_date) : new Date(),
         payment_type: body.payment_type || null,
         note: body.note || null,
         variable_symbol: body.variable_symbol || null,
@@ -53,7 +57,10 @@ export async function POST(
     return NextResponse.json(payment)
   } catch (error) {
     return NextResponse.json(
-      { error: 'Chyba při ukládání platby', detail: error instanceof Error ? error.message : undefined },
+      {
+        error: 'Chyba při ukládání platby',
+        detail: error instanceof Error ? error.message : undefined,
+      },
       { status: 500 }
     )
   }
@@ -86,7 +93,10 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json(updated)
   } catch (error) {
     return NextResponse.json(
-      { error: 'Chyba při úpravě platby', detail: error instanceof Error ? error.message : undefined },
+      {
+        error: 'Chyba při úpravě platby',
+        detail: error instanceof Error ? error.message : undefined,
+      },
       { status: 500 }
     )
   }
@@ -102,13 +112,18 @@ export async function DELETE(req: NextRequest) {
         { status: 400 }
       )
     }
+
     await prisma.payment.delete({ where: { id } })
 
     return NextResponse.json({ message: 'Platba byla smazána' })
   } catch (error) {
     return NextResponse.json(
-      { error: 'Chyba při mazání platby', detail: error instanceof Error ? error.message : undefined },
+      {
+        error: 'Chyba při mazání platby',
+        detail: error instanceof Error ? error.message : undefined,
+      },
       { status: 500 }
     )
   }
 }
+
