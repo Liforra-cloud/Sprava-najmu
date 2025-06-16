@@ -2,8 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 
-// Typ pro tělo requestu (můžeš rozšířit dle potřeby)
 type MonthlyObligationUpdate = {
   paid_amount?: number
   rent?: number
@@ -15,8 +15,9 @@ type MonthlyObligationUpdate = {
   debt?: number
   total_due?: number
   note?: string
-  custom_charges?: unknown // pokud máš typ CustomCharge, použij
-  charge_flags?: Record<string, boolean>
+  // TADY! Typuj custom_charges a charge_flags jako Prisma.InputJsonValue
+  custom_charges?: Prisma.InputJsonValue
+  charge_flags?: Prisma.InputJsonValue
 }
 
 export async function GET(
@@ -41,27 +42,10 @@ export async function PUT(
   try {
     const data: MonthlyObligationUpdate = await req.json()
 
-    // Sestav aktualizační objekt podle příchozího datového typu
-    const updateData: MonthlyObligationUpdate = {}
-
-    if ('paid_amount' in data) updateData.paid_amount = data.paid_amount
-    if ('rent' in data) updateData.rent = data.rent
-    if ('water' in data) updateData.water = data.water
-    if ('gas' in data) updateData.gas = data.gas
-    if ('electricity' in data) updateData.electricity = data.electricity
-    if ('services' in data) updateData.services = data.services
-    if ('repair_fund' in data) updateData.repair_fund = data.repair_fund
-    if ('debt' in data) updateData.debt = data.debt
-    if ('total_due' in data) updateData.total_due = data.total_due
-    if ('note' in data) updateData.note = data.note
-
-    // Custom charges a charge_flags jsou JSON pole
-    if ('custom_charges' in data) updateData.custom_charges = data.custom_charges
-    if ('charge_flags' in data) updateData.charge_flags = data.charge_flags
-
+    // Přímý spread je už možný, typ už je 100% kompatibilní s Prisma
     const updated = await prisma.monthlyObligation.update({
       where: { id: params.id },
-      data: updateData,
+      data: data,
     })
 
     return NextResponse.json(updated)
