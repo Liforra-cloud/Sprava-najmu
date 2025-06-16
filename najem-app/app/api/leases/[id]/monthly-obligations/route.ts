@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createMonthlyObligation } from '@/lib/createMonthlyObligation'
 
-// GET – načti všechny měsíční povinnosti pro danou smlouvu
+// GET – načti všechny měsíční povinnosti pro danou smlouvu včetně plateb
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -13,11 +13,19 @@ export async function GET(
     const obligations = await prisma.monthlyObligation.findMany({
       where: { lease_id: params.id },
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
+      include: {
+        payments: {
+          orderBy: { payment_date: 'asc' },
+        },
+      },
     })
     return NextResponse.json(obligations)
   } catch (error) {
     return NextResponse.json(
-      { error: 'Chyba při načítání měsíčních povinností', detail: error instanceof Error ? error.message : undefined },
+      {
+        error: 'Chyba při načítání měsíčních povinností',
+        detail: error instanceof Error ? error.message : undefined,
+      },
       { status: 500 }
     )
   }
@@ -42,10 +50,13 @@ export async function POST(
     return NextResponse.json({ success: true, obligation })
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Neznámá chyba' },
+      {
+        error: error instanceof Error ? error.message : 'Neznámá chyba',
+      },
       { status: 500 }
     )
   }
 }
+
 
 
