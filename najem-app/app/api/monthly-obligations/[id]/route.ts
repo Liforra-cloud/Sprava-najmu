@@ -3,7 +3,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// GET (volitelné, pokud potřebuješ načítat konkrétní monthly obligation)
+// Typ pro tělo requestu (můžeš rozšířit dle potřeby)
+type MonthlyObligationUpdate = {
+  paid_amount?: number
+  rent?: number
+  water?: number
+  gas?: number
+  electricity?: number
+  services?: number
+  repair_fund?: number
+  debt?: number
+  total_due?: number
+  note?: string
+  custom_charges?: unknown // pokud máš typ CustomCharge, použij
+  charge_flags?: Record<string, boolean>
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -24,11 +39,10 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const data = await req.json()
+    const data: MonthlyObligationUpdate = await req.json()
 
-    // Zkontroluj, že posíláš pouze pole, která opravdu máš v modelu
-    // Pro custom_charges a charge_flags je potřeba správně serializovat
-    const updateData: any = {}
+    // Sestav aktualizační objekt podle příchozího datového typu
+    const updateData: MonthlyObligationUpdate = {}
 
     if ('paid_amount' in data) updateData.paid_amount = data.paid_amount
     if ('rent' in data) updateData.rent = data.rent
