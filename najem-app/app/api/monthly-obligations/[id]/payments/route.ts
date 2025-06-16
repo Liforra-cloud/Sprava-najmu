@@ -59,7 +59,7 @@ export async function POST(
   }
 }
 
-// PUT – úprava platby (volitelné, pokud chceš editovat platby)
+// PUT – úprava platby
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json()
