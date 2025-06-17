@@ -25,22 +25,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     const custom_charges: CustomCharge[] = Array.isArray(body.custom_charges)
-      ? body.custom_charges.map((item: unknown) => {
-          if (
-            typeof item === 'object' &&
-            item !== null &&
-            'name' in item &&
-            'amount' in item &&
-            'enabled' in item
-          ) {
-            return {
-              name: String((item as any).name),
-              amount: Number((item as any).amount ?? 0),
-              enabled: Boolean((item as any).enabled),
-            }
-          }
-          return { name: '', amount: 0, enabled: false }
-        })
+  ? body.custom_charges.map((item: unknown): CustomCharge => {
+      if (
+        typeof item === 'object' &&
+        item !== null &&
+        'name' in item &&
+        'amount' in item &&
+        'enabled' in item
+      ) {
+        return {
+          name: String((item as Record<string, unknown>).name),
+          amount: Number((item as Record<string, unknown>).amount ?? 0),
+          enabled: Boolean((item as Record<string, unknown>).enabled),
+        }
+      }
+      return { name: '', amount: 0, enabled: false }
+    })
       : []
 
     const defaultFlags: ChargeFlags = {
