@@ -38,12 +38,18 @@ type LeaseFromAPI = {
 export default function EditLeasePage() {
   const params = useParams()
   const router = useRouter()
-  const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : ''
+  const id =
+    typeof params?.id === 'string'
+      ? params.id
+      : Array.isArray(params?.id)
+      ? params.id[0]
+      : ''
 
   const [lease, setLease] = useState<LeaseFromAPI | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState('')
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const fetchLease = useCallback(async () => {
     try {
@@ -73,10 +79,21 @@ export default function EditLeasePage() {
   }, [id, fetchLease])
 
   const handleDelete = async () => {
-    if (confirmDelete !== 'Smazat smlouvu') return
-    const res = await fetch(`/api/leases/${id}`, { method: 'DELETE' })
-    if (res.ok) router.push('/leases')
-    else alert('Chyba při mazání')
+    if (confirmDelete !== 'Smazat smlouvu') {
+      setDeleteError('Pro smazání musíte zadat přesný text: "Smazat smlouvu"')
+      return
+    }
+
+    const res = await fetch(`/api/leases/${id}`, {
+      method: 'DELETE'
+    })
+
+    if (res.ok) {
+      router.push('/leases')
+    } else {
+      const error = await res.json()
+      setDeleteError(error.message || 'Nepodařilo se smazat smlouvu')
+    }
   }
 
   if (loading) return <p>Načítám…</p>
@@ -86,28 +103,30 @@ export default function EditLeasePage() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
       <h1 className="text-2xl font-bold">Upravit smlouvu</h1>
+
       <LeaseForm existingLease={lease} onSaved={fetchLease} />
 
       <div>
-        <label className="block mb-1 font-medium">Potvrďte smazání napsáním "Smazat smlouvu":</label>
+        <h2 className="text-lg font-bold mb-2">Měsíční povinnosti</h2>
+        <MonthlyObligationsTable leaseId={lease.id} />
+      </div>
+
+      <div className="border border-red-300 p-4 rounded">
+        <h2 className="text-red-600 font-bold text-lg mb-2">Smazat smlouvu</h2>
+        <p>Pro potvrzení napište &quot;Smazat smlouvu&quot;:</p>
         <input
           type="text"
           value={confirmDelete}
           onChange={e => setConfirmDelete(e.target.value)}
-          placeholder="Smazat smlouvu"
-          className="border p-2 rounded w-full max-w-xs"
+          className="border p-2 mt-2 w-full"
         />
+        {deleteError && <p className="text-red-600 mt-1">{deleteError}</p>}
         <button
-          disabled={confirmDelete !== 'Smazat smlouvu'}
           onClick={handleDelete}
-          className="bg-red-600 text-white px-4 py-2 rounded mt-2 disabled:opacity-50"
+          className="bg-red-600 text-white px-4 py-2 mt-4 rounded"
         >
           Smazat smlouvu
         </button>
-      </div>
-
-      <div>
-        <MonthlyObligationsTable leaseId={lease.id} />
       </div>
     </div>
   )
