@@ -1,6 +1,7 @@
 // najem-app/app/api/leases/route.ts
 
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createMonthlyObligation } from '@/lib/createMonthlyObligation'
 
@@ -9,6 +10,7 @@ type CustomCharge = {
   amount: number
   enabled: boolean
 }
+
 type ChargeFlags = {
   rent_amount?: boolean
   monthly_water?: boolean
@@ -23,32 +25,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     const custom_charges: CustomCharge[] = Array.isArray(body.custom_charges)
-      ? body.custom_charges.map((item: unknown) => {
-          if (
-            typeof item === 'object' &&
-            item !== null &&
-            'name' in item &&
-            'amount' in item &&
-            'enabled' in item
-          ) {
-            return {
-              name: String((item as { name: unknown }).name),
-              amount: Number((item as { amount: unknown }).amount ?? 0),
-              enabled: Boolean((item as { enabled: unknown }).enabled),
-            }
-          }
-          return { name: '', amount: 0, enabled: false }
-        })
+      ? body.custom_charges.map((item: any) => ({
+          name: String(item.name || ''),
+          amount: Number(item.amount ?? 0),
+          enabled: Boolean(item.enabled),
+        }))
       : []
 
     const defaultFlags: ChargeFlags = {
-      rent_amount: true,
-      monthly_water: true,
-      monthly_gas: true,
-      monthly_electricity: true,
-      monthly_services: true,
-      repair_fund: true,
+      rent_amount: Boolean(body.rent_amount),
+      monthly_water: Boolean(body.monthly_water),
+      monthly_gas: Boolean(body.monthly_gas),
+      monthly_electricity: Boolean(body.monthly_electricity),
+      monthly_services: Boolean(body.monthly_services),
+      repair_fund: Boolean(body.repair_fund),
     }
+
     const charge_flags: ChargeFlags = {
       ...defaultFlags,
       ...(body.charge_flags || {}),
@@ -61,23 +53,22 @@ export async function POST(request: NextRequest) {
         tenant_id: body.tenant_id,
         start_date: new Date(body.start_date),
         end_date: body.end_date ? new Date(body.end_date) : null,
-        rent_amount: Number(body.rent_amount),
+        rent_amount: Number(body.rent_amount ?? 0),
         monthly_water: Number(body.monthly_water ?? 0),
         monthly_gas: Number(body.monthly_gas ?? 0),
         monthly_electricity: Number(body.monthly_electricity ?? 0),
         monthly_services: Number(body.monthly_services ?? 0),
         repair_fund: Number(body.repair_fund ?? 0),
-        charge_flags: charge_flags,
-        custom_charges: custom_charges,
-        custom_fields:
-          typeof body.custom_fields === 'object' && body.custom_fields !== null
-            ? body.custom_fields
-            : {},
+        charge_flags,
+        custom_charges,
+        custom_fields: typeof body.custom_fields === 'object' && body.custom_fields !== null
+          ? body.custom_fields
+          : {},
         total_billable_rent: 0,
-      }
+      },
     })
 
-    // Vygeneruj měsíční závazky
+    // Vygeneruj měsíční závazky od start_date do end_date (nebo dneška)
     const start = new Date(lease.start_date)
     const end = lease.end_date ? new Date(lease.end_date) : new Date()
     const current = new Date(start.getFullYear(), start.getMonth(), 1)
@@ -98,10 +89,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ id: lease.id }, { status: 201 })
   } catch (error) {
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-    return NextResponse.json({ error: 'Chyba serveru' }, { status: 500 })
+    console.error('API error creating lease:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Chyba serveru' },
+      { status: 500 }
+    )
   }
 }
 
@@ -110,14 +102,15 @@ export async function GET() {
     const leases = await prisma.lease.findMany({
       include: {
         tenant: { select: { full_name: true } },
-        unit: { select: { identifier: true } }
+        unit: { select: { identifier: true } },
       },
-      orderBy: { start_date: 'desc' }
+      orderBy: { start_date: 'desc' },
     })
 
     const leasesWithTotal = leases.map(lease => {
-      const customCharges: CustomCharge[] =
-        Array.isArray(lease.custom_charges) ? lease.custom_charges as CustomCharge[] : []
+      const customCharges: CustomCharge[] = Array.isArray(lease.custom_charges)
+        ? lease.custom_charges as CustomCharge[]
+        : []
 
       const chargeFlags: ChargeFlags =
         lease.charge_flags && typeof lease.charge_flags === 'object' && !Array.isArray(lease.charge_flags)
@@ -140,15 +133,14 @@ export async function GET() {
 
       return {
         ...lease,
-        totalBillableRent
+        totalBillableRent,
       }
     })
 
     return NextResponse.json(leasesWithTotal)
   } catch (error) {
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    console.error('API error listing leases:', error)
     return NextResponse.json({ error: 'Chyba serveru' }, { status: 500 })
   }
 }
+
