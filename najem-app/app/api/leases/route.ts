@@ -25,11 +25,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     const custom_charges: CustomCharge[] = Array.isArray(body.custom_charges)
-      ? body.custom_charges.map((item: any) => ({
-          name: String(item.name || ''),
-          amount: Number(item.amount ?? 0),
-          enabled: Boolean(item.enabled),
-        }))
+      ? body.custom_charges.map((item: unknown) => {
+          if (
+            typeof item === 'object' &&
+            item !== null &&
+            'name' in item &&
+            'amount' in item &&
+            'enabled' in item
+          ) {
+            return {
+              name: String((item as any).name),
+              amount: Number((item as any).amount ?? 0),
+              enabled: Boolean((item as any).enabled),
+            }
+          }
+          return { name: '', amount: 0, enabled: false }
+        })
       : []
 
     const defaultFlags: ChargeFlags = {
@@ -61,9 +72,10 @@ export async function POST(request: NextRequest) {
         repair_fund: Number(body.repair_fund ?? 0),
         charge_flags,
         custom_charges,
-        custom_fields: typeof body.custom_fields === 'object' && body.custom_fields !== null
-          ? body.custom_fields
-          : {},
+        custom_fields:
+          typeof body.custom_fields === 'object' && body.custom_fields !== null
+            ? body.custom_fields
+            : {},
         total_billable_rent: 0,
       },
     })
@@ -143,4 +155,3 @@ export async function GET() {
     return NextResponse.json({ error: 'Chyba serveru' }, { status: 500 })
   }
 }
-
