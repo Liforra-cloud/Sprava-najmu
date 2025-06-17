@@ -92,7 +92,8 @@ export default function EditLeasePage() {
     }
   }
 
-  if (loading) return <p>Načítám…</p>
+  // 🔄 UPRAVENO: loader pro nově přesměrované vytvoření
+  if (loading && !lease) return <p>Ukládám smlouvu…</p>
   if (error) return <p className="text-red-600">{error}</p>
   if (!lease) return <p>Smlouva nenalezena.</p>
 
@@ -118,5 +119,4 @@ export default function EditLeasePage() {
     </div>
   )
 }
-
 
