@@ -1,4 +1,5 @@
 // prisma/schema.prisma
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -6,6 +7,12 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
+}
+
+enum OccupancyStatus {
+  volné
+  obsazené
+  rezervováno
 }
 
 model User {
@@ -38,7 +45,7 @@ model Unit {
   floor            Int?
   area             Float?
   disposition      String?
-  occupancy_status String?
+  occupancy_status OccupancyStatus? // 👈 enum s českými hodnotami
   monthly_rent     Float?
   deposit          Float?
   date_added       DateTime? @map("date_added")
@@ -116,27 +123,27 @@ model Payment {
 }
 
 model MonthlyObligation {
-  id          String    @id @default(uuid())
-  lease_id    String
-  year        Int
-  month       Int
-  rent        Float
-  water       Float
-  gas         Float
-  electricity Float
-  services    Float
-  repair_fund Float
-  total_due   Float
-  paid_amount Float
-  debt        Float
-  note        String?
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  lease_id       String
+  year           Int
+  month          Int
+  rent           Float
+  water          Float
+  gas            Float
+  electricity    Float
+  services       Float
+  repair_fund    Float
+  total_due      Float
+  paid_amount    Float
+  debt           Float
+  note           String?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
   custom_charges Json?
-  charge_flags Json?
+  charge_flags   Json?
 
-  lease       Lease     @relation(fields: [lease_id], references: [id])
-  payments    Payment[] // spojení plateb
+  lease          Lease     @relation(fields: [lease_id], references: [id])
+  payments       Payment[]
 
   @@map("monthly_obligations")
 }
