@@ -1,6 +1,8 @@
 // najem-app/app/api/leases/route.ts
+
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { createMonthlyObligation } from '@/lib/createMonthlyObligation'
 
 type CustomCharge = {
   name: string
@@ -52,7 +54,6 @@ export async function POST(request: NextRequest) {
       ...(body.charge_flags || {}),
     }
 
-    // Musíš poslat všechny povinné JSON sloupce dle schema.prisma!
     const lease = await prisma.lease.create({
       data: {
         name: body.name,
@@ -68,7 +69,6 @@ export async function POST(request: NextRequest) {
         repair_fund: Number(body.repair_fund ?? 0),
         charge_flags: charge_flags,
         custom_charges: custom_charges,
-        // custom_fields je v DB povinné: buď použij co posíláš v body, nebo prázdné {}
         custom_fields:
           typeof body.custom_fields === 'object' && body.custom_fields !== null
             ? body.custom_fields
@@ -76,6 +76,25 @@ export async function POST(request: NextRequest) {
         total_billable_rent: 0,
       }
     })
+
+    // Vygeneruj měsíční závazky
+    const start = new Date(lease.start_date)
+    const end = lease.end_date ? new Date(lease.end_date) : new Date()
+    const current = new Date(start.getFullYear(), start.getMonth(), 1)
+    const last = new Date(end.getFullYear(), end.getMonth(), 1)
+
+    while (current <= last) {
+      const year = current.getFullYear()
+      const month = current.getMonth() + 1
+
+      await createMonthlyObligation({
+        leaseId: lease.id,
+        year,
+        month,
+      })
+
+      current.setMonth(current.getMonth() + 1)
+    }
 
     return NextResponse.json({ id: lease.id }, { status: 201 })
   } catch (error) {
@@ -97,7 +116,6 @@ export async function GET() {
     })
 
     const leasesWithTotal = leases.map(lease => {
-      // Bezpečné načtení JSON polí
       const customCharges: CustomCharge[] =
         Array.isArray(lease.custom_charges) ? lease.custom_charges as CustomCharge[] : []
 
@@ -134,4 +152,3 @@ export async function GET() {
     return NextResponse.json({ error: 'Chyba serveru' }, { status: 500 })
   }
 }
-
