@@ -24,48 +24,49 @@ export async function GET(
   try {
     const lease = await prisma.lease.findUnique({
       where: { id: params.id },
-     select: {
-  id: true,
-  name: true,
-  unit_id: true,
-  tenant_id: true,
-  start_date: true,
-  end_date: true,
-  rent_amount: true,
-  monthly_water: true,
-  monthly_gas: true,
-  monthly_electricity: true,
-  monthly_services: true,
-  repair_fund: true,
-  custom_fields: true,
-  total_billable_rent: true,
-  custom_charges: true,
-  charge_flags: true,
-  created_at: true,
-  updated_at: true,
-  tenant: { select: { full_name: true } },
-  unit: { select: { identifier: true, occupancy_status: true } }, // ✅ správně tady
-  payments: {
-    orderBy: { payment_date: 'desc' },
-    select: {
-      id: true,
-      amount: true,
-      payment_date: true,
-      note: true,
-      variable_symbol: true
-    }
-  }
-}
-
+      select: {
+        id: true,
+        name: true,
+        unit_id: true,
+        tenant_id: true,
+        start_date: true,
+        end_date: true,
+        rent_amount: true,
+        monthly_water: true,
+        monthly_gas: true,
+        monthly_electricity: true,
+        monthly_services: true,
+        repair_fund: true,
+        custom_fields: true,
+        total_billable_rent: true,
+        custom_charges: true,
+        charge_flags: true,
+        created_at: true,
+        updated_at: true,
+        tenant: { select: { full_name: true } },
+        unit: { select: { identifier: true, occupancy_status: true } },
+        payments: {
+          orderBy: { payment_date: 'desc' },
+          select: {
+            id: true,
+            amount: true,
+            payment_date: true,
+            note: true,
+            variable_symbol: true,
+          },
+        },
+      },
     })
 
     if (!lease) {
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    const customCharges: CustomCharge[] = Array.isArray(lease.custom_charges)
-      ? lease.custom_charges
-      : []
+    const rawCharges = lease.custom_charges
+    const customCharges: CustomCharge[] =
+      Array.isArray(rawCharges) && rawCharges.every(c => c && typeof c === 'object')
+        ? (rawCharges as CustomCharge[])
+        : []
 
     const chargeFlags: ChargeFlags =
       lease.charge_flags && typeof lease.charge_flags === 'object'
@@ -88,11 +89,14 @@ export async function GET(
 
     return NextResponse.json({
       ...lease,
-      totalBillableRent
+      totalBillableRent,
     })
   } catch (err) {
     console.error('API error loading lease:', err)
-    return NextResponse.json({ error: 'Server error při načítání smlouvy' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Server error při načítání smlouvy' },
+      { status: 500 }
+    )
   }
 }
 
@@ -118,8 +122,7 @@ export async function PUT(
         custom_fields: typeof body.custom_fields === 'object' ? body.custom_fields : {},
         custom_charges: Array.isArray(body.custom_charges) ? body.custom_charges : [],
         charge_flags: typeof body.charge_flags === 'object' ? body.charge_flags : {},
-        occupancy_status: body.occupancy_status ?? undefined
-      }
+      },
     })
 
     return NextResponse.json({ success: true, lease })
