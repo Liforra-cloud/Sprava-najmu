@@ -8,6 +8,7 @@ type CustomCharge = {
   amount: number
   enabled: boolean
 }
+
 type ChargeFlags = {
   rent_amount?: boolean
   monthly_water?: boolean
@@ -24,9 +25,9 @@ export async function GET(
   try {
     const lease = await prisma.lease.findUnique({
       where: { id: params.id },
-     include: {
-        tenant: { select: { full_name: true } },
-        unit: { select: { identifier: true } },
+      include: {
+        tenant: true, // Zahrne celý objekt nájemníka
+        unit: true,   // Zahrne celou jednotku
         payments: {
           orderBy: { payment_date: 'desc' }
         }
@@ -37,14 +38,15 @@ export async function GET(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    // Bezpečné načtení JSON polí
-    const customCharges: CustomCharge[] =
-      Array.isArray(lease.custom_charges) ? lease.custom_charges as CustomCharge[] : []
+    const customCharges: CustomCharge[] = Array.isArray(lease.custom_charges)
+      ? lease.custom_charges as CustomCharge[]
+      : []
 
-    const chargeFlags: ChargeFlags =
-      lease.charge_flags && typeof lease.charge_flags === 'object' && !Array.isArray(lease.charge_flags)
-        ? lease.charge_flags as ChargeFlags
-        : {}
+    const chargeFlags: ChargeFlags = lease.charge_flags &&
+      typeof lease.charge_flags === 'object' &&
+      !Array.isArray(lease.charge_flags)
+      ? lease.charge_flags as ChargeFlags
+      : {}
 
     const customTotal = customCharges.reduce(
       (sum, field) => (field.enabled ? sum + (field.amount || 0) : sum),
@@ -71,3 +73,4 @@ export async function GET(
     return NextResponse.json({ error: 'Chyba serveru' }, { status: 500 })
   }
 }
+
