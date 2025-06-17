@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    const custom_charges: CustomCharge[] = Array.isArray(body.custom_charges)
+   const custom_charges: CustomCharge[] = Array.isArray(body.custom_charges)
   ? body.custom_charges.map((item: unknown): CustomCharge => {
       if (
         typeof item === 'object' &&
@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
       }
       return { name: '', amount: 0, enabled: false }
     })
-      : []
+  : []
+
 
     const defaultFlags: ChargeFlags = {
       rent_amount: Boolean(body.rent_amount),
