@@ -89,6 +89,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
     if (!tenantId || !unitId || !startDate) {
       setError('Chybí požadovaná pole')
       return
@@ -142,7 +143,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
   }
 
   const handleDelete = async () => {
-    const confirmText = prompt('Pro potvrzení napiš přesně: Smazat smlouvu')
+    const confirmText = prompt('Pro potvrzení napiš: Smazat smlouvu')
     if (confirmText !== 'Smazat smlouvu') return
 
     const res = await fetch(`/api/leases/${existingLease?.id}`, { method: 'DELETE' })
@@ -159,7 +160,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       {error && <p className="text-red-600 font-bold">{error}</p>}
       {success && <p className="text-green-600 font-bold">Smlouva uložena.</p>}
 
-      {/* --- ZÁKLADNÍ INFO --- */}
+      {/* Základní informace */}
       <fieldset className="border p-4 rounded grid grid-cols-1 md:grid-cols-2 gap-4">
         <legend className="text-lg font-bold mb-2 col-span-full">Základní informace</legend>
 
@@ -201,7 +202,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         </label>
       </fieldset>
 
-      {/* --- ZÁLOHY A NÁKLADY --- */}
+      {/* Zálohy a náklady */}
       <fieldset className="border p-4 rounded">
         <legend className="text-lg font-bold mb-2">Zálohy a náklady</legend>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -214,7 +215,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         </div>
       </fieldset>
 
-      {/* --- VLASTNÍ POPLATKY --- */}
+      {/* Vlastní poplatky */}
       <fieldset className="border p-4 rounded">
         <legend className="text-lg font-bold mb-2">Vlastní poplatky</legend>
         {customFields.map((field, i) => (
@@ -244,13 +245,11 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         )}
       </fieldset>
 
-      <div className="flex justify-between items-center">
+      {/* Ovládací tlačítka */}
+      <div className="flex justify-between items-center pt-4">
         <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Uložit</button>
-
         {existingLease && (
-          <button type="button" onClick={handleDelete} className="text-red-600 underline">
-            Smazat smlouvu
-          </button>
+          <button type="button" onClick={handleDelete} className="text-red-600 underline">Smazat smlouvu</button>
         )}
       </div>
     </form>
