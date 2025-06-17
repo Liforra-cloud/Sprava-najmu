@@ -64,6 +64,8 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
 
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -94,6 +96,8 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       setError('Chybí požadovaná pole')
       return
     }
+
+    setIsSaving(true)
 
     const charge_flags = {
       rent_amount: rentAmount.billable,
@@ -133,34 +137,46 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     })
 
     if (res.ok) {
-      setSuccess(true)
-      onSaved?.()
+      if (!existingLease) {
+        const data = await res.json()
+        router.push(`/leases/${data.id}`)
+      } else {
+        setSuccess(true)
+        onSaved?.()
+        setIsSaving(false)
+      }
     } else {
       const err = await res.json()
       setError(err.error || 'Chyba při odesílání')
       console.error(err)
+      setIsSaving(false)
     }
   }
 
   const handleDelete = async () => {
     const confirmText = prompt('Pro potvrzení napiš: Smazat smlouvu')
-    if (confirmText !== 'Smazat smlouvu') return
+    if (confirmText !== 'Smazat smlouvu' || !existingLease) return
 
-    const res = await fetch(`/api/leases/${existingLease?.id}`, { method: 'DELETE' })
+    setIsDeleting(true)
+
+    const res = await fetch(`/api/leases/${existingLease.id}`, { method: 'DELETE' })
     if (res.ok) {
       router.push('/leases')
     } else {
       const data = await res.json()
       alert(data.error || 'Chyba při mazání smlouvy')
+      setIsDeleting(false)
     }
   }
+
+  if (isSaving && !existingLease) return <p>Zakládám novou smlouvu…</p>
+  if (isDeleting) return <p>Probíhá mazání smlouvy…</p>
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && <p className="text-red-600 font-bold">{error}</p>}
       {success && <p className="text-green-600 font-bold">Smlouva uložena.</p>}
 
-      {/* Základní informace */}
       <fieldset className="border p-4 rounded grid grid-cols-1 md:grid-cols-2 gap-4">
         <legend className="text-lg font-bold mb-2 col-span-full">Základní informace</legend>
 
@@ -202,7 +218,6 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         </label>
       </fieldset>
 
-      {/* Zálohy a náklady */}
       <fieldset className="border p-4 rounded">
         <legend className="text-lg font-bold mb-2">Zálohy a náklady</legend>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -215,7 +230,6 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         </div>
       </fieldset>
 
-      {/* Vlastní poplatky */}
       <fieldset className="border p-4 rounded">
         <legend className="text-lg font-bold mb-2">Vlastní poplatky</legend>
         {customFields.map((field, i) => (
@@ -245,11 +259,14 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         )}
       </fieldset>
 
-      {/* Ovládací tlačítka */}
       <div className="flex justify-between items-center pt-4">
-        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Uložit</button>
+        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded" disabled={isSaving}>
+          {isSaving ? 'Ukládám...' : 'Uložit'}
+        </button>
         {existingLease && (
-          <button type="button" onClick={handleDelete} className="text-red-600 underline">Smazat smlouvu</button>
+          <button type="button" onClick={handleDelete} className="text-red-600 underline" disabled={isDeleting}>
+            {isDeleting ? 'Mažu...' : 'Smazat smlouvu'}
+          </button>
         )}
       </div>
     </form>
