@@ -24,39 +24,39 @@ export async function GET(
   try {
     const lease = await prisma.lease.findUnique({
       where: { id: params.id },
-      select: {
-        id: true,
-        name: true,
-        unit_id: true,
-        tenant_id: true,
-        start_date: true,
-        end_date: true,
-        rent_amount: true,
-        monthly_water: true,
-        monthly_gas: true,
-        monthly_electricity: true,
-        monthly_services: true,
-        repair_fund: true,
-        custom_fields: true,
-        total_billable_rent: true,
-        custom_charges: true,
-        charge_flags: true,
-        occupancy_status: true,
-        created_at: true,
-        updated_at: true,
-        tenant: { select: { full_name: true } },
-        unit: { select: { identifier: true } },
-        payments: {
-          orderBy: { payment_date: 'desc' },
-          select: {
-            id: true,
-            amount: true,
-            payment_date: true,
-            note: true,
-            variable_symbol: true
-          }
-        }
-      }
+     select: {
+  id: true,
+  name: true,
+  unit_id: true,
+  tenant_id: true,
+  start_date: true,
+  end_date: true,
+  rent_amount: true,
+  monthly_water: true,
+  monthly_gas: true,
+  monthly_electricity: true,
+  monthly_services: true,
+  repair_fund: true,
+  custom_fields: true,
+  total_billable_rent: true,
+  custom_charges: true,
+  charge_flags: true,
+  created_at: true,
+  updated_at: true,
+  tenant: { select: { full_name: true } },
+  unit: { select: { identifier: true, occupancy_status: true } }, // ✅ správně tady
+  payments: {
+    orderBy: { payment_date: 'desc' },
+    select: {
+      id: true,
+      amount: true,
+      payment_date: true,
+      note: true,
+      variable_symbol: true
+    }
+  }
+}
+
     })
 
     if (!lease) {
