@@ -2,6 +2,19 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import type { JsonValue } from '@prisma/client/runtime/library'
+
+type CustomCharge = {
+  name: string
+  amount: number
+  enabled: boolean
+}
+
+function parseNumber(value: unknown): number {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') return parseFloat(value)
+  return 0
+}
 
 export async function GET(
   _: NextRequest,
@@ -48,19 +61,16 @@ export async function GET(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    const parseNumber = (value: any): number =>
-      typeof value === 'number' ? value : Number(value ?? 0)
+    const flags = lease.charge_flags as Record<string, boolean> ?? {}
 
     const customCharges = Array.isArray(lease.custom_charges)
-      ? lease.custom_charges
+      ? lease.custom_charges as CustomCharge[]
       : []
 
     const customTotal = customCharges.reduce(
       (sum, c) => (c?.enabled ? sum + parseNumber(c.amount) : sum),
       0
     )
-
-    const flags = lease.charge_flags ?? {}
 
     const totalBillableRent =
       (flags.rent_amount ? parseNumber(lease.rent_amount) : 0) +
@@ -105,12 +115,9 @@ export async function PUT(
         monthly_electricity: Number(body.monthly_electricity ?? 0),
         monthly_services: Number(body.monthly_services ?? 0),
         repair_fund: Number(body.repair_fund ?? 0),
-        custom_fields: typeof body.custom_fields === 'object' ? body.custom_fields : {},
-        custom_charges: Array.isArray(body.custom_charges) ? body.custom_charges : [],
-        charge_flags:
-          typeof body.charge_flags === 'object' && !Array.isArray(body.charge_flags)
-            ? body.charge_flags
-            : {},
+        custom_fields: body.custom_fields as JsonValue,
+        custom_charges: body.custom_charges as JsonValue,
+        charge_flags: body.charge_flags as JsonValue,
       },
     })
 
@@ -123,4 +130,3 @@ export async function PUT(
     )
   }
 }
-
