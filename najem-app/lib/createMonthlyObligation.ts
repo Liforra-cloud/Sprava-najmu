@@ -32,9 +32,12 @@ export async function createMonthlyObligation({
 
   if (!lease) throw new Error('Smlouva nenalezena')
 
-  const flags: ChargeFlags = (lease.charge_flags ?? {}) as ChargeFlags
+  const flags: ChargeFlags = typeof lease.charge_flags === 'object' && lease.charge_flags !== null
+    ? (lease.charge_flags as ChargeFlags)
+    : {}
+
   const customCharges: CustomCharge[] = Array.isArray(lease.custom_charges)
-    ? (lease.custom_charges as CustomCharge[])
+    ? lease.custom_charges as CustomCharge[]
     : []
 
   const rent = flags.rent_amount ? Number(lease.rent_amount ?? 0) : 0
@@ -65,11 +68,11 @@ export async function createMonthlyObligation({
       total_due: total,
       paid_amount: 0,
       debt: total,
-      custom_charges: customCharges,
       charge_flags: flags,
+      custom_charges: customCharges,
+      note: '',
     },
   })
 
   return obligation
 }
-
