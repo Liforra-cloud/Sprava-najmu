@@ -30,6 +30,7 @@ export async function GET(
         tenant_id: true,
         start_date: true,
         end_date: true,
+        due_day: true,
         rent_amount: true,
         monthly_water: true,
         monthly_gas: true,
@@ -109,6 +110,7 @@ export async function PUT(
         tenant_id: body.tenant_id,
         start_date: body.start_date ? new Date(body.start_date) : undefined,
         end_date: body.end_date ? new Date(body.end_date) : null,
+        due_day: body.due_day ? parseInt(body.due_day) : 1,
         rent_amount: Number(body.rent_amount ?? 0),
         monthly_water: Number(body.monthly_water ?? 0),
         monthly_gas: Number(body.monthly_gas ?? 0),
@@ -130,4 +132,30 @@ export async function PUT(
     )
   }
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Smazat všechny související platby
+    await prisma.payment.deleteMany({
+      where: { lease_id: params.id }
+    })
+
+    // Smazat samotnou smlouvu
+    await prisma.lease.delete({
+      where: { id: params.id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('API error deleting lease:', err)
+    return NextResponse.json(
+      { error: 'Chyba při mazání smlouvy' },
+      { status: 500 }
+    )
+  }
+}
+
 
