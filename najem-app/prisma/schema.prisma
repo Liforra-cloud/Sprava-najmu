@@ -79,7 +79,7 @@ model Lease {
   tenant_id           String
   start_date          DateTime
   end_date            DateTime?
-  due_date            DateTime? // ← přidáno pole pro datum splatnosti
+  due_day            Int?     // nově místo due_date
   name                String?
   rent_amount         Float
   monthly_water       Float
