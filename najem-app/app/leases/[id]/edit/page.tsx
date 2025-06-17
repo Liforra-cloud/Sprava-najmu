@@ -41,27 +41,29 @@ export default function EditLeasePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchLease = async () => {
-      try {
-        const res = await fetch(`/api/leases/${id}`)
-        if (!res.ok) throw new Error('Chyba při načítání smlouvy')
-        const data: LeaseFromAPI = await res.json()
-        setLease({
-          ...data,
-          name: data.name ?? '',
-          end_date: data.end_date ?? undefined,
-          charge_flags: data.charge_flags ?? {},
-          custom_charges: data.custom_charges ?? [],
-          custom_fields: data.custom_fields ?? {},
-        })
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Neočekávaná chyba'
-        setError(message)
-      } finally {
-        setLoading(false)
-      }
+  const fetchLease = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch(`/api/leases/${id}`)
+      if (!res.ok) throw new Error('Chyba při načítání smlouvy')
+      const data: LeaseFromAPI = await res.json()
+      setLease({
+        ...data,
+        name: data.name ?? '',
+        end_date: data.end_date ?? undefined,
+        charge_flags: data.charge_flags ?? {},
+        custom_charges: data.custom_charges ?? [],
+        custom_fields: data.custom_fields ?? {},
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Neočekávaná chyba'
+      setError(message)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     if (id) fetchLease()
   }, [id])
 
@@ -74,7 +76,7 @@ export default function EditLeasePage() {
       <h1 className="text-2xl font-bold mb-4">Upravit smlouvu</h1>
       <div className="flex flex-col md:flex-row gap-8">
         <div className="md:w-2/3">
-          <LeaseForm existingLease={lease} />
+          <LeaseForm existingLease={lease} onSaved={fetchLease} />
         </div>
         <div className="md:w-1/3">
           <MonthlyObligationsTable leaseId={lease.id} />
@@ -83,3 +85,4 @@ export default function EditLeasePage() {
     </div>
   )
 }
+
