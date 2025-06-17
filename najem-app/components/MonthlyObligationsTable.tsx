@@ -3,33 +3,23 @@
 'use client'
 
 import { useEffect, useState, Fragment } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 
-type Payment = {
-  id: string
-  amount: number
-  payment_date: string
-  note?: string
-}
-
-type CustomCharge = { name: string; amount: number; enabled: boolean }
-type ChargeFlags = Record<string, boolean>
-
-type MonthlyObligation = {
+type ObligationRow = {
   id: string
   year: number
   month: number
-  total_due: number
-  paid_amount: number
-  debt: number
-  payments: Payment[]
   rent: number
   water: number
   gas: number
   electricity: number
   services: number
   repair_fund: number
-  custom_charges: CustomCharge[]
-  charge_flags: ChargeFlags
+  total_due: number
+  paid_amount: number
+  note: string | null
+  custom_charges: { name: string; amount: number; enabled: boolean }[]
+  charge_flags: Record<string, boolean>
 }
 
 type Props = {
@@ -37,228 +27,244 @@ type Props = {
 }
 
 export default function MonthlyObligationsTable({ leaseId }: Props) {
-  const [data, setData] = useState<MonthlyObligation[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState<string | null>(null)
+  const [data, setData] = useState<ObligationRow[]>([])
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [editedRow, setEditedRow] = useState<Partial<ObligationRow>>({})
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    setLoading(true)
-    fetch(`/api/leases/${leaseId}/monthly-obligations`)
-      .then(res => res.json())
-      .then(async (obligations: MonthlyObligation[]) => {
-        // Pro každý měsíc stáhneme platby (pokud payments nejsou rovnou v API)
-        const withPayments = await Promise.all(
-          obligations.map(async (o) => {
-            const res = await fetch(`/api/monthly-obligations/${o.id}/payments`)
-            const payments = res.ok ? await res.json() : []
-            return { ...o, payments }
-          })
-        )
-        setData(withPayments)
-      })
-      .catch(() => setError('Nepodařilo se načíst měsíční povinnosti'))
-      .finally(() => setLoading(false))
+    const fetchObligations = async () => {
+      const { data, error } = await supabase
+        .from('monthly_obligations')
+        .select('*')
+        .eq('lease_id', leaseId)
+        .order('year', { ascending: true })
+        .order('month', { ascending: true })
+
+      if (error) {
+        console.error(error)
+        return
+      }
+      setData(data)
+    }
+
+    fetchObligations()
   }, [leaseId])
 
-  // Editace jednotlivých hodnot v rozpadu
-  const handleEdit = async (
-    id: string,
-    key: string,
-    value: number | boolean | CustomCharge,
-    customChargeIndex?: number
-  ) => {
-    let body: Record<string, unknown>
-    if (key === 'custom_charges' && typeof customChargeIndex === 'number') {
-      // edit konkrétního vlastního poplatku
-      const original = data.find(row => row.id === id)
-      if (!original) return
-      const updated = [...original.custom_charges]
-      updated[customChargeIndex] = value as CustomCharge
-      body = { custom_charges: updated }
-    } else if (key.startsWith('charge_flags.')) {
-      // úprava účtování
-      const field = key.split('.')[1]
-      const original = data.find(row => row.id === id)
-      if (!original) return
-      body = {
+  const handleEdit = (row: ObligationRow) => {
+    setExpandedId(row.id)
+    setEditedRow({ ...row })
+  }
+
+  const handleChange = (key: keyof ObligationRow | string, value: any) => {
+    if (key.startsWith('charge_flags.')) {
+      const flagKey = key.split('.')[1]
+      setEditedRow(prev => ({
+        ...prev,
         charge_flags: {
-          ...original.charge_flags,
-          [field]: value as boolean,
+          ...prev.charge_flags,
+          [flagKey]: value,
         },
-      }
+      }))
     } else {
-      body = { [key]: value }
+      setEditedRow(prev => ({ ...prev, [key]: value }))
     }
-    await fetch(`/api/monthly-obligations/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-    // Refresh data (zjednodušeně, reálně lépe udělat optimistic update)
-    setData(data => data.map(row => {
-      if (row.id !== id) return row
-      if (key === 'custom_charges' && typeof customChargeIndex === 'number') {
-        const updated = [...row.custom_charges]
-        updated[customChargeIndex] = value as CustomCharge
-        return { ...row, custom_charges: updated }
-      }
-      if (key.startsWith('charge_flags.')) {
-        const field = key.split('.')[1]
-        return {
-          ...row,
-          charge_flags: { ...row.charge_flags, [field]: value as boolean }
-        }
-      }
-      return { ...row, [key]: value }
-    }))
   }
 
-  // Přidání platby k měsíci
-  const handleAddPayment = async (monthId: string, amount: number) => {
-    await fetch(`/api/monthly-obligations/${monthId}/payments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount })
-    })
-    // Reload payments for the given month
-    const res = await fetch(`/api/monthly-obligations/${monthId}/payments`)
-    const payments = res.ok ? await res.json() : []
-    setData(data => data.map(row => row.id === monthId ? { ...row, payments } : row))
+  const saveChanges = async (id: string) => {
+    setSaving(true)
+
+    const { error } = await supabase
+      .from('monthly_obligations')
+      .update({
+        ...editedRow,
+        charge_flags: editedRow.charge_flags ?? {},
+        custom_charges: editedRow.custom_charges ?? [],
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+
+    if (error) {
+      console.error('Chyba při ukládání:', error)
+    } else {
+      setData(prev =>
+        prev.map(row => (row.id === id ? { ...row, ...editedRow } : row))
+      )
+      setExpandedId(null)
+      setEditedRow({})
+    }
+
+    setSaving(false)
   }
 
-  if (loading) return <p>Načítám...</p>
-  if (error) return <p className="text-red-600">{error}</p>
+  const formatMonth = (month: number, year: number) =>
+    `${String(month).padStart(2, '0')}/${year}`
+
+  const getStatus = (due: number, paid: number) => {
+    if (paid >= due) return '✅ Zaplaceno'
+    if (paid > 0) return '⚠ Částečně'
+    return '❌ Nezaplaceno'
+  }
 
   return (
-    <div>
-      <h2 className="text-lg font-semibold mb-2">Měsíční povinnosti</h2>
+    <div className="overflow-x-auto">
       <table className="min-w-full border text-sm">
-        <thead>
+        <thead className="bg-gray-100">
           <tr>
-            <th>Měsíc</th>
-            <th>Mělo být zaplaceno</th>
-            <th>Je zaplaceno</th>
-            <th>Stav</th>
-            <th>Platby</th>
+            <th className="p-2 border">Měsíc</th>
+            <th className="p-2 border">Předpis</th>
+            <th className="p-2 border">Zaplaceno</th>
+            <th className="p-2 border">Splatnost</th>
+            <th className="p-2 border">Stav</th>
+            <th className="p-2 border">Detail</th>
           </tr>
         </thead>
         <tbody>
           {data.map(row => (
             <Fragment key={row.id}>
-              <tr>
-                <td>
-                  <button
-                    onClick={() => setExpanded(expanded === row.id ? null : row.id)}
-                    className="underline text-blue-700"
-                  >
-                    {String(row.month).padStart(2, '0')}/{row.year}
-                  </button>
+              <tr className="hover:bg-gray-50">
+                <td className="p-2 border">{formatMonth(row.month, row.year)}</td>
+                <td className="p-2 border">{row.total_due} Kč</td>
+                <td className="p-2 border">{row.paid_amount} Kč</td>
+                <td className="p-2 border">
+                  {new Date(row.year, row.month - 1, 15).toLocaleDateString('cs-CZ')}
                 </td>
-                <td>{row.total_due} Kč</td>
-                <td>
-                  <input
-                    type="number"
-                    value={row.paid_amount}
-                    min={0}
-                    onChange={e => handleEdit(row.id, 'paid_amount', Number(e.target.value))}
-                    className="border rounded p-1 w-20"
-                  />
-                </td>
-                <td>
-                  {row.debt > 0 ? (
-                    <span className="text-red-600">Nedoplatek {row.debt} Kč</span>
-                  ) : row.debt < 0 ? (
-                    <span className="text-green-600">Přeplatek {-row.debt} Kč</span>
-                  ) : (
-                    <span className="text-green-600">Zaplaceno</span>
-                  )}
-                </td>
-                <td>
-                  <button
-                    onClick={() => setExpanded(expanded === row.id ? null : row.id)}
-                    className="text-xs underline"
-                  >
-                    {expanded === row.id ? "Skrýt" : "Zobrazit"}
+                <td className="p-2 border">{getStatus(row.total_due, row.paid_amount)}</td>
+                <td className="p-2 border text-center">
+                  <button onClick={() => handleEdit(row)}>
+                    {expandedId === row.id ? '🔼' : '🔽'}
                   </button>
                 </td>
               </tr>
-              {expanded === row.id && (
+
+              {expandedId === row.id && (
                 <tr>
-                  <td colSpan={5} className="bg-gray-50 p-2">
-                    <div className="flex flex-wrap gap-8 items-start">
+                  <td colSpan={6} className="p-4 bg-gray-50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <strong>Rozpad poplatků:</strong>
-                        <table className="text-xs">
+                        <strong>Rozpis poplatků</strong>
+                        <table className="mt-2 w-full text-sm">
                           <tbody>
                             {[
-                              ["Nájem", "rent", row.rent, row.charge_flags.rent_amount],
-                              ["Voda", "water", row.water, row.charge_flags.monthly_water],
-                              ["Plyn", "gas", row.gas, row.charge_flags.monthly_gas],
-                              ["Elektřina", "electricity", row.electricity, row.charge_flags.monthly_electricity],
-                              ["Služby", "services", row.services, row.charge_flags.monthly_services],
-                              ["Fond oprav", "repair_fund", row.repair_fund, row.charge_flags.repair_fund]
-                            ].map(([label, key, amount, flag]) => (
-                              <tr key={key as string}>
+                              ['Nájem', 'rent'],
+                              ['Voda', 'water'],
+                              ['Plyn', 'gas'],
+                              ['Elektřina', 'electricity'],
+                              ['Služby', 'services'],
+                              ['Fond oprav', 'repair_fund'],
+                            ].map(([label, key]) => (
+                              <tr key={key}>
                                 <td>{label}</td>
                                 <td>
                                   <input
                                     type="number"
-                                    value={amount as number}
-                                    min={0}
-                                    onChange={e => handleEdit(row.id, key as string, Number(e.target.value))}
-                                    className="border w-16 rounded p-1"
-                                  />
+                                    className="border w-20 rounded p-1"
+                                    value={(editedRow as any)[key] ?? ''}
+                                    onChange={e =>
+                                      handleChange(key, Number(e.target.value))
+                                    }
+                                  />{' '}
+                                  Kč
                                 </td>
                                 <td>
-                                  <input
-                                    type="checkbox"
-                                    checked={!!flag}
-                                    onChange={e => handleEdit(row.id, `charge_flags.${key}`, e.target.checked)}
-                                  /> Účtovat
+                                  <label className="ml-2 text-xs">
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        editedRow.charge_flags?.[key] ?? false
+                                      }
+                                      onChange={e =>
+                                        handleChange(
+                                          `charge_flags.${key}`,
+                                          e.target.checked
+                                        )
+                                      }
+                                    />{' '}
+                                    Účtovat
+                                  </label>
                                 </td>
                               </tr>
                             ))}
-                            {/* Vlastní poplatky */}
-                            {row.custom_charges?.map((cc, idx) => (
-                              <tr key={"cc" + idx}>
-                                <td>{cc.name}</td>
+
+                            {(editedRow.custom_charges || []).map((item, i) => (
+                              <tr key={i}>
+                                <td>{item.name}</td>
                                 <td>
                                   <input
                                     type="number"
-                                    value={cc.amount}
-                                    min={0}
-                                    onChange={e => handleEdit(row.id, 'custom_charges', { ...cc, amount: Number(e.target.value) }, idx)}
-                                    className="border w-16 rounded p-1"
-                                  />
+                                    className="border w-20 rounded p-1"
+                                    value={item.amount}
+                                    onChange={e => {
+                                      const newVal = Number(e.target.value)
+                                      setEditedRow(prev => {
+                                        const updated = [...(prev.custom_charges || [])]
+                                        updated[i].amount = newVal
+                                        return { ...prev, custom_charges: updated }
+                                      })
+                                    }}
+                                  />{' '}
+                                  Kč
                                 </td>
                                 <td>
-                                  <input
-                                    type="checkbox"
-                                    checked={!!cc.enabled}
-                                    onChange={e => handleEdit(row.id, 'custom_charges', { ...cc, enabled: e.target.checked }, idx)}
-                                  /> Účtovat
+                                  <label className="ml-2 text-xs">
+                                    <input
+                                      type="checkbox"
+                                      checked={item.enabled}
+                                      onChange={e => {
+                                        const checked = e.target.checked
+                                        setEditedRow(prev => {
+                                          const updated = [...(prev.custom_charges || [])]
+                                          updated[i].enabled = checked
+                                          return { ...prev, custom_charges: updated }
+                                        })
+                                      }}
+                                    />{' '}
+                                    Účtovat
+                                  </label>
                                 </td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
+
                       <div>
-                        <strong>Platby za měsíc:</strong>
-                        <ul className="pl-4 list-disc">
-                          {row.payments && row.payments.length > 0 ? (
-                            row.payments.map(p => (
-                              <li key={p.id}>
-                                {new Date(p.payment_date).toLocaleDateString('cs-CZ')}: {p.amount} Kč
-                                {p.note && <> – {p.note}</>}
-                              </li>
-                            ))
-                          ) : (
-                            <li>Žádné platby</li>
-                          )}
-                        </ul>
-                        <AddPaymentForm onAdd={amount => handleAddPayment(row.id, amount)} />
+                        <strong>Ostatní</strong>
+                        <div className="mt-2">
+                          <label>
+                            <span>Zaplaceno celkem:</span>
+                            <input
+                              type="number"
+                              className="ml-2 border rounded p-1 w-24"
+                              value={editedRow.paid_amount ?? ''}
+                              onChange={e =>
+                                handleChange('paid_amount', Number(e.target.value))
+                              }
+                            />{' '}
+                            Kč
+                          </label>
+                        </div>
+
+                        <div className="mt-4">
+                          <label>
+                            <span>Poznámka:</span>
+                            <textarea
+                              className="w-full border rounded p-1 mt-1"
+                              value={editedRow.note ?? ''}
+                              onChange={e =>
+                                handleChange('note', e.target.value)
+                              }
+                            />
+                          </label>
+                        </div>
+
+                        <button
+                          className="mt-4 bg-blue-600 text-white px-4 py-1 rounded"
+                          onClick={() => saveChanges(row.id)}
+                          disabled={saving}
+                        >
+                          {saving ? 'Ukládám...' : 'Uložit změny'}
+                        </button>
                       </div>
                     </div>
                   </td>
@@ -272,27 +278,3 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
   )
 }
 
-// Malý formulář na přidání platby k měsíci
-function AddPaymentForm({ onAdd }: { onAdd: (amount: number) => void }) {
-  const [amount, setAmount] = useState(0)
-  return (
-    <form
-      onSubmit={e => {
-        e.preventDefault()
-        if (amount > 0) onAdd(amount)
-        setAmount(0)
-      }}
-      className="mt-2 flex gap-2"
-    >
-      <input
-        type="number"
-        value={amount}
-        min={0}
-        onChange={e => setAmount(Number(e.target.value))}
-        placeholder="Přidat platbu"
-        className="border rounded p-1 w-24"
-      />
-      <button type="submit" className="bg-green-500 text-white px-3 py-1 rounded">Přidat</button>
-    </form>
-  )
-}
