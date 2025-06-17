@@ -28,6 +28,20 @@ type Props = {
   leaseId: string
 }
 
+const chargeKeys: (keyof Pick<
+  ObligationRow,
+  'rent' | 'water' | 'gas' | 'electricity' | 'services' | 'repair_fund'
+>)[] = ['rent', 'water', 'gas', 'electricity', 'services', 'repair_fund']
+
+const labels: Record<string, string> = {
+  rent: 'Nájem',
+  water: 'Voda',
+  gas: 'Plyn',
+  electricity: 'Elektřina',
+  services: 'Služby',
+  repair_fund: 'Fond oprav',
+}
+
 export default function MonthlyObligationsTable({ leaseId }: Props) {
   const [data, setData] = useState<ObligationRow[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -58,14 +72,17 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     setEditedRow({ ...row })
   }
 
-  const handleChange = (key: keyof ObligationRow | string, value: any) => {
+  const handleChange = (
+    key: keyof ObligationRow | `charge_flags.${string}`,
+    value: unknown
+  ) => {
     if (key.startsWith('charge_flags.')) {
       const flagKey = key.split('.')[1]
       setEditedRow(prev => ({
         ...prev,
         charge_flags: {
           ...prev.charge_flags,
-          [flagKey]: value,
+          [flagKey]: value as boolean,
         },
       }))
     } else {
@@ -93,7 +110,9 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
       console.error('Chyba při ukládání:', error)
     } else {
       setData(prev =>
-        prev.map(row => (row.id === id ? { ...row, ...editedRow } as ObligationRow : row))
+        prev.map(row =>
+          row.id === id ? { ...row, ...editedRow } as ObligationRow : row
+        )
       )
       setExpandedId(null)
       setEditedRow({})
@@ -150,21 +169,14 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                         <strong>Rozpis poplatků</strong>
                         <table className="mt-2 w-full text-sm">
                           <tbody>
-                            {([
-                              ['Nájem', 'rent'],
-                              ['Voda', 'water'],
-                              ['Plyn', 'gas'],
-                              ['Elektřina', 'electricity'],
-                              ['Služby', 'services'],
-                              ['Fond oprav', 'repair_fund'],
-                            ] as const).map(([label, key]) => (
+                            {chargeKeys.map(key => (
                               <tr key={key}>
-                                <td>{label}</td>
+                                <td>{labels[key]}</td>
                                 <td>
                                   <input
                                     type="number"
                                     className="border w-20 rounded p-1"
-                                    value={(editedRow as Record<string, number | undefined>)[key] ?? ''}
+                                    value={editedRow[key] ?? ''}
                                     onChange={e =>
                                       handleChange(key, Number(e.target.value))
                                     }
@@ -195,8 +207,11 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                     onChange={e => {
                                       const newVal = Number(e.target.value)
                                       setEditedRow(prev => {
-                                        const updated = [...(prev.custom_charges ?? [])] as CustomCharge[]
-                                        updated[i].amount = newVal
+                                        const updated = [...(prev.custom_charges ?? [])]
+                                        updated[i] = {
+                                          ...updated[i],
+                                          amount: newVal,
+                                        }
                                         return { ...prev, custom_charges: updated }
                                       })
                                     }}
@@ -210,8 +225,11 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                       onChange={e => {
                                         const checked = e.target.checked
                                         setEditedRow(prev => {
-                                          const updated = [...(prev.custom_charges ?? [])] as CustomCharge[]
-                                          updated[i].enabled = checked
+                                          const updated = [...(prev.custom_charges ?? [])]
+                                          updated[i] = {
+                                            ...updated[i],
+                                            enabled: checked,
+                                          }
                                           return { ...prev, custom_charges: updated }
                                         })
                                       }}
