@@ -7,6 +7,7 @@ import TenantPaymentHistory from './TenantPaymentHistory'
 
 type LeaseFormProps = {
   existingLease?: LeaseFromAPI
+  onSaved?: () => void
 }
 
 type LeaseFromAPI = {
@@ -30,28 +31,12 @@ type LeaseFromAPI = {
   }[]
 }
 
-type Property = {
-  id: string
-  name: string
-}
+type Property = { id: string; name: string }
+type Unit = { id: string; identifier: string; property_id: string }
+type Tenant = { id: string; name: string }
+type FieldState = { value: string; billable: boolean }
 
-type Unit = {
-  id: string
-  identifier: string
-  property_id: string
-}
-
-type Tenant = {
-  id: string
-  name: string
-}
-
-type FieldState = {
-  value: string
-  billable: boolean
-}
-
-export default function LeaseForm({ existingLease }: LeaseFormProps) {
+export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
   const [properties, setProperties] = useState<Property[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [tenants, setTenants] = useState<Tenant[]>([])
@@ -185,6 +170,7 @@ export default function LeaseForm({ existingLease }: LeaseFormProps) {
 
     if (res.ok) {
       setSuccess(true)
+      onSaved?.() // ✅ spustí refetch dat z EditLeasePage
     } else {
       const err = await res.json()
       setError(err.error || 'Chyba při odesílání')
@@ -317,6 +303,3 @@ export default function LeaseForm({ existingLease }: LeaseFormProps) {
     )
   }
 }
-
-
-
