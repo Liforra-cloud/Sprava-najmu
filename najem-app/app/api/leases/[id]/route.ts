@@ -69,8 +69,10 @@ export async function GET(
         : []
 
     const chargeFlags: ChargeFlags =
-      lease.charge_flags && typeof lease.charge_flags === 'object'
-        ? lease.charge_flags
+      lease.charge_flags &&
+      typeof lease.charge_flags === 'object' &&
+      !Array.isArray(lease.charge_flags)
+        ? (lease.charge_flags as ChargeFlags)
         : {}
 
     const customTotal = customCharges.reduce(
@@ -121,7 +123,10 @@ export async function PUT(
         repair_fund: Number(body.repair_fund ?? 0),
         custom_fields: typeof body.custom_fields === 'object' ? body.custom_fields : {},
         custom_charges: Array.isArray(body.custom_charges) ? body.custom_charges : [],
-        charge_flags: typeof body.charge_flags === 'object' ? body.charge_flags : {},
+        charge_flags:
+          typeof body.charge_flags === 'object' && !Array.isArray(body.charge_flags)
+            ? body.charge_flags
+            : {},
       },
     })
 
@@ -134,3 +139,4 @@ export async function PUT(
     )
   }
 }
+
