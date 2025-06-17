@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import LeaseForm from '@/components/LeaseForm'
 import MonthlyObligationsTable from '@/components/MonthlyObligationsTable'
 import { useParams } from 'next/navigation'
@@ -36,12 +36,18 @@ type LeaseFromAPI = {
 
 export default function EditLeasePage() {
   const params = useParams()
-  const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : ''
+  const id =
+    typeof params?.id === 'string'
+      ? params.id
+      : Array.isArray(params?.id)
+      ? params.id[0]
+      : ''
+
   const [lease, setLease] = useState<LeaseFromAPI | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchLease = async () => {
+  const fetchLease = useCallback(async () => {
     try {
       setLoading(true)
       const res = await fetch(`/api/leases/${id}`)
@@ -61,11 +67,11 @@ export default function EditLeasePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
   useEffect(() => {
     if (id) fetchLease()
-  }, [id])
+  }, [id, fetchLease])
 
   if (loading) return <p>Načítám…</p>
   if (error) return <p className="text-red-600">{error}</p>
@@ -85,4 +91,5 @@ export default function EditLeasePage() {
     </div>
   )
 }
+
 
