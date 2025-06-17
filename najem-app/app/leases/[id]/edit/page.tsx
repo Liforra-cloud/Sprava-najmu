@@ -1,7 +1,5 @@
 // najem-app/app/leases/[id]/edit/page.tsx
 
-// najem-app/app/leases/[id]/edit/page.tsx
-
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -44,14 +42,12 @@ export default function EditLeasePage() {
     typeof params?.id === 'string'
       ? params.id
       : Array.isArray(params?.id)
-        ? params.id[0]
-        : ''
+      ? params.id[0]
+      : ''
 
   const [lease, setLease] = useState<LeaseFromAPI | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState('')
-  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const fetchLease = useCallback(async () => {
     try {
@@ -81,20 +77,18 @@ export default function EditLeasePage() {
   }, [id, fetchLease])
 
   const handleDelete = async () => {
-    if (confirmDelete !== 'Smazat smlouvu') {
-      setDeleteError('Pro smazání musíte zadat přesný text: "Smazat smlouvu"')
-      return
-    }
+    const confirmed = prompt('Pro smazání smlouvy napište: Smazat smlouvu')
+    if (confirmed !== 'Smazat smlouvu') return
 
     const res = await fetch(`/api/leases/${id}`, {
-      method: 'DELETE',
+      method: 'DELETE'
     })
 
     if (res.ok) {
       router.push('/leases')
     } else {
       const error = await res.json()
-      setDeleteError(error.message || 'Nepodařilo se smazat smlouvu')
+      alert(error.message || 'Nepodařilo se smazat smlouvu')
     }
   }
 
@@ -113,19 +107,10 @@ export default function EditLeasePage() {
         <MonthlyObligationsTable leaseId={lease.id} />
       </div>
 
-      <div className="mt-8 border-t pt-6">
-        <h2 className="text-red-600 font-bold text-lg mb-2">Smazat smlouvu</h2>
-        <p className="mb-2">Pro potvrzení napište přesně: <strong>Smazat smlouvu</strong></p>
-        <input
-          type="text"
-          value={confirmDelete}
-          onChange={e => setConfirmDelete(e.target.value)}
-          className="border p-2 w-full rounded"
-        />
-        {deleteError && <p className="text-red-600 mt-1">{deleteError}</p>}
+      <div className="text-right mt-8">
         <button
           onClick={handleDelete}
-          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+          className="text-red-600 underline hover:text-red-800 transition"
         >
           Smazat smlouvu
         </button>
