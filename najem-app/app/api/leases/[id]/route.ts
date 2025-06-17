@@ -3,140 +3,83 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-type CustomCharge = {
-  name: string
-  amount: number
-  enabled: boolean
-}
-type ChargeFlags = {
-  rent_amount?: boolean
-  monthly_water?: boolean
-  monthly_gas?: boolean
-  monthly_electricity?: boolean
-  monthly_services?: boolean
-  repair_fund?: boolean
-}
+type CustomCharge = { name: string; amount: number; enabled: boolean }
+type ChargeFlags = { [key: string]: boolean }
 
-export async function GET(
-  _: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   try {
     const lease = await prisma.lease.findUnique({
       where: { id: params.id },
-      select: {
-        id: true,
-        name: true,
-        unit_id: true,
-        tenant_id: true,
-        start_date: true,
-        end_date: true,
-        rent_amount: true,
-        monthly_water: true,
-        monthly_gas: true,
-        monthly_electricity: true,
-        monthly_services: true,
-        repair_fund: true,
-        custom_fields: true,
-        total_billable_rent: true,
-        custom_charges: true,
-        charge_flags: true,
-        created_at: true,
-        updated_at: true,
-        tenant: { select: { full_name: true } },
-        unit: { select: { identifier: true, occupancy_status: true } },
-        payments: {
-          orderBy: { payment_date: 'desc' },
-          select: {
-            id: true,
-            amount: true,
-            payment_date: true,
-            note: true,
-            variable_symbol: true,
-          },
-        },
+      include: {
+        tenant: true,
+        unit: true,
+        payments: true,
       },
     })
 
-    if (!lease) {
-      return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
-    }
+    if (!lease) return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
 
-    const rawCharges = lease.custom_charges
-    const customCharges: CustomCharge[] =
-      Array.isArray(rawCharges) && rawCharges.every(c => c && typeof c === 'object')
-        ? (rawCharges as CustomCharge[])
-        : []
-
-    const chargeFlags: ChargeFlags =
-      lease.charge_flags &&
-      typeof lease.charge_flags === 'object' &&
-      !Array.isArray(lease.charge_flags)
-        ? (lease.charge_flags as ChargeFlags)
-        : {}
-
-    const customTotal = customCharges.reduce(
-      (sum, c) => (c.enabled ? sum + (c.amount || 0) : sum),
-      0
-    )
+    const customCharges = Array.isArray(lease.custom_charges) ? lease.custom_charges : []
+    const chargeFlags = typeof lease.charge_flags === 'object' ? lease.charge_flags : {}
 
     const totalBillableRent =
-      (chargeFlags.rent_amount ? Number(lease.rent_amount ?? 0) : 0) +
-      (chargeFlags.monthly_water ? Number(lease.monthly_water ?? 0) : 0) +
-      (chargeFlags.monthly_gas ? Number(lease.monthly_gas ?? 0) : 0) +
-      (chargeFlags.monthly_electricity ? Number(lease.monthly_electricity ?? 0) : 0) +
-      (chargeFlags.monthly_services ? Number(lease.monthly_services ?? 0) : 0) +
-      (chargeFlags.repair_fund ? Number(lease.repair_fund ?? 0) : 0) +
-      customTotal
+      (chargeFlags.rent_amount ? lease.rent_amount : 0) +
+      (chargeFlags.monthly_water ? lease.monthly_water : 0) +
+      (chargeFlags.monthly_gas ? lease.monthly_gas : 0) +
+      (chargeFlags.monthly_electricity ? lease.monthly_electricity : 0) +
+      (chargeFlags.monthly_services ? lease.monthly_services : 0) +
+      (chargeFlags.repair_fund ? lease.repair_fund : 0) +
+      customCharges.reduce((sum, c) => c.enabled ? sum + c.amount : sum, 0)
 
     return NextResponse.json({
       ...lease,
       totalBillableRent,
     })
   } catch (err) {
-    console.error('API error loading lease:', err)
-    return NextResponse.json(
-      { error: 'Server error při načítání smlouvy' },
-      { status: 500 }
-    )
+    console.error(err)
+    return NextResponse.json({ error: 'Chyba serveru při načítání' }, { status: 500 })
   }
 }
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const body = await req.json()
-
+    const data = await req.json()
     const lease = await prisma.lease.update({
       where: { id: params.id },
       data: {
-        name: body.name,
-        start_date: body.start_date ? new Date(body.start_date) : undefined,
-        end_date: body.end_date ? new Date(body.end_date) : null,
-        rent_amount: Number(body.rent_amount ?? 0),
-        monthly_water: Number(body.monthly_water ?? 0),
-        monthly_gas: Number(body.monthly_gas ?? 0),
-        monthly_electricity: Number(body.monthly_electricity ?? 0),
-        monthly_services: Number(body.monthly_services ?? 0),
-        repair_fund: Number(body.repair_fund ?? 0),
-        custom_fields: typeof body.custom_fields === 'object' ? body.custom_fields : {},
-        custom_charges: Array.isArray(body.custom_charges) ? body.custom_charges : [],
-        charge_flags:
-          typeof body.charge_flags === 'object' && !Array.isArray(body.charge_flags)
-            ? body.charge_flags
-            : {},
+        name: data.name,
+        unit_id: data.unit_id,
+        tenant_id: data.tenant_id,
+        start_date: new Date(data.start_date),
+        end_date: data.end_date ? new Date(data.end_date) : null,
+        due_date: data.due_date ? new Date(data.due_date) : null,
+        rent_amount: data.rent_amount,
+        monthly_water: data.monthly_water,
+        monthly_gas: data.monthly_gas,
+        monthly_electricity: data.monthly_electricity,
+        monthly_services: data.monthly_services,
+        repair_fund: data.repair_fund,
+        charge_flags: data.charge_flags,
+        custom_charges: data.custom_charges,
+        custom_fields: data.custom_fields ?? {},
       },
     })
 
     return NextResponse.json({ success: true, lease })
-  } catch (error) {
-    console.error('API error saving lease:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Chyba při ukládání smlouvy' },
-      { status: 500 }
-    )
+  } catch (err) {
+    console.error(err)
+    return NextResponse.json({ error: 'Chyba při aktualizaci smlouvy' }, { status: 500 })
   }
 }
 
+export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    await prisma.payment.deleteMany({ where: { lease_id: params.id } })
+    await prisma.monthlyObligation.deleteMany({ where: { lease_id: params.id } })
+    await prisma.lease.delete({ where: { id: params.id } })
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('Chyba při mazání smlouvy:', err)
+    return NextResponse.json({ error: 'Nepodařilo se smazat smlouvu' }, { status: 500 })
+  }
+}
