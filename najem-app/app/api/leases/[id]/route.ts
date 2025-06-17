@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import type { JsonValue } from '@prisma/client/runtime/library'
+import type { InputJsonValue } from '@prisma/client/runtime/library'
 
 type CustomCharge = {
   name: string
@@ -115,9 +115,9 @@ export async function PUT(
         monthly_electricity: Number(body.monthly_electricity ?? 0),
         monthly_services: Number(body.monthly_services ?? 0),
         repair_fund: Number(body.repair_fund ?? 0),
-        custom_fields: body.custom_fields as JsonValue,
-        custom_charges: body.custom_charges as JsonValue,
-        charge_flags: body.charge_flags as JsonValue,
+        custom_fields: body.custom_fields as InputJsonValue,
+        custom_charges: body.custom_charges as InputJsonValue,
+        charge_flags: body.charge_flags as InputJsonValue,
       },
     })
 
@@ -130,3 +130,4 @@ export async function PUT(
     )
   }
 }
+
