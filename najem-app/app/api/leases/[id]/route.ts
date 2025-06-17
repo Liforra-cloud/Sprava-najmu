@@ -22,7 +22,6 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Explicitně vyber pouze ta pole, která víme, že existují
     const lease = await prisma.lease.findUnique({
       where: { id: params.id },
       select: {
@@ -42,13 +41,21 @@ export async function GET(
         total_billable_rent: true,
         custom_charges: true,
         charge_flags: true,
+        occupancy_status: true,
         created_at: true,
         updated_at: true,
         tenant: { select: { full_name: true } },
         unit: { select: { identifier: true } },
-        payments: { orderBy: { payment_date: 'desc' }, select: {
-          id: true, amount: true, payment_date: true, note: true, variable_symbol: true
-        }},
+        payments: {
+          orderBy: { payment_date: 'desc' },
+          select: {
+            id: true,
+            amount: true,
+            payment_date: true,
+            note: true,
+            variable_symbol: true
+          }
+        }
       }
     })
 
@@ -56,14 +63,14 @@ export async function GET(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    // Bezpečně čteme JSON pole
     const customCharges: CustomCharge[] = Array.isArray(lease.custom_charges)
-      ? lease.custom_charges as CustomCharge[]
+      ? lease.custom_charges
       : []
 
-    const chargeFlags: ChargeFlags = lease.charge_flags && typeof lease.charge_flags === 'object' && !Array.isArray(lease.charge_flags)
-      ? lease.charge_flags as ChargeFlags
-      : {}
+    const chargeFlags: ChargeFlags =
+      lease.charge_flags && typeof lease.charge_flags === 'object'
+        ? lease.charge_flags
+        : {}
 
     const customTotal = customCharges.reduce(
       (sum, c) => (c.enabled ? sum + (c.amount || 0) : sum),
@@ -89,3 +96,38 @@ export async function GET(
   }
 }
 
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const body = await req.json()
+
+    const lease = await prisma.lease.update({
+      where: { id: params.id },
+      data: {
+        name: body.name,
+        start_date: body.start_date ? new Date(body.start_date) : undefined,
+        end_date: body.end_date ? new Date(body.end_date) : null,
+        rent_amount: Number(body.rent_amount ?? 0),
+        monthly_water: Number(body.monthly_water ?? 0),
+        monthly_gas: Number(body.monthly_gas ?? 0),
+        monthly_electricity: Number(body.monthly_electricity ?? 0),
+        monthly_services: Number(body.monthly_services ?? 0),
+        repair_fund: Number(body.repair_fund ?? 0),
+        custom_fields: typeof body.custom_fields === 'object' ? body.custom_fields : {},
+        custom_charges: Array.isArray(body.custom_charges) ? body.custom_charges : [],
+        charge_flags: typeof body.charge_flags === 'object' ? body.charge_flags : {},
+        occupancy_status: body.occupancy_status ?? undefined
+      }
+    })
+
+    return NextResponse.json({ success: true, lease })
+  } catch (error) {
+    console.error('API error saving lease:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Chyba při ukládání smlouvy' },
+      { status: 500 }
+    )
+  }
+}
