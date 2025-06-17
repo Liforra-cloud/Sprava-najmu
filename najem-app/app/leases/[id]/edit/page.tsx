@@ -1,5 +1,7 @@
 // najem-app/app/leases/[id]/edit/page.tsx
 
+// najem-app/app/leases/[id]/edit/page.tsx
+
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -42,8 +44,8 @@ export default function EditLeasePage() {
     typeof params?.id === 'string'
       ? params.id
       : Array.isArray(params?.id)
-      ? params.id[0]
-      : ''
+        ? params.id[0]
+        : ''
 
   const [lease, setLease] = useState<LeaseFromAPI | null>(null)
   const [loading, setLoading] = useState(true)
@@ -85,7 +87,7 @@ export default function EditLeasePage() {
     }
 
     const res = await fetch(`/api/leases/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
     })
 
     if (res.ok) {
@@ -111,19 +113,19 @@ export default function EditLeasePage() {
         <MonthlyObligationsTable leaseId={lease.id} />
       </div>
 
-      <div className="border border-red-300 p-4 rounded">
+      <div className="mt-8 border-t pt-6">
         <h2 className="text-red-600 font-bold text-lg mb-2">Smazat smlouvu</h2>
-        <p>Pro potvrzení napište &quot;Smazat smlouvu&quot;:</p>
+        <p className="mb-2">Pro potvrzení napište přesně: <strong>Smazat smlouvu</strong></p>
         <input
           type="text"
           value={confirmDelete}
           onChange={e => setConfirmDelete(e.target.value)}
-          className="border p-2 mt-2 w-full"
+          className="border p-2 w-full rounded"
         />
         {deleteError && <p className="text-red-600 mt-1">{deleteError}</p>}
         <button
           onClick={handleDelete}
-          className="bg-red-600 text-white px-4 py-2 mt-4 rounded"
+          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
         >
           Smazat smlouvu
         </button>
@@ -131,4 +133,5 @@ export default function EditLeasePage() {
     </div>
   )
 }
+
 
