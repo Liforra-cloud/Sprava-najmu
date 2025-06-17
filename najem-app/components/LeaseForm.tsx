@@ -139,7 +139,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     if (res.ok) {
       if (!existingLease) {
         const data = await res.json()
-        router.push(`/leases/${data.id}`)
+        router.push(`/leases/${data.id}/edit`)
       } else {
         setSuccess(true)
         onSaved?.()
