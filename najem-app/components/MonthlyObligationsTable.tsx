@@ -93,13 +93,31 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     }
   }
 
+  const calculateTotalDue = (row: Partial<ObligationRow>): number => {
+    const flags = row.charge_flags ?? {}
+    const baseSum = chargeKeys.reduce((sum, key) => {
+      if (flags[key]) {
+        sum += row[key] ?? 0
+      }
+      return sum
+    }, 0)
+
+    const customSum = (row.custom_charges ?? [])
+      .filter(c => c.enabled)
+      .reduce((sum, c) => sum + c.amount, 0)
+
+    return baseSum + customSum
+  }
+
   const saveChanges = async (id: string) => {
     setSaving(true)
+    const total_due = calculateTotalDue(editedRow)
 
     const { error } = await supabase
       .from('monthly_obligations')
       .update({
         ...editedRow,
+        total_due,
         charge_flags: editedRow.charge_flags ?? {},
         custom_charges: editedRow.custom_charges ?? [],
         updated_at: new Date().toISOString(),
@@ -111,7 +129,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     } else {
       setData(prev =>
         prev.map(row =>
-          row.id === id ? { ...row, ...editedRow } as ObligationRow : row
+          row.id === id ? { ...row, ...editedRow, total_due } as ObligationRow : row
         )
       )
       setExpandedId(null)
@@ -290,3 +308,4 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     </div>
   )
 }
+
