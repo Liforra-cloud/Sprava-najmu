@@ -5,6 +5,8 @@
 import { useEffect, useState, Fragment } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
+type CustomCharge = { name: string; amount: number; enabled: boolean }
+
 type ObligationRow = {
   id: string
   year: number
@@ -18,7 +20,7 @@ type ObligationRow = {
   total_due: number
   paid_amount: number
   note: string | null
-  custom_charges: { name: string; amount: number; enabled: boolean }[]
+  custom_charges: CustomCharge[]
   charge_flags: Record<string, boolean>
 }
 
@@ -45,7 +47,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
         console.error(error)
         return
       }
-      setData(data)
+      setData(data as ObligationRow[])
     }
 
     fetchObligations()
@@ -67,7 +69,10 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
         },
       }))
     } else {
-      setEditedRow(prev => ({ ...prev, [key]: value }))
+      setEditedRow(prev => ({
+        ...prev,
+        [key]: value,
+      }))
     }
   }
 
@@ -88,7 +93,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
       console.error('Chyba při ukládání:', error)
     } else {
       setData(prev =>
-        prev.map(row => (row.id === id ? { ...row, ...editedRow } : row))
+        prev.map(row => (row.id === id ? { ...row, ...editedRow } as ObligationRow : row))
       )
       setExpandedId(null)
       setEditedRow({})
@@ -145,48 +150,41 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                         <strong>Rozpis poplatků</strong>
                         <table className="mt-2 w-full text-sm">
                           <tbody>
-                            {[
+                            {([
                               ['Nájem', 'rent'],
                               ['Voda', 'water'],
                               ['Plyn', 'gas'],
                               ['Elektřina', 'electricity'],
                               ['Služby', 'services'],
                               ['Fond oprav', 'repair_fund'],
-                            ].map(([label, key]) => (
+                            ] as const).map(([label, key]) => (
                               <tr key={key}>
                                 <td>{label}</td>
                                 <td>
                                   <input
                                     type="number"
                                     className="border w-20 rounded p-1"
-                                    value={(editedRow as any)[key] ?? ''}
+                                    value={(editedRow as Record<string, number | undefined>)[key] ?? ''}
                                     onChange={e =>
                                       handleChange(key, Number(e.target.value))
                                     }
-                                  />{' '}
-                                  Kč
+                                  /> Kč
                                 </td>
                                 <td>
                                   <label className="ml-2 text-xs">
                                     <input
                                       type="checkbox"
-                                      checked={
-                                        editedRow.charge_flags?.[key] ?? false
-                                      }
+                                      checked={editedRow.charge_flags?.[key] ?? false}
                                       onChange={e =>
-                                        handleChange(
-                                          `charge_flags.${key}`,
-                                          e.target.checked
-                                        )
+                                        handleChange(`charge_flags.${key}`, e.target.checked)
                                       }
-                                    />{' '}
-                                    Účtovat
+                                    /> Účtovat
                                   </label>
                                 </td>
                               </tr>
                             ))}
 
-                            {(editedRow.custom_charges || []).map((item, i) => (
+                            {(editedRow.custom_charges ?? []).map((item, i) => (
                               <tr key={i}>
                                 <td>{item.name}</td>
                                 <td>
@@ -197,13 +195,12 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                     onChange={e => {
                                       const newVal = Number(e.target.value)
                                       setEditedRow(prev => {
-                                        const updated = [...(prev.custom_charges || [])]
+                                        const updated = [...(prev.custom_charges ?? [])] as CustomCharge[]
                                         updated[i].amount = newVal
                                         return { ...prev, custom_charges: updated }
                                       })
                                     }}
-                                  />{' '}
-                                  Kč
+                                  /> Kč
                                 </td>
                                 <td>
                                   <label className="ml-2 text-xs">
@@ -213,13 +210,12 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                       onChange={e => {
                                         const checked = e.target.checked
                                         setEditedRow(prev => {
-                                          const updated = [...(prev.custom_charges || [])]
+                                          const updated = [...(prev.custom_charges ?? [])] as CustomCharge[]
                                           updated[i].enabled = checked
                                           return { ...prev, custom_charges: updated }
                                         })
                                       }}
-                                    />{' '}
-                                    Účtovat
+                                    /> Účtovat
                                   </label>
                                 </td>
                               </tr>
@@ -240,8 +236,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                               onChange={e =>
                                 handleChange('paid_amount', Number(e.target.value))
                               }
-                            />{' '}
-                            Kč
+                            /> Kč
                           </label>
                         </div>
 
@@ -277,4 +272,3 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     </div>
   )
 }
-
