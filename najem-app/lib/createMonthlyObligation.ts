@@ -1,5 +1,7 @@
 //lib/createMonthlyObligation.ts
 
+// lib/createMonthlyObligation.ts
+
 import { prisma } from './prisma'
 
 type ChargeFlags = {
@@ -36,9 +38,11 @@ export async function createMonthlyObligation({
     ? (lease.charge_flags as ChargeFlags)
     : {}
 
-  const customCharges: CustomCharge[] = Array.isArray(lease.custom_charges)
+  const allCustomCharges: CustomCharge[] = Array.isArray(lease.custom_charges)
     ? lease.custom_charges as CustomCharge[]
     : []
+
+  const enabledCustomCharges = allCustomCharges.filter(c => c.enabled)
 
   const rent = flags.rent_amount ? Number(lease.rent_amount ?? 0) : 0
   const water = flags.monthly_water ? Number(lease.monthly_water ?? 0) : 0
@@ -47,8 +51,8 @@ export async function createMonthlyObligation({
   const services = flags.monthly_services ? Number(lease.monthly_services ?? 0) : 0
   const repairs = flags.repair_fund ? Number(lease.repair_fund ?? 0) : 0
 
-  const custom = customCharges.reduce(
-    (sum, charge) => (charge.enabled ? sum + Number(charge.amount ?? 0) : sum),
+  const custom = enabledCustomCharges.reduce(
+    (sum, charge) => sum + Number(charge.amount ?? 0),
     0
   )
 
@@ -69,10 +73,11 @@ export async function createMonthlyObligation({
       paid_amount: 0,
       debt: total,
       charge_flags: flags,
-      custom_charges: customCharges,
+      custom_charges: enabledCustomCharges, // ✅ Jen aktivní
       note: '',
     },
   })
 
   return obligation
 }
+
