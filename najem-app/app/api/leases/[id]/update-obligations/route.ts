@@ -4,11 +4,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
 
-/** Tvar, jaký máme v DB pro custom_charges */
+/** Stejný tvar, jaký používáme v DB pro custom_charges */
 interface CustomCharge {
   name: string
   amount: number
   enabled: boolean
+}
+
+/** Tělo POSTu: buď "all" nebo "future" */
+interface RequestBody {
+  mode: 'all' | 'future'
 }
 
 export async function POST(
@@ -17,19 +22,13 @@ export async function POST(
 ) {
   try {
     const leaseId = params.id
+    // typujeme JSON tělo bez `any`
+    const body = (await req.json()) as RequestBody
+    const { mode } = body
 
-    // 1) Debug: mode a leaseId
-    let body: any
-    try {
-      body = await req.json()
-    } catch (e) {
-      console.error('🔴 Invalid JSON body', e)
-      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
-    }
-    const { mode } = body as { mode?: string }
     console.log('🛠️ update-obligations called', { leaseId, mode })
 
-    // 2) Načteme základní data smlouvy
+    // Načteme jen potřebná pole smlouvy
     const lease = await prisma.lease.findUnique({
       where: { id: leaseId },
       select: {
@@ -48,14 +47,11 @@ export async function POST(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    // 3) Sestavíme WHERE podmínku
-    let whereClause: Prisma.MonthlyObligationWhereInput = {
-      lease_id: leaseId,
-    }
+    // Sestavíme WHERE podle režimu
+    let whereClause: Prisma.MonthlyObligationWhereInput = { lease_id: leaseId }
 
     if (mode === 'future') {
       const now = new Date()
-      // příští měsíc
       const next = new Date(now.getFullYear(), now.getMonth() + 1, 1)
       const year = next.getFullYear()
       const month = next.getMonth() + 1
@@ -67,22 +63,19 @@ export async function POST(
       }
     }
 
-    // Debug: co se posílá do findMany
     console.log('🛠️ whereClause:', whereClause)
 
-    // Získáme příslušné zápisy
     const obligations = await prisma.monthlyObligation.findMany({
       where: whereClause,
     })
     console.log('🛠️ obligations to update:', obligations.length)
 
-    // Rozbalíme flagy a custom_charges
+    // Rozbalíme JSONB
     const flags = (lease.charge_flags ?? {}) as Record<string, boolean>
     const customs = Array.isArray(lease.custom_charges)
       ? (lease.custom_charges as unknown as CustomCharge[])
       : []
 
-    // 4) Projdeme a updatujeme
     for (const ob of obligations) {
       const rent = flags.rent_amount ? Number(lease.rent_amount ?? 0) : 0
       const water = flags.monthly_water ? Number(lease.monthly_water ?? 0) : 0
@@ -110,7 +103,6 @@ export async function POST(
           repair_fund: repairs,
           total_due,
           debt,
-          // Prisma očekává JsonObject / JsonArray, proto přetypujeme:
           charge_flags: flags as unknown as Prisma.JsonObject,
           custom_charges: customs as unknown as Prisma.JsonArray,
         },
@@ -119,7 +111,6 @@ export async function POST(
     }
 
     return NextResponse.json({ success: true })
-
   } catch (err) {
     console.error('Chyba při update-obligations:', err)
     return NextResponse.json(
