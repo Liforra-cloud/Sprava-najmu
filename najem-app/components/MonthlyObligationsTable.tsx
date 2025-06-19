@@ -159,13 +159,11 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
   }
 
   const setPaymentAmount = async (id: string, amount: number) => {
-    const row = data.find(r => r.id === id)
-    if (!row) return
-    const updatedRow = { ...row, paid_amount: amount }
     await supabase
       .from('monthly_obligations')
       .update({ paid_amount: amount, updated_at: new Date().toISOString() })
       .eq('id', id)
+
     setData(prev =>
       prev.map(r => (r.id === id ? { ...r, paid_amount: amount } : r))
     )
@@ -195,7 +193,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                   {editingPayment === row.id ? (
                     <input
                       type="number"
-                      className="w-20 border rounded p-1"
+                      className="w-20 border rounded p-1 text-right"
                       autoFocus
                       defaultValue={row.paid_amount}
                       onBlur={e => {
@@ -206,7 +204,9 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                   ) : (
                     <>
                       {row.paid_amount} Kč{' '}
-                      <button onClick={() => setEditingPayment(row.id)}>✏️</button>
+                      <button onClick={() => setEditingPayment(row.id)} className="ml-2">
+                        ✏️
+                      </button>
                     </>
                   )}
                 </td>
@@ -306,7 +306,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
 
                       <div>
                         <strong>Ostatní</strong>
-                        <div className="mt-2">
+                        <div className="mt-4">
                           <label>
                             <span>Poznámka:</span>
                             <textarea
@@ -338,4 +338,5 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     </div>
   )
 }
+
 
