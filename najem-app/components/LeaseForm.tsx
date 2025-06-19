@@ -1,8 +1,11 @@
 // components/LeaseForm.tsx
 
+// components/LeaseForm.tsx
+
 'use client'
 
 import { useEffect, useState } from 'react'
+import { toast } from 'react-hot-toast'
 
 type LeaseFromAPI = {
   id: string
@@ -138,11 +141,10 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     })),
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function saveLease(): Promise<boolean> {
     if (!tenantId || !unitId || !startDate) {
       setError('Chybí povinná pole')
-      return
+      return false
     }
     setError('')
     const method = existingLease ? 'PUT' : 'POST'
@@ -155,9 +157,11 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     if (res.ok) {
       setSuccess(true)
       onSaved?.()
+      return true
     } else {
       const data = await res.json()
       setError(data.error || 'Chyba při ukládání')
+      return false
     }
   }
 
@@ -170,15 +174,26 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       body: JSON.stringify({ mode }),
     })
     if (res.ok) {
-      alert('Závazky byly aktualizovány')
+      toast.success(
+        mode === 'future'
+          ? 'Budoucí závazky aktualizovány'
+          : 'Všechny závazky aktualizovány'
+      )
     } else {
-      alert('Chyba při aktualizaci závazků')
+      toast.error('Chyba při aktualizaci závazků')
     }
     setUpdatingObligations(false)
   }
 
+  async function handleSaveAndUpdate(mode: 'future' | 'all') {
+    const ok = await saveLease()
+    if (ok) {
+      await updateObligations(mode)
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form className="space-y-6">
       {error && <p className="text-red-600 font-bold">{error}</p>}
       {success && <p className="text-green-600 font-bold">Smlouva uložena.</p>}
 
@@ -187,43 +202,81 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         <legend className="text-lg font-bold mb-2 col-span-full">Základní informace</legend>
         <label>
           Nájemník:
-          <select value={tenantId} onChange={e => setTenantId(e.target.value)} className="w-full border p-2 rounded">
+          <select
+            value={tenantId}
+            onChange={e => setTenantId(e.target.value)}
+            className="w-full border p-2 rounded"
+          >
             <option value="">-- Vyber nájemníka --</option>
             {tenants.map(t => (
-              <option key={t.id} value={t.id}>{t.full_name}</option>
+              <option key={t.id} value={t.id}>
+                {t.full_name}
+              </option>
             ))}
           </select>
         </label>
+
         <label>
           Název smlouvy:
-          <input value={name} onChange={e => setName(e.target.value)} className="w-full border p-2 rounded" />
+          <input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className="w-full border p-2 rounded"
+          />
         </label>
+
         <label>
           Nemovitost:
-          <select value={selectedPropertyId} onChange={e => setSelectedPropertyId(e.target.value)} className="w-full border p-2 rounded">
+          <select
+            value={selectedPropertyId}
+            onChange={e => setSelectedPropertyId(e.target.value)}
+            className="w-full border p-2 rounded"
+          >
             <option value="">-- Vyber nemovitost --</option>
             {properties.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
             ))}
           </select>
         </label>
+
         <label>
           Jednotka:
-          <select value={unitId} onChange={e => setUnitId(e.target.value)} className="w-full border p-2 rounded">
+          <select
+            value={unitId}
+            onChange={e => setUnitId(e.target.value)}
+            className="w-full border p-2 rounded"
+          >
             <option value="">-- Vyber jednotku --</option>
             {filteredUnits.map(u => (
-              <option key={u.id} value={u.id}>{u.identifier}</option>
+              <option key={u.id} value={u.id}>
+                {u.identifier}
+              </option>
             ))}
           </select>
         </label>
+
         <label>
           Začátek nájmu:
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full border p-2 rounded" />
+          <input
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+            className="w-full border p-2 rounded"
+          />
         </label>
+
         <label>
           Konec nájmu:
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full border p-2 rounded" />
+          <input
+            type="date"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+            className="w-full border p-2 rounded"
+          />
         </label>
+
         <label>
           Den splatnosti (1–31):
           <input
@@ -286,7 +339,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
                   arr[idx].billable = e.target.checked
                   setCustomFields(arr)
                 }}
-              />
+              />{' '}
               Účtovat
             </label>
           </div>
@@ -294,7 +347,9 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         {customFields.length < 5 && (
           <button
             type="button"
-            onClick={() => setCustomFields([...customFields, { label: '', value: '', billable: true }])}
+            onClick={() =>
+              setCustomFields([...customFields, { label: '', value: '', billable: true }])
+            }
             className="text-blue-600 mt-2 underline"
           >
             Přidat položku
@@ -303,35 +358,42 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       </fieldset>
 
       {/* Akce */}
-      <div className="flex justify-between items-center pt-4 space-x-2">
-        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
-          Uložit smlouvu
+      {existingLease ? (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={updatingObligations}
+            className="bg-green-600 text-white px-4 py-2 rounded"
+            onClick={() => handleSaveAndUpdate('future')}
+          >
+            Uložit a aktualizovat budoucí závazky
+          </button>
+          <button
+            type="button"
+            disabled={updatingObligations}
+            className="bg-green-800 text-white px-4 py-2 rounded"
+            onClick={() => handleSaveAndUpdate('all')}
+          >
+            Uložit a aktualizovat všechny závazky
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="bg-green-600 text-white px-4 py-2 rounded"
+          onClick={() => handleSaveAndUpdate('all')}
+        >
+          Uložit
         </button>
-        {existingLease && (
-          <>
-            <button
-              type="button"
-              disabled={updatingObligations}
-              className="bg-blue-500 text-white px-4 py-2 rounded"
-              onClick={() => updateObligations('future')}
-            >
-              Aktualizovat budoucí závazky
-            </button>
-            <button
-              type="button"
-              disabled={updatingObligations}
-              className="bg-blue-700 text-white px-4 py-2 rounded"
-              onClick={() => updateObligations('all')}
-            >
-              Aktualizovat všechny závazky
-            </button>
-          </>
-        )}
-      </div>
+      )}
     </form>
   )
 
-  function renderField(label: string, state: FieldState, setter: (v: FieldState) => void) {
+  function renderField(
+    label: string,
+    state: FieldState,
+    setter: (v: FieldState) => void
+  ) {
     return (
       <label className="flex flex-col">
         {label}:
