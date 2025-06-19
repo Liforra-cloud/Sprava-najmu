@@ -1,11 +1,8 @@
 // components/LeaseForm.tsx
 
-// components/LeaseForm.tsx
-
 'use client'
 
 import { useEffect, useState } from 'react'
-import { toast } from 'react-hot-toast'
 
 type LeaseFromAPI = {
   id: string
@@ -174,22 +171,20 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       body: JSON.stringify({ mode }),
     })
     if (res.ok) {
-      toast.success(
+      alert(
         mode === 'future'
-          ? 'Budoucí závazky aktualizovány'
-          : 'Všechny závazky aktualizovány'
+          ? 'Budoucí závazky byly úspěšně aktualizovány.'
+          : 'Všechny závazky byly úspěšně aktualizovány.'
       )
     } else {
-      toast.error('Chyba při aktualizaci závazků')
+      alert('Chyba při aktualizaci závazků.')
     }
     setUpdatingObligations(false)
   }
 
   async function handleSaveAndUpdate(mode: 'future' | 'all') {
     const ok = await saveLease()
-    if (ok) {
-      await updateObligations(mode)
-    }
+    if (ok) await updateObligations(mode)
   }
 
   return (
@@ -381,7 +376,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         <button
           type="button"
           className="bg-green-600 text-white px-4 py-2 rounded"
-          onClick={() => handleSaveAndUpdate('all')}
+          onClick={() => saveLease()}
         >
           Uložit
         </button>
