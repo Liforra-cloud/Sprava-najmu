@@ -16,13 +16,9 @@ export async function POST(
 ) {
   try {
     const leaseId = params.id
-    const body = (await req.json()) as {
-      mode?: 'all' | 'future'
-      year?: number
-      month?: number
-    }
+    const { mode } = (await req.json()) as { mode: 'all' | 'future' }
 
-    // načíst smlouvu
+    // Načteme jen potřebná pole smlouvy
     const lease = await prisma.lease.findUnique({
       where: { id: leaseId },
       select: {
@@ -36,36 +32,24 @@ export async function POST(
         custom_charges: true,
       },
     })
-    if (!lease) return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
+    if (!lease) {
+      return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
+    }
 
-    // postavíme whereClause
+    // Sestrojíme where podle režimu
     let whereClause: Prisma.MonthlyObligationWhereInput = { lease_id: leaseId }
 
-    // pokud mám explicit year+month, použij je
-    if (body.year != null && body.month != null) {
-      whereClause = {
-        lease_id: leaseId,
-        year: body.year,
-        month: body.month,
-      }
-    } else if (body.mode === 'future') {
-      // jen budoucí
+    if (mode === 'future') {
+      // pouze další měsíc
       const now = new Date()
-      const Y = now.getFullYear()
-      const M = now.getMonth() + 1
+      const next = new Date(now.getFullYear(), now.getMonth() + 1, 1)
       whereClause = {
         lease_id: leaseId,
-        AND: [
-          {
-            OR: [
-              { year: { gt: Y } },
-              { AND: [{ year: Y }, { month: { gt: M } }] },
-            ],
-          },
-        ],
+        year: next.getFullYear(),
+        month: next.getMonth() + 1,
       }
     }
-    // jinak (mode==='all' nebo nic) zůstává jen podle lease_id
+    // else mode==='all' => necháme jen lease_id, takže updatuje všechny
 
     const obligations = await prisma.monthlyObligation.findMany({ where: whereClause })
 
@@ -116,4 +100,3 @@ export async function POST(
     )
   }
 }
-
