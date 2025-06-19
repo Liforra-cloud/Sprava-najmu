@@ -103,6 +103,8 @@ export async function PUT(
   try {
     const body = await req.json()
 
+    console.log('⬅️ PUT /api/leases/:id – body:', body)
+
     const updatedLease = await prisma.lease.update({
       where: { id: params.id },
       data: {
@@ -111,7 +113,7 @@ export async function PUT(
         tenant_id: body.tenant_id,
         start_date: body.start_date ? new Date(body.start_date) : undefined,
         end_date: body.end_date ? new Date(body.end_date) : null,
-        due_day: body.due_day ? parseInt(body.due_day) : 1,
+        due_day: typeof body.due_day === 'number' ? body.due_day : null,
         rent_amount: Number(body.rent_amount ?? 0),
         monthly_water: Number(body.monthly_water ?? 0),
         monthly_gas: Number(body.monthly_gas ?? 0),
@@ -124,7 +126,6 @@ export async function PUT(
       },
     })
 
-    // ✅ Aktualizuj měsíční závazky
     const obligations = await prisma.monthlyObligation.findMany({
       where: { lease_id: params.id },
     })
@@ -197,4 +198,3 @@ export async function DELETE(
     )
   }
 }
-
