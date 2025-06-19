@@ -47,35 +47,38 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editedRow, setEditedRow] = useState<Partial<ObligationRow>>({})
   const [saving, setSaving] = useState(false)
-  const [editingPayment, setEditingPayment] = useState<string | null>(null)
+  const [dueDay, setDueDay] = useState<number>(15)
 
   useEffect(() => {
-    const fetchObligations = async () => {
-      const { data, error } = await supabase
-        .from('monthly_obligations')
-        .select('*')
-        .eq('lease_id', leaseId)
-        .order('year', { ascending: true })
-        .order('month', { ascending: true })
+    const fetchAll = async () => {
+      const [{ data: obligations }, { data: lease }] = await Promise.all([
+        supabase
+          .from('monthly_obligations')
+          .select('*')
+          .eq('lease_id', leaseId)
+          .order('year', { ascending: true })
+          .order('month', { ascending: true }),
+        supabase
+          .from('leases')
+          .select('due_day')
+          .eq('id', leaseId)
+          .single()
+      ])
 
-      if (error) {
-        console.error(error)
-        return
-      }
-      setData(data as ObligationRow[])
+      if (lease?.due_day) setDueDay(lease.due_day)
+      if (obligations) setData(obligations as ObligationRow[])
     }
 
-    fetchObligations()
+    fetchAll()
   }, [leaseId])
 
   const handleEdit = (row: ObligationRow) => {
-    if (expandedId === row.id) {
-      setExpandedId(null)
-      setEditedRow({})
-    } else {
-      setExpandedId(row.id)
-      setEditedRow({ ...row })
-    }
+    setExpandedId(row.id)
+    setEditedRow({
+      ...row,
+      charge_flags: row.charge_flags ?? {},
+      custom_charges: row.custom_charges ?? [],
+    })
   }
 
   const handleChange = (
@@ -130,9 +133,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
       })
       .eq('id', id)
 
-    if (error) {
-      console.error('Chyba při ukládání:', error)
-    } else {
+    if (!error) {
       setData(prev =>
         prev.map(row =>
           row.id === id ? { ...row, ...editedRow, total_due } as ObligationRow : row
@@ -140,6 +141,8 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
       )
       setExpandedId(null)
       setEditedRow({})
+    } else {
+      console.error('Chyba při ukládání:', error)
     }
 
     setSaving(false)
@@ -150,24 +153,26 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
 
   const getStatus = (due: number, paid: number, year: number, month: number) => {
     const now = new Date()
-    const dueDate = new Date(year, month - 1, 15)
-    if (paid > due) return `✅ Přeplatek ${paid - due} Kč`
+    const dueDate = new Date(year, month - 1, dueDay)
+
+    if (paid > due) return `🟡 Přeplatek ${paid - due} Kč`
     if (paid === due) return '✅ Zaplaceno'
     if (paid > 0 && paid < due) return '⚠ Částečně'
     if (now > dueDate) return '🔴 Po splatnosti'
     return '❌ Nezaplaceno'
   }
 
-  const setPaymentAmount = async (id: string, amount: number) => {
-    await supabase
-      .from('monthly_obligations')
-      .update({ paid_amount: amount, updated_at: new Date().toISOString() })
-      .eq('id', id)
-
-    setData(prev =>
-      prev.map(r => (r.id === id ? { ...r, paid_amount: amount } : r))
-    )
-    setEditingPayment(null)
+  const setPaymentAmount = (id: string, amount: number) => {
+    const row = data.find(r => r.id === id)
+    if (!row) return
+    const updated = {
+      ...row,
+      paid_amount: amount,
+      charge_flags: row.charge_flags ?? {},
+      custom_charges: row.custom_charges ?? [],
+    }
+    setEditedRow(updated)
+    saveChanges(id)
   }
 
   return (
@@ -189,29 +194,18 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
               <tr className="hover:bg-gray-50">
                 <td className="p-2 border">{formatMonth(row.month, row.year)}</td>
                 <td className="p-2 border">{row.total_due} Kč</td>
-                <td className="p-2 border text-right">
-                  {editingPayment === row.id ? (
-                    <input
-                      type="number"
-                      className="w-20 border rounded p-1 text-right"
-                      autoFocus
-                      defaultValue={row.paid_amount}
-                      onBlur={e => {
-                        const val = parseFloat(e.target.value)
-                        if (!isNaN(val)) setPaymentAmount(row.id, val)
-                      }}
-                    />
-                  ) : (
-                    <>
-                      {row.paid_amount} Kč{' '}
-                      <button onClick={() => setEditingPayment(row.id)} className="ml-2">
-                        ✏️
-                      </button>
-                    </>
-                  )}
+                <td className="p-2 border">
+                  {row.paid_amount} Kč
+                  <button
+                    onClick={() => setPaymentAmount(row.id, row.total_due)}
+                    className="ml-2 text-gray-500 hover:text-black"
+                    title="Upravit částku"
+                  >
+                    ✏️
+                  </button>
                 </td>
                 <td className="p-2 border">
-                  {new Date(row.year, row.month - 1, 15).toLocaleDateString('cs-CZ')}
+                  {new Date(row.year, row.month - 1, dueDay).toLocaleDateString('cs-CZ')}
                 </td>
                 <td className="p-2 border">
                   {getStatus(row.total_due, row.paid_amount, row.year, row.month)}
@@ -306,7 +300,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
 
                       <div>
                         <strong>Ostatní</strong>
-                        <div className="mt-4">
+                        <div className="mt-2">
                           <label>
                             <span>Poznámka:</span>
                             <textarea
@@ -338,5 +332,6 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     </div>
   )
 }
+
 
 
