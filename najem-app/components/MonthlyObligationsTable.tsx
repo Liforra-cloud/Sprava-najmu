@@ -47,6 +47,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editedRow, setEditedRow] = useState<Partial<ObligationRow>>({})
   const [saving, setSaving] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchObligations = async () => {
@@ -101,7 +102,9 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
   const calculateTotalDue = (row: Partial<ObligationRow>): number => {
     const flags = row.charge_flags ?? {}
     const baseSum = chargeKeys.reduce((sum, key) => {
-      if (flags[key]) sum += row[key] ?? 0
+      if (flags[key]) {
+        sum += row[key] ?? 0
+      }
       return sum
     }, 0)
 
@@ -142,12 +145,15 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     setSaving(false)
   }
 
+  const formatMonth = (month: number, year: number) =>
+    `${String(month).padStart(2, '0')}/${year}`
+
   const getStatus = (due: number, paid: number, year: number, month: number) => {
     const now = new Date()
-    const dueDate = new Date(year, month - 1, 15) // nebo dynamický z leases
-    if (paid > due) return `🟡 Přeplatek o ${paid - due} Kč`
+    const dueDate = new Date(year, month - 1, 15)
+    if (paid > due) return `✅ Přeplatek ${paid - due} Kč`
     if (paid === due) return '✅ Zaplaceno'
-    if (paid > 0) return '⚠ Částečně'
+    if (paid > 0 && paid < due) return '⚠ Částečně'
     if (now > dueDate) return '🔴 Po splatnosti'
     return '❌ Nezaplaceno'
   }
@@ -156,26 +162,15 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     const row = data.find(r => r.id === id)
     if (!row) return
     const updatedRow = { ...row, paid_amount: amount }
-    const total_due = calculateTotalDue(updatedRow)
-    const { error } = await supabase
+    await supabase
       .from('monthly_obligations')
-      .update({
-        paid_amount: amount,
-        total_due,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ paid_amount: amount, updated_at: new Date().toISOString() })
       .eq('id', id)
-    if (!error) {
-      setData(prev =>
-        prev.map(r => (r.id === id ? { ...r, paid_amount: amount, total_due } : r))
-      )
-    } else {
-      console.error(error)
-    }
+    setData(prev =>
+      prev.map(r => (r.id === id ? { ...r, paid_amount: amount } : r))
+    )
+    setEditingPayment(null)
   }
-
-  const formatMonth = (month: number, year: number) =>
-    `${String(month).padStart(2, '0')}/${year}`
 
   return (
     <div className="overflow-x-auto">
@@ -187,7 +182,6 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
             <th className="p-2 border">Zaplaceno</th>
             <th className="p-2 border">Splatnost</th>
             <th className="p-2 border">Stav</th>
-            <th className="p-2 border">Akce</th>
             <th className="p-2 border">Detail</th>
           </tr>
         </thead>
@@ -197,35 +191,30 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
               <tr className="hover:bg-gray-50">
                 <td className="p-2 border">{formatMonth(row.month, row.year)}</td>
                 <td className="p-2 border">{row.total_due} Kč</td>
-                <td className="p-2 border">
-                  {row.paid_amount} Kč
-                  <button
-                    onClick={() => {
-                      const částka = prompt('Zadej zaplacenou částku:', row.paid_amount.toString())
-                      if (částka) {
-                        const amount = parseFloat(částka)
-                        if (!isNaN(amount)) setPaymentAmount(row.id, amount)
-                      }
-                    }}
-                    className="ml-2 text-gray-500 hover:text-blue-600"
-                    title="Upravit částku"
-                  >
-                    ✏️
-                  </button>
+                <td className="p-2 border text-right">
+                  {editingPayment === row.id ? (
+                    <input
+                      type="number"
+                      className="w-20 border rounded p-1"
+                      autoFocus
+                      defaultValue={row.paid_amount}
+                      onBlur={e => {
+                        const val = parseFloat(e.target.value)
+                        if (!isNaN(val)) setPaymentAmount(row.id, val)
+                      }}
+                    />
+                  ) : (
+                    <>
+                      {row.paid_amount} Kč{' '}
+                      <button onClick={() => setEditingPayment(row.id)}>✏️</button>
+                    </>
+                  )}
                 </td>
                 <td className="p-2 border">
                   {new Date(row.year, row.month - 1, 15).toLocaleDateString('cs-CZ')}
                 </td>
                 <td className="p-2 border">
                   {getStatus(row.total_due, row.paid_amount, row.year, row.month)}
-                </td>
-                <td className="p-2 border text-center">
-                  <button
-                    onClick={() => setPaymentAmount(row.id, row.total_due)}
-                    className="bg-green-500 text-white px-2 py-1 rounded"
-                  >
-                    Zaplaceno
-                  </button>
                 </td>
                 <td className="p-2 border text-center">
                   <button onClick={() => handleEdit(row)}>
@@ -236,7 +225,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
 
               {expandedId === row.id && (
                 <tr>
-                  <td colSpan={7} className="p-4 bg-gray-50">
+                  <td colSpan={6} className="p-4 bg-gray-50">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <strong>Rozpis poplatků</strong>
@@ -268,6 +257,49 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                 </td>
                               </tr>
                             ))}
+
+                            {(editedRow.custom_charges ?? []).map((item, i) => (
+                              <tr key={i}>
+                                <td>{item.name}</td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    className="border w-20 rounded p-1"
+                                    value={item.amount}
+                                    onChange={e => {
+                                      const newVal = Number(e.target.value)
+                                      setEditedRow(prev => {
+                                        const updated = [...(prev.custom_charges ?? [])]
+                                        updated[i] = {
+                                          ...updated[i],
+                                          amount: newVal,
+                                        }
+                                        return { ...prev, custom_charges: updated }
+                                      })
+                                    }}
+                                  /> Kč
+                                </td>
+                                <td>
+                                  <label className="ml-2 text-xs">
+                                    <input
+                                      type="checkbox"
+                                      checked={item.enabled}
+                                      onChange={e => {
+                                        const checked = e.target.checked
+                                        setEditedRow(prev => {
+                                          const updated = [...(prev.custom_charges ?? [])]
+                                          updated[i] = {
+                                            ...updated[i],
+                                            enabled: checked,
+                                          }
+                                          return { ...prev, custom_charges: updated }
+                                        })
+                                      }}
+                                    /> Účtovat
+                                  </label>
+                                </td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>
@@ -280,29 +312,20 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                             <textarea
                               className="w-full border rounded p-1 mt-1"
                               value={editedRow.note ?? ''}
-                              onChange={e => handleChange('note', e.target.value)}
+                              onChange={e =>
+                                handleChange('note', e.target.value)
+                              }
                             />
                           </label>
                         </div>
 
-                        <div className="flex gap-2 mt-4">
-                          <button
-                            className="bg-blue-600 text-white px-4 py-1 rounded"
-                            onClick={() => saveChanges(editedRow.id!)}
-                            disabled={saving}
-                          >
-                            {saving ? 'Ukládám...' : 'Uložit změny'}
-                          </button>
-                          <button
-                            className="bg-gray-300 px-4 py-1 rounded"
-                            onClick={() => {
-                              setExpandedId(null)
-                              setEditedRow({})
-                            }}
-                          >
-                            Zavřít
-                          </button>
-                        </div>
+                        <button
+                          className="mt-4 bg-blue-600 text-white px-4 py-1 rounded"
+                          onClick={() => saveChanges(row.id)}
+                          disabled={saving}
+                        >
+                          {saving ? 'Ukládám...' : 'Uložit změny'}
+                        </button>
                       </div>
                     </div>
                   </td>
@@ -315,3 +338,4 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     </div>
   )
 }
+
