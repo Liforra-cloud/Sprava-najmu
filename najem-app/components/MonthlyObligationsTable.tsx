@@ -82,7 +82,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     const flags = row.charge_flags ?? {}
     const sum = chargeKeys.reduce((total, { key, flagKey }) => {
       if (flags[flagKey]) {
-        total += Number(row[key] ?? 0)
+        total += Number((row[key as keyof ObligationRow]) ?? 0)
       }
       return total
     }, 0)
