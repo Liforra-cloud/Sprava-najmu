@@ -96,7 +96,10 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     const flags = row.charge_flags ?? {}
     const baseSum = chargeKeys.reduce((sum, { key, flagKey }) => {
       if (flags[flagKey]) {
-        sum += row[key] ?? 0
+        const val = row[key]
+        if (typeof val === 'number') {
+          sum += val
+        }
       }
       return sum
     }, 0)
@@ -329,7 +332,4 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     </div>
   )
 }
-
-
-
 
