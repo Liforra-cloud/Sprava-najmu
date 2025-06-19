@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
 
-/** Stejný tvar, jaký používáme v DB pro custom_charges */
 interface CustomCharge {
   name: string
   amount: number
@@ -19,7 +18,6 @@ export async function POST(
     const leaseId = params.id
     const { mode } = (await req.json()) as { mode: 'all' | 'future' }
 
-    // Načteme jen potřebná pole
     const lease = await prisma.lease.findUnique({
       where: { id: leaseId },
       select: {
@@ -37,29 +35,38 @@ export async function POST(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    // Filtrujeme podle režimu
     const now = new Date()
     const thisYear = now.getFullYear()
     const thisMonth = now.getMonth() + 1
-    const whereClause: Prisma.MonthlyObligationWhereInput = {
-      lease_id: leaseId,
-      ...(mode === 'future'
-        ? {
+
+    // explicitní AND pro future
+    let whereClause: Prisma.MonthlyObligationWhereInput
+    if (mode === 'future') {
+      whereClause = {
+        AND: [
+          { lease_id: leaseId },
+          {
             OR: [
               { year: { gt: thisYear } },
-              { year: thisYear, month: { gt: thisMonth } },
-            ],
+              {
+                AND: [
+                  { year: thisYear },
+                  { month: { gt: thisMonth } },
+                ]
+              }
+            ]
           }
-        : {}),
+        ]
+      }
+    } else {
+      whereClause = { lease_id: leaseId }
     }
 
     const obligations = await prisma.monthlyObligation.findMany({ where: whereClause })
 
-    // Rozbalíme JSONB hodnoty
     const flags = (lease.charge_flags ?? {}) as Record<string, boolean>
-    const raw = lease.custom_charges
-    const customs: CustomCharge[] = Array.isArray(raw)
-      ? (raw as unknown as CustomCharge[])
+    const customs = Array.isArray(lease.custom_charges)
+      ? (lease.custom_charges as CustomCharge[])
       : []
 
     for (const ob of obligations) {
@@ -89,7 +96,6 @@ export async function POST(
           repair_fund: repairs,
           total_due: totalDue,
           debt: newDebt,
-          // tady přetypujeme, aby to TS uznalo za JsonObject/JsonArray
           charge_flags: flags as unknown as Prisma.JsonObject,
           custom_charges: customs as unknown as Prisma.JsonArray,
         },
