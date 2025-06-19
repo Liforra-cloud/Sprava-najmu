@@ -142,6 +142,7 @@ model MonthlyObligation {
   updated_at     DateTime  @updatedAt
   custom_charges Json?
   charge_flags   Json?
+  due_day        Int?
 
   lease          Lease     @relation(fields: [lease_id], references: [id])
   payments       Payment[]
