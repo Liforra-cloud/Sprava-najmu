@@ -33,15 +33,6 @@ const chargeKeys: (keyof Pick<
   'rent' | 'water' | 'gas' | 'electricity' | 'services' | 'repair_fund'
 >)[] = ['rent', 'water', 'gas', 'electricity', 'services', 'repair_fund']
 
-const labels: Record<string, string> = {
-  rent: 'Nájem',
-  water: 'Voda',
-  gas: 'Plyn',
-  electricity: 'Elektřina',
-  services: 'Služby',
-  repair_fund: 'Fond oprav',
-}
-
 export default function MonthlyObligationsTable({ leaseId }: Props) {
   const [data, setData] = useState<ObligationRow[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -96,9 +87,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
   const calculateTotalDue = (row: Partial<ObligationRow>): number => {
     const flags = row.charge_flags ?? {}
     const baseSum = chargeKeys.reduce((sum, key) => {
-      if (flags[key]) {
-        sum += row[key] ?? 0
-      }
+      if (flags[key]) sum += row[key] ?? 0
       return sum
     }, 0)
 
@@ -144,19 +133,34 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
 
   const getStatus = (due: number, paid: number, year: number, month: number) => {
     const now = new Date()
-    const dueDate = new Date(year, month - 1, 15)
-    if (paid >= due) return '✅ Zaplaceno'
-    if (paid > 0) return '⚠ Částečně zaplaceno'
+    const dueDate = new Date(year, month - 1, 15) // ← můžeš nahradit dynamickým due_day
+    if (paid > due) return `🟡 Přeplatek o ${paid - due} Kč`
+    if (paid === due) return '✅ Zaplaceno'
+    if (paid > 0) return '⚠ Částečně'
     if (now > dueDate) return '🔴 Po splatnosti'
     return '❌ Nezaplaceno'
   }
 
-  const setPaymentAmount = (id: string, amount: number) => {
+  const setPaymentAmount = async (id: string, amount: number) => {
     const row = data.find(r => r.id === id)
     if (!row) return
     const updatedRow = { ...row, paid_amount: amount }
-    setEditedRow(updatedRow)
-    saveChanges(id)
+    const total_due = calculateTotalDue(updatedRow)
+    const { error } = await supabase
+      .from('monthly_obligations')
+      .update({
+        paid_amount: amount,
+        total_due,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+    if (!error) {
+      setData(prev =>
+        prev.map(r => (r.id === id ? { ...r, paid_amount: amount, total_due } : r))
+      )
+    } else {
+      console.error(error)
+    }
   }
 
   return (
@@ -203,7 +207,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                     }}
                     className="bg-yellow-500 text-white px-2 py-1 rounded"
                   >
-                    Částečně
+                    ✏️ Upravit
                   </button>
                 </td>
                 <td className="p-2 border text-center">
@@ -223,7 +227,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                           <tbody>
                             {chargeKeys.map(key => (
                               <tr key={key}>
-                                <td>{labels[key]}</td>
+                                <td>{key}</td>
                                 <td>
                                   <input
                                     type="number"
@@ -247,6 +251,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                 </td>
                               </tr>
                             ))}
+
                             {(editedRow.custom_charges ?? []).map((item, i) => (
                               <tr key={i}>
                                 <td>{item.name}</td>
@@ -259,33 +264,25 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                       const newVal = Number(e.target.value)
                                       setEditedRow(prev => {
                                         const updated = [...(prev.custom_charges ?? [])]
-                                        updated[i] = {
-                                          ...updated[i],
-                                          amount: newVal,
-                                        }
+                                        updated[i] = { ...updated[i], amount: newVal }
                                         return { ...prev, custom_charges: updated }
                                       })
                                     }}
                                   /> Kč
                                 </td>
                                 <td>
-                                  <label className="ml-2 text-xs">
-                                    <input
-                                      type="checkbox"
-                                      checked={item.enabled}
-                                      onChange={e => {
-                                        const checked = e.target.checked
-                                        setEditedRow(prev => {
-                                          const updated = [...(prev.custom_charges ?? [])]
-                                          updated[i] = {
-                                            ...updated[i],
-                                            enabled: checked,
-                                          }
-                                          return { ...prev, custom_charges: updated }
-                                        })
-                                      }}
-                                    /> Účtovat
-                                  </label>
+                                  <input
+                                    type="checkbox"
+                                    checked={item.enabled}
+                                    onChange={e => {
+                                      const checked = e.target.checked
+                                      setEditedRow(prev => {
+                                        const updated = [...(prev.custom_charges ?? [])]
+                                        updated[i] = { ...updated[i], enabled: checked }
+                                        return { ...prev, custom_charges: updated }
+                                      })
+                                    }}
+                                  /> Účtovat
                                 </td>
                               </tr>
                             ))}
@@ -315,16 +312,14 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                             <textarea
                               className="w-full border rounded p-1 mt-1"
                               value={editedRow.note ?? ''}
-                              onChange={e =>
-                                handleChange('note', e.target.value)
-                              }
+                              onChange={e => handleChange('note', e.target.value)}
                             />
                           </label>
                         </div>
 
                         <button
                           className="mt-4 bg-blue-600 text-white px-4 py-1 rounded"
-                          onClick={() => saveChanges(row.id)}
+                          onClick={() => saveChanges(editedRow.id!)}
                           disabled={saving}
                         >
                           {saving ? 'Ukládám...' : 'Uložit změny'}
@@ -341,6 +336,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     </div>
   )
 }
+
 
 
 
