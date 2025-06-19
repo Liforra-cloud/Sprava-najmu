@@ -11,7 +11,7 @@ export async function POST(
   const leaseId = params.id
   const { mode } = await req.json() as { mode: 'all' | 'future' }
 
-  // Načti záznam smlouvy
+  // Načti smlouvu
   const lease = await prisma.lease.findUnique({
     where: { id: leaseId },
     select: {
@@ -29,7 +29,7 @@ export async function POST(
     return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
   }
 
-  // Připrav where-clause podle režimu
+  // Připrav where podle režimu
   const now = new Date()
   const thisYear = now.getFullYear()
   const thisMonth = now.getMonth() + 1
@@ -39,23 +39,20 @@ export async function POST(
     ...(mode === 'future' && {
       OR: [
         { year: { gt: thisYear } },
-        {
-          year: thisYear,
-          month: { gt: thisMonth },
-        },
+        { year: thisYear, month: { gt: thisMonth } },
       ],
     }),
   }
 
-  // Najdi závazky
+  // Načti závazky
   const obligations = await prisma.monthlyObligation.findMany({
     where: whereClause,
   })
 
+  // Vlajky a vlastní poplatky
   const flags = lease.charge_flags as Record<string, boolean>
   const customs = Array.isArray(lease.custom_charges) ? lease.custom_charges : []
 
-  // Pro každý závazek přepočti a ulož
   for (const ob of obligations) {
     const rent = flags.rent_amount ? Number(lease.rent_amount ?? 0) : 0
     const water = flags.monthly_water ? Number(lease.monthly_water ?? 0) : 0
@@ -63,10 +60,13 @@ export async function POST(
     const electricity = flags.monthly_electricity ? Number(lease.monthly_electricity ?? 0) : 0
     const services = flags.monthly_services ? Number(lease.monthly_services ?? 0) : 0
     const repairs = flags.repair_fund ? Number(lease.repair_fund ?? 0) : 0
+
+    // bezpečné vyhodnocení, c může být null nebo undefined
     const customSum = customs.reduce(
-      (sum, c) => (c.enabled ? sum + Number(c.amount ?? 0) : sum),
-      0
+      (sum, c) => (c?.enabled ? sum + Number(c.amount ?? 0) : sum),
+      0,
     )
+
     const totalDue = rent + water + gas + electricity + services + repairs + customSum
 
     await prisma.monthlyObligation.update({
