@@ -61,26 +61,27 @@ export async function createMonthlyObligation({
 
   const total = rent + water + gas + electricity + services + repairs + custom
 
-  const obligation = await prisma.monthlyObligation.create({
-    data: {
-      lease_id: leaseId,
-      year,
-      month,
-      rent,
-      water,
-      gas,
-      electricity,
-      services,
-      repair_fund: repairs,
-      total_due: total,
-      paid_amount: 0,
-      debt: total,
-      charge_flags: flags,
-      custom_charges: enabledCustomCharges, // ✅ Jen aktivní
-      due_day: lease.due_day ?? 15, // ✅ NOVÉ: uložení dne splatnosti
-      note: '',
-    },
-  })
+ const obligation = await prisma.monthlyObligation.create({
+  data: {
+    lease_id: leaseId,
+    year,
+    month,
+    rent,
+    water,
+    gas,
+    electricity,
+    services,
+    repair_fund: repairs,
+    total_due: total,
+    paid_amount: 0,
+    debt: total,
+    charge_flags: flags,
+    custom_charges: enabledCustomCharges,
+    due_day: lease.due_day ?? 15, // původní
+    note: '',
+  },
+})
+
 
   return obligation
 }
