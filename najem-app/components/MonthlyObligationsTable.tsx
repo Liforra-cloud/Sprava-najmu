@@ -19,7 +19,10 @@ type ObligationRow = {
   repair_fund: number
   total_due: number
   paid_amount: number
+  debt: number
   note: string | null
+  updated_at: string | null  // ← Přidat toto
+  created_at?: string        // ← Můžeš přidat volitelně i created_at
   custom_charges: CustomCharge[]
   charge_flags: Record<string, boolean>
 }
