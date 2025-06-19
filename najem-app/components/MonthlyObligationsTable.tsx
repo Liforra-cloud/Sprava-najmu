@@ -142,6 +142,15 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
   const formatMonth = (month: number, year: number) =>
     `${String(month).padStart(2, '0')}/${year}`
 
+  const getStatus = (row: ObligationRow) => {
+    const splatnost = new Date(row.year, row.month - 1, 15)
+    const now = new Date()
+    if (row.paid_amount >= row.total_due) return '✅ Zaplaceno'
+    if (row.paid_amount > 0) return '⚠ Částečně'
+    if (now > splatnost) return '📅 Po splatnosti'
+    return '❌ Nezaplaceno'
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full border text-sm">
@@ -156,76 +165,75 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
           </tr>
         </thead>
         <tbody>
-          {data.map(row => {
-            const isOverdue = new Date() > new Date(row.year, row.month - 1, 15)
-            const status =
-              row.paid_amount >= row.total_due
-                ? '✅ Zaplaceno'
-                : row.paid_amount > 0
-                ? '⚠ Částečně'
-                : isOverdue
-                ? '📅 Po splatnosti'
-                : '❌ Nezaplaceno'
+          {data.map(row => (
+            <Fragment key={row.id}>
+              <tr className="hover:bg-gray-50">
+                <td className="p-2 border">{formatMonth(row.month, row.year)}</td>
+                <td className="p-2 border">{row.total_due} Kč</td>
+                <td className="p-2 border">{row.paid_amount} Kč</td>
+                <td className="p-2 border">
+                  {new Date(row.year, row.month - 1, 15).toLocaleDateString('cs-CZ')}
+                </td>
+                <td className="p-2 border">{getStatus(row)}</td>
+                <td className="p-2 border text-center">
+                  <button onClick={() => handleEdit(row)}>
+                    {expandedId === row.id ? '🔼' : '🔽'}
+                  </button>
+                </td>
+              </tr>
 
-            return (
-              <Fragment key={row.id}>
-                <tr className="hover:bg-gray-50">
-                  <td className="p-2 border">{formatMonth(row.month, row.year)}</td>
-                  <td className="p-2 border">{row.total_due} Kč</td>
-                  <td className="p-2 border">{row.paid_amount} Kč</td>
-                  <td className="p-2 border">
-                    {new Date(row.year, row.month - 1, 15).toLocaleDateString('cs-CZ')}
-                  </td>
-                  <td className="p-2 border">{status}</td>
-                  <td className="p-2 border text-center">
-                    <button onClick={() => handleEdit(row)}>
-                      {expandedId === row.id ? '🔼' : '🔽'}
-                    </button>
-                  </td>
-                </tr>
-
-                {expandedId === row.id && (
-                  <tr>
-                    <td colSpan={6} className="p-4 bg-gray-50">
-                      <div className="flex flex-col md:flex-row justify-between gap-6">
-                        <div>
-                          <strong>Označit jako</strong>
-                          <div className="flex gap-2 mt-2">
-                            <button
-                              className="bg-green-600 text-white px-3 py-1 rounded text-sm"
-                              onClick={() =>
-                                handleChange('paid_amount', row.total_due)
-                              }
-                            >
-                              Zaplaceno
-                            </button>
-                            <input
-                              type="number"
-                              className="w-24 border rounded p-1 text-sm"
-                              placeholder="částka"
-                              value={editedRow.paid_amount ?? ''}
-                              onChange={e =>
-                                handleChange('paid_amount', Number(e.target.value))
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2">
+              {expandedId === row.id && (
+                <tr>
+                  <td colSpan={6} className="p-4 bg-gray-50">
+                    <div className="flex flex-col md:flex-row justify-between gap-6">
+                      <div>
+                        <strong>Změna stavu</strong>
+                        <div className="flex gap-2 mt-2 items-center">
                           <button
-                            className="bg-blue-600 text-white px-4 py-1 rounded"
-                            onClick={() => saveChanges(row.id)}
-                            disabled={saving}
+                            className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+                            onClick={() =>
+                              handleChange('paid_amount', row.total_due)
+                            }
                           >
-                            {saving ? 'Ukládám...' : 'Uložit změny'}
+                            Zaplaceno
                           </button>
+                          <span>Nebo částka:</span>
+                          <input
+                            type="number"
+                            className="w-24 border rounded p-1 text-sm"
+                            placeholder="částka"
+                            value={editedRow.paid_amount ?? ''}
+                            onChange={e =>
+                              handleChange('paid_amount', Number(e.target.value))
+                            }
+                          />
                         </div>
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            )
-          })}
+                      <div className="flex flex-col gap-2">
+                        <label>
+                          Poznámka:
+                          <textarea
+                            className="w-full border rounded p-1 mt-1"
+                            value={editedRow.note ?? ''}
+                            onChange={e =>
+                              handleChange('note', e.target.value)
+                            }
+                          />
+                        </label>
+                        <button
+                          className="bg-blue-600 text-white px-4 py-1 rounded"
+                          onClick={() => saveChanges(row.id)}
+                          disabled={saving}
+                        >
+                          {saving ? 'Ukládám...' : 'Uložit změny'}
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          ))}
         </tbody>
       </table>
     </div>
