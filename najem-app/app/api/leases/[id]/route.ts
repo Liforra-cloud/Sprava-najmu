@@ -1,5 +1,7 @@
 // najem-app/app/api/leases/[id]/route.ts
 
+// najem-app/app/api/leases/[id]/route.ts
+
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -64,7 +66,6 @@ export async function GET(
     }
 
     const flags = lease.charge_flags as Record<string, boolean> ?? {}
-
     const customCharges = Array.isArray(lease.custom_charges)
       ? lease.custom_charges as CustomCharge[]
       : []
@@ -103,8 +104,6 @@ export async function PUT(
   try {
     const body = await req.json()
 
-    console.log('⬅️ PUT /api/leases/:id – body:', body)
-
     const updatedLease = await prisma.lease.update({
       where: { id: params.id },
       data: {
@@ -113,7 +112,7 @@ export async function PUT(
         tenant_id: body.tenant_id,
         start_date: body.start_date ? new Date(body.start_date) : undefined,
         end_date: body.end_date ? new Date(body.end_date) : null,
-        due_day: typeof body.due_day === 'number' ? body.due_day : null,
+        due_day: body.due_day !== undefined ? parseInt(body.due_day) : null,
         rent_amount: Number(body.rent_amount ?? 0),
         monthly_water: Number(body.monthly_water ?? 0),
         monthly_gas: Number(body.monthly_gas ?? 0),
@@ -198,3 +197,4 @@ export async function DELETE(
     )
   }
 }
+
