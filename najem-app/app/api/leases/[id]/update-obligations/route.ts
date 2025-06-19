@@ -4,14 +4,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
 
+interface CustomCharge {
+  name: string
+  amount: number
+  enabled: boolean
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const leaseId = params.id
-  const { mode } = await req.json() as { mode: 'all' | 'future' }
+  const { mode } = (await req.json()) as { mode: 'all' | 'future' }
 
-  // Načti smlouvu
+  // Načti pouze ty pole, která potřebujeme
   const lease = await prisma.lease.findUnique({
     where: { id: leaseId },
     select: {
@@ -21,27 +27,29 @@ export async function POST(
       monthly_electricity: true,
       monthly_services: true,
       repair_fund: true,
-      custom_charges: true,
       charge_flags: true,
+      custom_charges: true,
     },
   })
   if (!lease) {
     return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
   }
 
-  // Připrav where podle režimu
+  // Připrav filtry na budoucí nebo všechny měsíční závazky
   const now = new Date()
   const thisYear = now.getFullYear()
   const thisMonth = now.getMonth() + 1
 
   const whereClause: Prisma.MonthlyObligationWhereInput = {
     lease_id: leaseId,
-    ...(mode === 'future' && {
-      OR: [
-        { year: { gt: thisYear } },
-        { year: thisYear, month: { gt: thisMonth } },
-      ],
-    }),
+    ...(mode === 'future'
+      ? {
+          OR: [
+            { year: { gt: thisYear } },
+            { year: thisYear, month: { gt: thisMonth } },
+          ],
+        }
+      : {}),
   }
 
   // Načti závazky
@@ -49,9 +57,12 @@ export async function POST(
     where: whereClause,
   })
 
-  // Vlajky a vlastní poplatky
+  // Rozbal vlajky i vlastní poplatky
   const flags = lease.charge_flags as Record<string, boolean>
-  const customs = Array.isArray(lease.custom_charges) ? lease.custom_charges : []
+  const rawCustoms = lease.custom_charges
+  const customs: CustomCharge[] = Array.isArray(rawCustoms)
+    ? (rawCustoms as unknown as CustomCharge[])
+    : []
 
   for (const ob of obligations) {
     const rent = flags.rent_amount ? Number(lease.rent_amount ?? 0) : 0
@@ -61,10 +72,10 @@ export async function POST(
     const services = flags.monthly_services ? Number(lease.monthly_services ?? 0) : 0
     const repairs = flags.repair_fund ? Number(lease.repair_fund ?? 0) : 0
 
-    // bezpečné vyhodnocení, c může být null nebo undefined
+    // Redukce už na pevně typovaných datech
     const customSum = customs.reduce(
-      (sum, c) => (c?.enabled ? sum + Number(c.amount ?? 0) : sum),
-      0,
+      (sum, c) => (c.enabled ? sum + Number(c.amount ?? 0) : sum),
+      0
     )
 
     const totalDue = rent + water + gas + electricity + services + repairs + customSum
