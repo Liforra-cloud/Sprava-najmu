@@ -1,5 +1,6 @@
 ///components/MonthlyObligationsTable.tsx
 
+// components/MonthlyObligationsTable.tsx
 'use client'
 
 import { useEffect, useState, Fragment } from 'react'
@@ -21,8 +22,8 @@ type ObligationRow = {
   paid_amount: number
   debt: number
   note: string | null
-  updated_at: string | null  // ← Přidat toto
-  created_at?: string        // ← Můžeš přidat volitelně i created_at
+  updated_at: string | null
+  created_at?: string
   custom_charges: CustomCharge[]
   charge_flags: Record<string, boolean>
 }
@@ -85,11 +86,13 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     const flags = row.charge_flags ?? {}
     const sum = chargeKeys.reduce((total, { key, flagKey }) => {
       if (flags[flagKey]) {
-        total += Number((row[key as keyof ObligationRow]) ?? 0)
+        total += Number(row[key as keyof ObligationRow] ?? 0)
       }
       return total
     }, 0)
-    const custom = (row.custom_charges ?? []).filter(c => c.enabled).reduce((t, c) => t + c.amount, 0)
+    const custom = (row.custom_charges ?? [])
+      .filter(c => c.enabled)
+      .reduce((t, c) => t + c.amount, 0)
     return sum + custom
   }
 
@@ -104,9 +107,17 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
       updated_at: new Date().toISOString(),
     }
 
-    const { error } = await supabase.from('monthly_obligations').update(update).eq('id', id)
+    const { error } = await supabase
+      .from('monthly_obligations')
+      .update(update)
+      .eq('id', id)
+
     if (!error) {
-      setData(prev => prev.map(row => row.id === id ? { ...row, ...update } as ObligationRow : row))
+      setData(prev =>
+        prev.map(row =>
+          row.id === id ? { ...row, ...update } as ObligationRow : row
+        )
+      )
       setExpandedId(null)
       setEditedRow({})
     } else {
@@ -215,8 +226,14 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                   <input
                                     type="number"
                                     className="border w-20 rounded p-1"
-                                    value={editedRow[key as keyof ObligationRow] ?? ''}
-                                    onChange={e => handleChange(key, Number(e.target.value))}
+                                    value={
+                                      typeof editedRow[key as keyof ObligationRow] === 'number'
+                                        ? editedRow[key as keyof ObligationRow]
+                                        : ''
+                                    }
+                                    onChange={e =>
+                                      handleChange(key, Number(e.target.value))
+                                    }
                                   /> Kč
                                 </td>
                                 <td>
@@ -296,5 +313,6 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     </div>
   )
 }
+
 
 
