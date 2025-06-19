@@ -142,13 +142,21 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
   const formatMonth = (month: number, year: number) =>
     `${String(month).padStart(2, '0')}/${year}`
 
-  const getStatus = (row: ObligationRow) => {
-    const splatnost = new Date(row.year, row.month - 1, 15)
+  const getStatus = (due: number, paid: number, year: number, month: number) => {
     const now = new Date()
-    if (row.paid_amount >= row.total_due) return '✅ Zaplaceno'
-    if (row.paid_amount > 0) return '⚠ Částečně'
-    if (now > splatnost) return '📅 Po splatnosti'
+    const dueDate = new Date(year, month - 1, 15)
+    if (paid >= due) return '✅ Zaplaceno'
+    if (paid > 0) return '⚠ Částečně zaplaceno'
+    if (now > dueDate) return '🔴 Po splatnosti'
     return '❌ Nezaplaceno'
+  }
+
+  const setPaymentAmount = (id: string, amount: number) => {
+    const row = data.find(r => r.id === id)
+    if (!row) return
+    const updatedRow = { ...row, paid_amount: amount }
+    setEditedRow(updatedRow)
+    saveChanges(id)
   }
 
   return (
@@ -161,6 +169,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
             <th className="p-2 border">Zaplaceno</th>
             <th className="p-2 border">Splatnost</th>
             <th className="p-2 border">Stav</th>
+            <th className="p-2 border">Akce</th>
             <th className="p-2 border">Detail</th>
           </tr>
         </thead>
@@ -174,7 +183,29 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                 <td className="p-2 border">
                   {new Date(row.year, row.month - 1, 15).toLocaleDateString('cs-CZ')}
                 </td>
-                <td className="p-2 border">{getStatus(row)}</td>
+                <td className="p-2 border">
+                  {getStatus(row.total_due, row.paid_amount, row.year, row.month)}
+                </td>
+                <td className="p-2 border text-center space-x-2">
+                  <button
+                    onClick={() => setPaymentAmount(row.id, row.total_due)}
+                    className="bg-green-500 text-white px-2 py-1 rounded"
+                  >
+                    Zaplaceno
+                  </button>
+                  <button
+                    onClick={() => {
+                      const částka = prompt('Zadej zaplacenou částku:', row.paid_amount.toString())
+                      if (částka) {
+                        const amount = parseFloat(částka)
+                        if (!isNaN(amount)) setPaymentAmount(row.id, amount)
+                      }
+                    }}
+                    className="bg-yellow-500 text-white px-2 py-1 rounded"
+                  >
+                    Částečně
+                  </button>
+                </td>
                 <td className="p-2 border text-center">
                   <button onClick={() => handleEdit(row)}>
                     {expandedId === row.id ? '🔼' : '🔽'}
@@ -184,44 +215,115 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
 
               {expandedId === row.id && (
                 <tr>
-                  <td colSpan={6} className="p-4 bg-gray-50">
-                    <div className="flex flex-col md:flex-row justify-between gap-6">
+                  <td colSpan={7} className="p-4 bg-gray-50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <strong>Změna stavu</strong>
-                        <div className="flex gap-2 mt-2 items-center">
-                          <button
-                            className="bg-green-600 text-white px-3 py-1 rounded text-sm"
-                            onClick={() =>
-                              handleChange('paid_amount', row.total_due)
-                            }
-                          >
-                            Zaplaceno
-                          </button>
-                          <span>Nebo částka:</span>
-                          <input
-                            type="number"
-                            className="w-24 border rounded p-1 text-sm"
-                            placeholder="částka"
-                            value={editedRow.paid_amount ?? ''}
-                            onChange={e =>
-                              handleChange('paid_amount', Number(e.target.value))
-                            }
-                          />
-                        </div>
+                        <strong>Rozpis poplatků</strong>
+                        <table className="mt-2 w-full text-sm">
+                          <tbody>
+                            {chargeKeys.map(key => (
+                              <tr key={key}>
+                                <td>{labels[key]}</td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    className="border w-20 rounded p-1"
+                                    value={editedRow[key] ?? ''}
+                                    onChange={e =>
+                                      handleChange(key, Number(e.target.value))
+                                    }
+                                  /> Kč
+                                </td>
+                                <td>
+                                  <label className="ml-2 text-xs">
+                                    <input
+                                      type="checkbox"
+                                      checked={editedRow.charge_flags?.[key] ?? false}
+                                      onChange={e =>
+                                        handleChange(`charge_flags.${key}`, e.target.checked)
+                                      }
+                                    /> Účtovat
+                                  </label>
+                                </td>
+                              </tr>
+                            ))}
+                            {(editedRow.custom_charges ?? []).map((item, i) => (
+                              <tr key={i}>
+                                <td>{item.name}</td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    className="border w-20 rounded p-1"
+                                    value={item.amount}
+                                    onChange={e => {
+                                      const newVal = Number(e.target.value)
+                                      setEditedRow(prev => {
+                                        const updated = [...(prev.custom_charges ?? [])]
+                                        updated[i] = {
+                                          ...updated[i],
+                                          amount: newVal,
+                                        }
+                                        return { ...prev, custom_charges: updated }
+                                      })
+                                    }}
+                                  /> Kč
+                                </td>
+                                <td>
+                                  <label className="ml-2 text-xs">
+                                    <input
+                                      type="checkbox"
+                                      checked={item.enabled}
+                                      onChange={e => {
+                                        const checked = e.target.checked
+                                        setEditedRow(prev => {
+                                          const updated = [...(prev.custom_charges ?? [])]
+                                          updated[i] = {
+                                            ...updated[i],
+                                            enabled: checked,
+                                          }
+                                          return { ...prev, custom_charges: updated }
+                                        })
+                                      }}
+                                    /> Účtovat
+                                  </label>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label>
-                          Poznámka:
-                          <textarea
-                            className="w-full border rounded p-1 mt-1"
-                            value={editedRow.note ?? ''}
-                            onChange={e =>
-                              handleChange('note', e.target.value)
-                            }
-                          />
-                        </label>
+
+                      <div>
+                        <strong>Ostatní</strong>
+                        <div className="mt-2">
+                          <label>
+                            <span>Zaplaceno celkem:</span>
+                            <input
+                              type="number"
+                              className="ml-2 border rounded p-1 w-24"
+                              value={editedRow.paid_amount ?? ''}
+                              onChange={e =>
+                                handleChange('paid_amount', Number(e.target.value))
+                              }
+                            /> Kč
+                          </label>
+                        </div>
+
+                        <div className="mt-4">
+                          <label>
+                            <span>Poznámka:</span>
+                            <textarea
+                              className="w-full border rounded p-1 mt-1"
+                              value={editedRow.note ?? ''}
+                              onChange={e =>
+                                handleChange('note', e.target.value)
+                              }
+                            />
+                          </label>
+                        </div>
+
                         <button
-                          className="bg-blue-600 text-white px-4 py-1 rounded"
+                          className="mt-4 bg-blue-600 text-white px-4 py-1 rounded"
                           onClick={() => saveChanges(row.id)}
                           disabled={saving}
                         >
@@ -239,5 +341,6 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     </div>
   )
 }
+
 
 
