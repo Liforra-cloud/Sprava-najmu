@@ -84,7 +84,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
 
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [updatingObligations, setUpdatingObligations] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -138,6 +138,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     })),
   }
 
+  // uloží nebo aktualizuje smlouvu, vrací true/false
   async function saveLease(): Promise<boolean> {
     if (!tenantId || !unitId || !startDate) {
       setError('Chybí povinná pole')
@@ -162,29 +163,30 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     }
   }
 
+  // aktualizuje závazky (all / future)
   async function updateObligations(mode: 'all' | 'future') {
     if (!existingLease) return
-    setUpdatingObligations(true)
     const res = await fetch(`/api/leases/${existingLease.id}/update-obligations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode }),
     })
-    if (res.ok) {
-      alert(
-        mode === 'future'
-          ? 'Budoucí závazky byly úspěšně aktualizovány.'
-          : 'Všechny závazky byly úspěšně aktualizovány.'
-      )
-    } else {
+    if (!res.ok) {
       alert('Chyba při aktualizaci závazků.')
     }
-    setUpdatingObligations(false)
   }
 
+  // hlavní handler pro „Uložit a aktualizovat…“
   async function handleSaveAndUpdate(mode: 'future' | 'all') {
+    setIsProcessing(true)
     const ok = await saveLease()
-    if (ok) await updateObligations(mode)
+    if (ok) {
+      await updateObligations(mode)
+      // po dokončení obnovím stránku
+      window.location.reload()
+    } else {
+      setIsProcessing(false)
+    }
   }
 
   return (
@@ -204,13 +206,10 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
           >
             <option value="">-- Vyber nájemníka --</option>
             {tenants.map(t => (
-              <option key={t.id} value={t.id}>
-                {t.full_name}
-              </option>
+              <option key={t.id} value={t.id}>{t.full_name}</option>
             ))}
           </select>
         </label>
-
         <label>
           Název smlouvy:
           <input
@@ -219,7 +218,6 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
             className="w-full border p-2 rounded"
           />
         </label>
-
         <label>
           Nemovitost:
           <select
@@ -229,13 +227,10 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
           >
             <option value="">-- Vyber nemovitost --</option>
             {properties.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
         </label>
-
         <label>
           Jednotka:
           <select
@@ -245,13 +240,10 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
           >
             <option value="">-- Vyber jednotku --</option>
             {filteredUnits.map(u => (
-              <option key={u.id} value={u.id}>
-                {u.identifier}
-              </option>
+              <option key={u.id} value={u.id}>{u.identifier}</option>
             ))}
           </select>
         </label>
-
         <label>
           Začátek nájmu:
           <input
@@ -261,7 +253,6 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
             className="w-full border p-2 rounded"
           />
         </label>
-
         <label>
           Konec nájmu:
           <input
@@ -271,7 +262,6 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
             className="w-full border p-2 rounded"
           />
         </label>
-
         <label>
           Den splatnosti (1–31):
           <input
@@ -308,9 +298,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
               placeholder="Název"
               value={f.label}
               onChange={e => {
-                const arr = [...customFields]
-                arr[idx].label = e.target.value
-                setCustomFields(arr)
+                const arr = [...customFields]; arr[idx].label = e.target.value; setCustomFields(arr)
               }}
               className="border p-2 rounded"
             />
@@ -319,9 +307,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
               placeholder="Částka"
               value={f.value}
               onChange={e => {
-                const arr = [...customFields]
-                arr[idx].value = e.target.value
-                setCustomFields(arr)
+                const arr = [...customFields]; arr[idx].value = e.target.value; setCustomFields(arr)
               }}
               className="border p-2 rounded"
             />
@@ -330,11 +316,9 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
                 type="checkbox"
                 checked={f.billable}
                 onChange={e => {
-                  const arr = [...customFields]
-                  arr[idx].billable = e.target.checked
-                  setCustomFields(arr)
+                  const arr = [...customFields]; arr[idx].billable = e.target.checked; setCustomFields(arr)
                 }}
-              />{' '}
+              />
               Účtovat
             </label>
           </div>
@@ -342,9 +326,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         {customFields.length < 5 && (
           <button
             type="button"
-            onClick={() =>
-              setCustomFields([...customFields, { label: '', value: '', billable: true }])
-            }
+            onClick={() => setCustomFields([...customFields, { label: '', value: '', billable: true }])}
             className="text-blue-600 mt-2 underline"
           >
             Přidat položku
@@ -357,38 +339,35 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         <div className="flex gap-2">
           <button
             type="button"
-            disabled={updatingObligations}
-            className="bg-green-600 text-white px-4 py-2 rounded"
+            disabled={isProcessing}
+            className="bg-green-600 text-white px-4 py-2 rounded flex items-center"
             onClick={() => handleSaveAndUpdate('future')}
           >
-            Uložit a aktualizovat budoucí závazky
+            {isProcessing ? '⏳ Zpracovávám…' : 'Uložit a aktualizovat budoucí závazky'}
           </button>
           <button
             type="button"
-            disabled={updatingObligations}
-            className="bg-green-800 text-white px-4 py-2 rounded"
+            disabled={isProcessing}
+            className="bg-green-800 text-white px-4 py-2 rounded flex items-center"
             onClick={() => handleSaveAndUpdate('all')}
           >
-            Uložit a aktualizovat všechny závazky
+            {isProcessing ? '⏳ Zpracovávám…' : 'Uložit a aktualizovat všechny závazky'}
           </button>
         </div>
       ) : (
         <button
           type="button"
-          className="bg-green-600 text-white px-4 py-2 rounded"
-          onClick={() => saveLease()}
+          disabled={isProcessing}
+          className="bg-green-600 text-white px-4 py-2 rounded flex items-center"
+          onClick={() => handleSaveAndUpdate('all')}
         >
-          Uložit
+          {isProcessing ? '⏳ Zpracovávám…' : 'Uložit'}
         </button>
       )}
     </form>
   )
 
-  function renderField(
-    label: string,
-    state: FieldState,
-    setter: (v: FieldState) => void
-  ) {
+  function renderField(label: string, state: FieldState, setter: (v: FieldState) => void) {
     return (
       <label className="flex flex-col">
         {label}:
