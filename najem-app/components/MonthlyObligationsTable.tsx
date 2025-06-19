@@ -52,8 +52,8 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
         .from('monthly_obligations')
         .select('*')
         .eq('lease_id', leaseId)
-        .order('year', { ascending: true })
-        .order('month', { ascending: true })
+        .order('year')
+        .order('month')
 
       if (!error && data) setData(data as ObligationRow[])
     }
@@ -83,21 +83,18 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
 
   const calculateTotalDue = (row: Partial<ObligationRow>) => {
     const flags = row.charge_flags ?? {}
-    const sum = chargeKeys.reduce((total, { key, flagKey }) => {
-      if (flags[flagKey]) {
-        total += Number(row[key as keyof ObligationRow] ?? 0)
-      }
+    const base = chargeKeys.reduce((total, { key, flagKey }) => {
+      if (flags[flagKey]) total += Number(row[key as keyof ObligationRow] ?? 0)
       return total
     }, 0)
-    const custom = (row.custom_charges ?? [])
-      .filter(c => c.enabled)
-      .reduce((t, c) => t + c.amount, 0)
-    return sum + custom
+    const custom = (row.custom_charges ?? []).filter(c => c.enabled).reduce((sum, c) => sum + c.amount, 0)
+    return base + custom
   }
 
   const saveChanges = async (id: string) => {
     setSaving(true)
     const total_due = calculateTotalDue(editedRow)
+
     const update = {
       ...editedRow,
       total_due,
@@ -112,36 +109,35 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
       .eq('id', id)
 
     if (!error) {
-      setData(prev =>
-        prev.map(row =>
-          row.id === id ? { ...row, ...update } as ObligationRow : row
-        )
-      )
+      setData(prev => prev.map(r => r.id === id ? { ...r, ...update } as ObligationRow : r))
       setExpandedId(null)
       setEditedRow({})
     } else {
       console.error('Chyba při ukládání:', error)
     }
+
     setSaving(false)
   }
 
   const setPaymentAmount = async (id: string, amount: number) => {
     const row = data.find(r => r.id === id)
     if (!row) return
-    const update: ObligationRow = {
+
+    const updated = {
       ...row,
       paid_amount: amount,
       updated_at: new Date().toISOString(),
     }
-    const total_due = calculateTotalDue(update)
+
+    const total_due = calculateTotalDue(updated)
 
     const { error } = await supabase
       .from('monthly_obligations')
-      .update({ ...update, total_due })
+      .update({ ...updated, total_due })
       .eq('id', id)
 
     if (!error) {
-      setData(prev => prev.map(r => r.id === id ? { ...update, total_due } : r))
+      setData(prev => prev.map(r => r.id === id ? { ...updated, total_due } : r))
     } else {
       console.error('Chyba při změně částky:', error)
     }
@@ -182,10 +178,9 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                     <span>{row.paid_amount} Kč</span>
                     <button
                       className="ml-2 text-blue-600"
-                      title="Upravit částku"
                       onClick={() => {
-                        const vstup = prompt('Zadej zaplacenou částku:', row.paid_amount.toString())
-                        const amount = parseFloat(vstup ?? '')
+                        const input = prompt('Zadej zaplacenou částku:', row.paid_amount.toString())
+                        const amount = parseFloat(input ?? '')
                         if (!isNaN(amount)) setPaymentAmount(row.id, amount)
                       }}
                     >
@@ -196,10 +191,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                 <td className="p-2 border">{new Date(row.year, row.month - 1, 15).toLocaleDateString('cs-CZ')}</td>
                 <td className="p-2 border">{getStatus(row.total_due, row.paid_amount, row.year, row.month)}</td>
                 <td className="p-2 border text-center">
-                  <button
-                    onClick={() => setPaymentAmount(row.id, row.total_due)}
-                    className="bg-green-500 text-white px-2 py-1 rounded"
-                  >
+                  <button onClick={() => setPaymentAmount(row.id, row.total_due)} className="bg-green-500 text-white px-2 py-1 rounded">
                     Zaplaceno
                   </button>
                 </td>
@@ -225,14 +217,8 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                   <input
                                     type="number"
                                     className="border w-20 rounded p-1"
-                                    value={
-  editedRow[key as keyof ObligationRow] !== null && editedRow[key as keyof ObligationRow] !== undefined
-    ? editedRow[key as keyof ObligationRow]
-    : ''
-}
-                                    onChange={e =>
-                                      handleChange(key, Number(e.target.value))
-                                    }
+                                    value={editedRow[key as keyof ObligationRow] ?? ''}
+                                    onChange={e => handleChange(key, Number(e.target.value))}
                                   /> Kč
                                 </td>
                                 <td>
@@ -292,13 +278,12 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                             />
                           </label>
                         </div>
-
                         <button
                           className="mt-4 bg-blue-600 text-white px-4 py-1 rounded"
                           onClick={() => saveChanges(row.id)}
                           disabled={saving}
                         >
-                          {saving ? 'Ukládám...' : 'Uložit změny'}
+                          {saving ? 'Ukládám…' : 'Uložit změny'}
                         </button>
                       </div>
                     </div>
@@ -312,6 +297,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     </div>
   )
 }
+
 
 
 
