@@ -16,9 +16,13 @@ export async function POST(
 ) {
   try {
     const leaseId = params.id
-    const { mode } = (await req.json()) as { mode: 'all' | 'future' }
+    const body = (await req.json()) as {
+      mode?: 'all' | 'future'
+      year?: number
+      month?: number
+    }
 
-    // Načteme jen pole, co potřebujeme
+    // načíst smlouvu
     const lease = await prisma.lease.findUnique({
       where: { id: leaseId },
       select: {
@@ -32,48 +36,44 @@ export async function POST(
         custom_charges: true,
       },
     })
-    if (!lease) {
-      return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
-    }
+    if (!lease) return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
 
-    // Vypočteme aktuální rok/měsíc
-    const now = new Date()
-    const thisYear = now.getFullYear()
-    const thisMonth = now.getMonth() + 1
-
-    // Sestavíme where: vždy lease_id, a pokud future, přidáme AND([OR(...)])
+    // postavíme whereClause
     let whereClause: Prisma.MonthlyObligationWhereInput = { lease_id: leaseId }
 
-    if (mode === 'future') {
+    // pokud mám explicit year+month, použij je
+    if (body.year != null && body.month != null) {
+      whereClause = {
+        lease_id: leaseId,
+        year: body.year,
+        month: body.month,
+      }
+    } else if (body.mode === 'future') {
+      // jen budoucí
+      const now = new Date()
+      const Y = now.getFullYear()
+      const M = now.getMonth() + 1
       whereClause = {
         lease_id: leaseId,
         AND: [
           {
             OR: [
-              { year: { gt: thisYear } },
-              {
-                AND: [
-                  { year: thisYear },
-                  { month: { gt: thisMonth } },
-                ],
-              },
+              { year: { gt: Y } },
+              { AND: [{ year: Y }, { month: { gt: M } }] },
             ],
           },
         ],
       }
     }
+    // jinak (mode==='all' nebo nic) zůstává jen podle lease_id
 
-    const obligations = await prisma.monthlyObligation.findMany({
-      where: whereClause,
-    })
+    const obligations = await prisma.monthlyObligation.findMany({ where: whereClause })
 
-    // Rozbalíme JSONB
     const flags = (lease.charge_flags ?? {}) as Record<string, boolean>
     const customs = Array.isArray(lease.custom_charges)
       ? (lease.custom_charges as unknown as CustomCharge[])
       : []
 
-    // A každý záznam upravíme
     for (const ob of obligations) {
       const rent = flags.rent_amount ? Number(lease.rent_amount ?? 0) : 0
       const water = flags.monthly_water ? Number(lease.monthly_water ?? 0) : 0
@@ -101,7 +101,6 @@ export async function POST(
           repair_fund: repairs,
           total_due: totalDue,
           debt: newDebt,
-          // JSON pola přetypujeme přes unknown
           charge_flags: flags as unknown as Prisma.JsonObject,
           custom_charges: customs as unknown as Prisma.JsonArray,
         },
@@ -117,3 +116,4 @@ export async function POST(
     )
   }
 }
+
