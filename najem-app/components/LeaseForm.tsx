@@ -1,7 +1,5 @@
 // components/LeaseForm.tsx
 
-// components/LeaseForm.tsx
-
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -188,34 +186,47 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       {/* Základní informace */}
       <fieldset className="border p-4 rounded grid grid-cols-1 md:grid-cols-2 gap-4">
         <legend className="text-lg font-bold mb-2 col-span-full">Základní informace</legend>
-        <label>Nájemník:
+        <label>
+          Nájemník:
           <select value={tenantId} onChange={e => setTenantId(e.target.value)} className="w-full border p-2 rounded">
             <option value="">-- Vyber nájemníka --</option>
-            {tenants.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+            {tenants.map(t => (
+              <option key={t.id} value={t.id}>{t.full_name}</option>
+            ))}
           </select>
         </label>
-        <label>Název smlouvy:
+        <label>
+          Název smlouvy:
           <input value={name} onChange={e => setName(e.target.value)} className="w-full border p-2 rounded" />
         </label>
-        <label>Nemovitost:
+        <label>
+          Nemovitost:
           <select value={selectedPropertyId} onChange={e => setSelectedPropertyId(e.target.value)} className="w-full border p-2 rounded">
             <option value="">-- Vyber nemovitost --</option>
-            {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {properties.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
           </select>
         </label>
-        <label>Jednotka:
+        <label>
+          Jednotka:
           <select value={unitId} onChange={e => setUnitId(e.target.value)} className="w-full border p-2 rounded">
             <option value="">-- Vyber jednotku --</option>
-            {filteredUnits.map(u => <option key={u.id} value={u.id}>{u.identifier}</option>)}
+            {filteredUnits.map(u => (
+              <option key={u.id} value={u.id}>{u.identifier}</option>
+            ))}
           </select>
         </label>
-        <label>Začátek nájmu:
+        <label>
+          Začátek nájmu:
           <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full border p-2 rounded" />
         </label>
-        <label>Konec nájmu:
+        <label>
+          Konec nájmu:
           <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full border p-2 rounded" />
         </label>
-        <label>Den splatnosti (1–31):
+        <label>
+          Den splatnosti (1–31):
           <input type="number" min="1" max="31" value={dueDay} onChange={e => setDueDay(e.target.value)} className="w-full border p-2 rounded" />
         </label>
       </fieldset>
@@ -238,40 +249,74 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         <legend className="text-lg font-bold mb-2">Vlastní poplatky</legend>
         {customFields.map((f, idx) => (
           <div key={idx} className="grid grid-cols-3 gap-2">
-            <input type="text" placeholder="Název" value={f.label} onChange={e => {
-              const arr = [...customFields]; arr[idx].label = e.target.value; setCustomFields(arr)
-            }} className="border p-2 rounded" />
-            <input type="number" placeholder="Částka" value={f.value} onChange={e => {
-              const arr = [...customFields]; arr[idx].value = e.target.value; setCustomFields(arr)
-            }} className="border p-2 rounded" />
+            <input
+              type="text"
+              placeholder="Název"
+              value={f.label}
+              onChange={e => {
+                const arr = [...customFields]
+                arr[idx].label = e.target.value
+                setCustomFields(arr)
+              }}
+              className="border p-2 rounded"
+            />
+            <input
+              type="number"
+              placeholder="Částka"
+              value={f.value}
+              onChange={e => {
+                const arr = [...customFields]
+                arr[idx].value = e.target.value
+                setCustomFields(arr)
+              }}
+              className="border p-2 rounded"
+            />
             <label className="flex gap-2 items-center">
-              <input type="checkbox" checked={f.billable} onChange={e => {
-                const arr = [...customFields]; arr[idx].billable = e.target.checked; setCustomFields(arr)
-              }} />
+              <input
+                type="checkbox"
+                checked={f.billable}
+                onChange={e => {
+                  const arr = [...customFields]
+                  arr[idx].billable = e.target.checked
+                  setCustomFields(arr)
+                }}
+              />
               Účtovat
             </label>
           </div>
         ))}
         {customFields.length < 5 && (
-          <button type="button" onClick={() =>
-            setCustomFields([...customFields, { label: '', value: '', billable: true }])
-          } className="text-blue-600 mt-2 underline">Přidat položku</button>
+          <button
+            type="button"
+            onClick={() => setCustomFields([...customFields, { label: '', value: '', billable: true }])}
+            className="text-blue-600 mt-2 underline"
+          >
+            Přidat položku
+          </button>
         )}
       </fieldset>
 
       {/* Akce */}
       <div className="flex justify-between items-center pt-4 space-x-2">
-        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Uložit smlouvu</button>
+        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
+          Uložit smlouvu
+        </button>
         {existingLease && (
           <>
-            <button type="button" disabled={updatingObligations}
+            <button
+              type="button"
+              disabled={updatingObligations}
               className="bg-blue-500 text-white px-4 py-2 rounded"
-              onClick={() => updateObligations('future')}>
+              onClick={() => updateObligations('future')}
+            >
               Aktualizovat budoucí závazky
             </button>
-            <button type="button" disabled={updatingObligations}
+            <button
+              type="button"
+              disabled={updatingObligations}
               className="bg-blue-700 text-white px-4 py-2 rounded"
-              onClick={() => updateObligations('all')}>
+              onClick={() => updateObligations('all')}
+            >
               Aktualizovat všechny závazky
             </button>
           </>
@@ -285,10 +330,18 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       <label className="flex flex-col">
         {label}:
         <div className="flex gap-2 items-center">
-          <input type="number" value={state.value} onChange={e=>setter({...state,value:e.target.value})}
-            className="border p-2 rounded w-full" />
+          <input
+            type="number"
+            value={state.value}
+            onChange={e => setter({ ...state, value: e.target.value })}
+            className="border p-2 rounded w-full"
+          />
           <label className="flex items-center gap-1">
-            <input type="checkbox" checked={state.billable} onChange={e=>setter({...state,billable:e.target.checked})} />
+            <input
+              type="checkbox"
+              checked={state.billable}
+              onChange={e => setter({ ...state, billable: e.target.checked })}
+            />
             Účtovat
           </label>
         </div>
@@ -296,4 +349,3 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     )
   }
 }
-
