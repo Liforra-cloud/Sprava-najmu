@@ -3,7 +3,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { toast } from 'react-hot-toast'
 
 type LeaseFromAPI = {
   id: string
@@ -171,9 +170,9 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       body: JSON.stringify({ mode }),
     })
     if (res.ok) {
-      toast.success('Závazky byly aktualizovány')
+      alert('Závazky byly aktualizovány')
     } else {
-      toast.error('Chyba při aktualizaci závazků')
+      alert('Chyba při aktualizaci závazků')
     }
     setUpdatingObligations(false)
   }
@@ -227,7 +226,14 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         </label>
         <label>
           Den splatnosti (1–31):
-          <input type="number" min="1" max="31" value={dueDay} onChange={e => setDueDay(e.target.value)} className="w-full border p-2 rounded" />
+          <input
+            type="number"
+            min="1"
+            max="31"
+            value={dueDay}
+            onChange={e => setDueDay(e.target.value)}
+            className="w-full border p-2 rounded"
+          />
         </label>
       </fieldset>
 
