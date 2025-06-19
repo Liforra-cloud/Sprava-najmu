@@ -24,25 +24,24 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-   const custom_charges: CustomCharge[] = Array.isArray(body.custom_charges)
-  ? body.custom_charges.map((item: unknown): CustomCharge => {
-      if (
-        typeof item === 'object' &&
-        item !== null &&
-        'name' in item &&
-        'amount' in item &&
-        'enabled' in item
-      ) {
-        return {
-          name: String((item as Record<string, unknown>).name),
-          amount: Number((item as Record<string, unknown>).amount ?? 0),
-          enabled: Boolean((item as Record<string, unknown>).enabled),
-        }
-      }
-      return { name: '', amount: 0, enabled: false }
-    })
-  : []
-
+    const custom_charges: CustomCharge[] = Array.isArray(body.custom_charges)
+      ? body.custom_charges.map((item: unknown): CustomCharge => {
+          if (
+            typeof item === 'object' &&
+            item !== null &&
+            'name' in item &&
+            'amount' in item &&
+            'enabled' in item
+          ) {
+            return {
+              name: String((item as Record<string, unknown>).name),
+              amount: Number((item as Record<string, unknown>).amount ?? 0),
+              enabled: Boolean((item as Record<string, unknown>).enabled),
+            }
+          }
+          return { name: '', amount: 0, enabled: false }
+        })
+      : []
 
     const defaultFlags: ChargeFlags = {
       rent_amount: Boolean(body.rent_amount),
@@ -65,6 +64,7 @@ export async function POST(request: NextRequest) {
         tenant_id: body.tenant_id,
         start_date: new Date(body.start_date),
         end_date: body.end_date ? new Date(body.end_date) : null,
+        due_day: body.due_day !== undefined ? parseInt(body.due_day) : null, // ✅ Přidáno!
         rent_amount: Number(body.rent_amount ?? 0),
         monthly_water: Number(body.monthly_water ?? 0),
         monthly_gas: Number(body.monthly_gas ?? 0),
