@@ -23,6 +23,7 @@ type ObligationRow = {
   note: string | null
   updated_at: string | null
   created_at?: string
+  due_day?: number | null
   custom_charges: CustomCharge[]
   charge_flags: Record<string, boolean>
 }
@@ -143,9 +144,9 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     }
   }
 
-  const getStatus = (due: number, paid: number, year: number, month: number) => {
+  const getStatus = (due: number, paid: number, year: number, month: number, due_day?: number | null) => {
     const now = new Date()
-    const dueDate = new Date(year, month - 1, 15)
+    const dueDate = new Date(year, month - 1, due_day || 15)
     if (paid > due) return `☑ Přeplatek (${(paid - due).toFixed(2)} Kč)`
     if (paid === due) return '✅ Zaplaceno'
     if (paid > 0) return '⚠ Částečně zaplaceno'
@@ -193,8 +194,12 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                     </button>
                   </div>
                 </td>
-                <td className="p-2 border">{new Date(row.year, row.month - 1, 15).toLocaleDateString('cs-CZ')}</td>
-                <td className="p-2 border">{getStatus(row.total_due, row.paid_amount, row.year, row.month)}</td>
+                <td className="p-2 border">
+                  {new Date(row.year, row.month - 1, row.due_day ?? 15).toLocaleDateString('cs-CZ')}
+                </td>
+                <td className="p-2 border">
+                  {getStatus(row.total_due, row.paid_amount, row.year, row.month, row.due_day)}
+                </td>
                 <td className="p-2 border text-center">
                   <button onClick={() => setPaymentAmount(row.id, row.total_due)} className="bg-green-500 text-white px-2 py-1 rounded">
                     Zaplaceno
@@ -302,6 +307,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     </div>
   )
 }
+
 
 
 
