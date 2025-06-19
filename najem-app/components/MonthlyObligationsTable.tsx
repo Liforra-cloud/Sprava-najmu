@@ -214,14 +214,15 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                               <tr key={key}>
                                 <td>{label}</td>
                                 <td>
-                                  <input
-                                    type="number"
-                                    className="border w-20 rounded p-1"
-                                   value={
-  typeof editedRow[key as keyof ObligationRow] === 'number'
-    ? editedRow[key as keyof ObligationRow]
-    : ''
-}
+                                 <input
+  type="number"
+  className="border w-20 rounded p-1"
+  value={
+    typeof editedRow[key as keyof ObligationRow] === 'number'
+      ? editedRow[key as keyof ObligationRow]
+      : ''
+  }
+/>
 
                                     onChange={e => handleChange(key, Number(e.target.value))}
                                   /> Kč
