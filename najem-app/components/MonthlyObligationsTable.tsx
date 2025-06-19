@@ -1,6 +1,5 @@
 ///components/MonthlyObligationsTable.tsx
 
-// components/MonthlyObligationsTable.tsx
 'use client'
 
 import { useEffect, useState, Fragment } from 'react'
@@ -227,10 +226,10 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                     type="number"
                                     className="border w-20 rounded p-1"
                                     value={
-                                      typeof editedRow[key as keyof ObligationRow] === 'number'
-                                        ? editedRow[key as keyof ObligationRow]
-                                        : ''
-                                    }
+  editedRow[key as keyof ObligationRow] !== null && editedRow[key as keyof ObligationRow] !== undefined
+    ? editedRow[key as keyof ObligationRow]
+    : ''
+}
                                     onChange={e =>
                                       handleChange(key, Number(e.target.value))
                                     }
