@@ -153,6 +153,11 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
     return '❌ Nezaplaceno'
   }
 
+  const getNumericValue = (key: keyof ObligationRow): number | string => {
+    const value = editedRow[key]
+    return typeof value === 'number' ? value : ''
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full border text-sm">
@@ -217,11 +222,7 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
                                   <input
                                     type="number"
                                     className="border w-20 rounded p-1"
-                                    value={
-                                      typeof editedRow[key as keyof ObligationRow] === 'number'
-                                        ? editedRow[key as keyof ObligationRow]
-                                        : ''
-                                    }
+                                    value={getNumericValue(key as keyof ObligationRow)}
                                     onChange={e => handleChange(key, Number(e.target.value))}
                                   /> Kč
                                 </td>
