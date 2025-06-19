@@ -38,7 +38,7 @@ type Tenant = { id: string; full_name: string }
 type FieldState = { value: string; billable: boolean }
 
 export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
-  const router = useRouter()
+
   const [properties, setProperties] = useState<Property[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [tenants, setTenants] = useState<Tenant[]>([])
