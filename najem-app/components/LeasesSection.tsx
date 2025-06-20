@@ -1,5 +1,7 @@
 // components/LeasesSection.tsx
 
+'use client'
+
 import Link from 'next/link'
 
 type Lease = {
@@ -22,27 +24,41 @@ export default function LeasesSection({
     <section className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Smlouvy</h2>
-        <Link href={`/tenants/${tenantId}/leases/new`}>
-          <button className="bg-green-600 text-white px-3 py-1 rounded text-sm">
-            Přidat smlouvu
-          </button>
+        <Link
+          href={`/tenants/${tenantId}/leases/new`}
+          className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+        >
+          Přidat smlouvu
         </Link>
       </div>
       <ul className="space-y-3">
-        {leases.length === 0 && <li>Žádné smlouvy</li>}
-        {leases.map(l => (
-          <li key={l.id} className="p-3 border rounded">
-            <div className="flex justify-between">
+        {leases.length === 0 && (
+          <li className="text-gray-500">Žádné smlouvy</li>
+        )}
+        {leases.map((l) => (
+          <li
+            key={l.id}
+            className="p-3 border rounded hover:bg-gray-50 transition"
+          >
+            <div className="flex justify-between items-center">
               <div>
-                <strong>{l.name}</strong> ({l.unit.identifier} / {l.unit.property.name})
+                <strong>{l.name || '—'}</strong>{' '}
+                ({l.unit.identifier} /{' '}
+                {l.unit.property.name})
               </div>
-              <Link href={`/leases/${l.id}/edit`}>
-                <button className="text-blue-600 underline text-sm">Upravit</button>
+              <Link
+                href={`/tenants/${tenantId}/leases/${l.id}/edit`}
+                className="text-blue-600 underline text-sm"
+              >
+                Upravit
               </Link>
             </div>
-            <div className="text-sm text-gray-600">
-              {new Date(l.start_date).toLocaleDateString()} –{' '}
-              {l.end_date ? new Date(l.end_date).toLocaleDateString() : '…'}
+            <div className="text-sm text-gray-600 mt-1">
+              {new Date(l.start_date).toLocaleDateString()}{' '}
+              –{' '}
+              {l.end_date
+                ? new Date(l.end_date).toLocaleDateString()
+                : 'běží'}
             </div>
           </li>
         ))}
