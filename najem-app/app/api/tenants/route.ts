@@ -1,55 +1,54 @@
 //app/api/tenants/route.ts
 
+import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
+import { prisma } from '@/lib/prisma'
 
-// GET – seznam všech nájemníků včetně počtu aktivních jednotek
-export async function GET() {
-  const supabase = supabaseRouteClient()
-  // Načteme všechny nájemníky
-  const { data: tenants, error } = await supabase
-    .from('tenants')
-    .select('*')
-    .order('date_registered', { ascending: false })
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url)
+  const activeParam = url.searchParams.get('active')  // "true" | "false" | null
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // teď postavíme WHERE podle activeParam
+  const now = new Date()
+  let where: any = {}
 
-  // Načteme počty jednotek pro každého nájemníka (jen aktivní, tedy bez date_to)
-  const tenantIds = (tenants ?? []).map(t => t.id)
-  let unitCounts: Record<string, number> = {}
-
-  if (tenantIds.length > 0) {
-    const { data: assignments, error: aErr } = await supabase
-      .from('unit_tenants')
-      .select('tenant_id')
-      .is('date_to', null)
-      .in('tenant_id', tenantIds)
-
-    if (!aErr && assignments) {
-      // Spočítáme počet aktivních jednotek pro každého tenant_id
-      unitCounts = assignments.reduce((acc: Record<string, number>, rec: { tenant_id: string }) => {
-        acc[rec.tenant_id] = (acc[rec.tenant_id] || 0) + 1
-        return acc
-      }, {})
+  if (activeParam === 'true') {
+    // aktivní = mají aspoň jednu smlouvu, která právě běží
+    where.leases = {
+      some: {
+        start_date: { lte: now },
+        OR: [
+          { end_date: null },
+          { end_date: { gte: now } },
+        ],
+      }
+    }
+  } else if (activeParam === 'false') {
+    // neaktivní = nemají žádnou běžící smlouvu
+    where.leases = {
+      none: {
+        start_date: { lte: now },
+        OR: [
+          { end_date: null },
+          { end_date: { gte: now } },
+        ],
+      }
     }
   }
+  // pokud activeParam==null, where={} => vrací všechny
 
-  // Vrátíme nájemníky včetně počtu jednotek
-  const result = (tenants ?? []).map(t => ({
-    ...t,
-    active_unit_count: unitCounts[t.id] || 0
-  }))
+  const tenants = await prisma.tenant.findMany({
+    where,
+    select: {
+      id: true,
+      full_name: true,
+      email: true,
+      phone: true,
+      // třeba i počet smluv
+      _count: { select: { leases: true } },
+    },
+    orderBy: { full_name: 'asc' },
+  })
 
-  return NextResponse.json(result)
+  return NextResponse.json(tenants)
 }
-
-// POST – vytvoření nájemníka
-export async function POST(request: Request) {
-  const body = await request.json()
-  const supabase = supabaseRouteClient()
-  const { data, error } = await supabase.from('tenants').insert([body]).select().single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
-}
-
-
