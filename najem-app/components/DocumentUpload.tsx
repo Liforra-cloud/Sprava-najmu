@@ -1,5 +1,7 @@
 // /components/DocumentUpload.tsx
 
+// components/DocumentUpload.tsx
+
 'use client'
 
 import { useState, FormEvent } from 'react'
@@ -12,7 +14,13 @@ type Props = {
   onUpload?: () => void
 }
 
-export default function DocumentUpload({ propertyId, unitId, tenantId, expenseId, onUpload }: Props) {
+export default function DocumentUpload({
+  propertyId,
+  unitId,
+  tenantId,
+  expenseId,
+  onUpload,
+}: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [name, setName] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -37,8 +45,7 @@ export default function DocumentUpload({ propertyId, unitId, tenantId, expenseId
     if (propertyId) formData.append('property_id', propertyId)
     if (unitId) formData.append('unit_id', unitId)
     if (tenantId) formData.append('tenant_id', tenantId)
-    if (expenseId) formData.append('expense_id', expenseId)
-
+    if (expenseId) formData.append('lease_id', expenseId) // přejmenováno na lease_id
     try {
       const res = await fetch('/api/documents', {
         method: 'POST',
@@ -49,7 +56,7 @@ export default function DocumentUpload({ propertyId, unitId, tenantId, expenseId
         setFile(null)
         setName('')
         setDate(new Date().toISOString().slice(0, 10))
-        if (onUpload) onUpload()
+        onUpload?.()
       } else {
         const data = await res.json()
         setError(data.error || 'Chyba při nahrávání.')
@@ -102,4 +109,5 @@ export default function DocumentUpload({ propertyId, unitId, tenantId, expenseId
     </form>
   )
 }
+
 
