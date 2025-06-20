@@ -19,7 +19,7 @@ export default async function SidebarLayout({
   }
 
   const navItems = [
-    { href: '/', label: 'Dashboard' },
+    { href: '/dashboard', label: 'Dashboard' },
     { href: '/properties', label: 'Nemovitosti' },
     { href: '/units', label: 'Jednotky' },
     { href: '/tenants', label: 'Nájemníci' },
