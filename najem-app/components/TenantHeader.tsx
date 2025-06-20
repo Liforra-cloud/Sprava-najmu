@@ -1,6 +1,19 @@
 // components/TenantHeader.tsx
 
-export default function TenantHeader({ tenant }: { tenant: any }) {
+interface TenantHeaderProps {
+  tenant: {
+    full_name: string
+    email: string
+    phone: string | null
+    personal_id: string | null
+    address: string | null
+    employer: string | null
+    note: string | null
+    date_registered: string
+  }
+}
+
+export default function TenantHeader({ tenant }: TenantHeaderProps) {
   return (
     <section>
       <h1 className="text-3xl font-bold mb-4">{tenant.full_name}</h1>
@@ -11,19 +24,25 @@ export default function TenantHeader({ tenant }: { tenant: any }) {
             {tenant.email}
           </a>
         </dd>
+
         <dt className="font-semibold">Telefon:</dt>
-        <dd>{tenant.phone || '—'}</dd>
+        <dd>{tenant.phone ?? '—'}</dd>
+
         <dt className="font-semibold">Rodné číslo:</dt>
-        <dd>{tenant.personal_id || '—'}</dd>
+        <dd>{tenant.personal_id ?? '—'}</dd>
+
         <dt className="font-semibold">Adresa:</dt>
-        <dd>{tenant.address || '—'}</dd>
+        <dd>{tenant.address ?? '—'}</dd>
+
         <dt className="font-semibold">Zaměstnavatel:</dt>
-        <dd>{tenant.employer || '—'}</dd>
+        <dd>{tenant.employer ?? '—'}</dd>
+
         <dt className="font-semibold">Poznámka:</dt>
-        <dd>{tenant.note || '—'}</dd>
+        <dd>{tenant.note ?? '—'}</dd>
+
         <dt className="font-semibold">Registrován:</dt>
         <dd>{new Date(tenant.date_registered).toLocaleDateString()}</dd>
       </dl>
     </section>
-)
+  )
 }
