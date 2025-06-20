@@ -1,19 +1,11 @@
 // app/tenants/[id]/page.tsx
 
-import TenantHeader     from '@/components/TenantHeader'
-import PaymentSummary from '@/components/PaymentSummary'
-import DocumentsSection from '@/components/DocumentsSection'
-import LeasesSection    from '@/components/LeasesSection'
-import { notFound }     from 'next/navigation'
-import { prisma }       from '@/lib/prisma'
-
-type Summary = {
-  totalDue:        number
-  paidThisMonth:   number
-  totalPaid:       number
-  debt:            number
-  debtThisMonth:   number
-}
+import TenantHeader       from '@/components/TenantHeader'
+import PaymentSummary     from '@/components/PaymentSummary'
+import DocumentsSection   from '@/components/DocumentsSection'
+import LeasesSection      from '@/components/LeasesSection'
+import { notFound }       from 'next/navigation'
+import { prisma }         from '@/lib/prisma'
 
 type TenantForHeader = {
   id:              string
@@ -37,18 +29,17 @@ type LeaseForList = {
     id:         string
     identifier: string
     property: {
-      id:       string
-      name:     string
+      id:   string
+      name: string
     }
   }
 }
 
 async function fetchTenantData(id: string): Promise<{
-  tenant:  TenantForHeader
-  leases:  LeaseForList[]
-  summary: Summary
+  tenant: TenantForHeader
+  leases: LeaseForList[]
 }> {
-  // 1) Načteme nájemníka
+  // 1) Nájemník
   const rawTenant = await prisma.tenant.findUnique({
     where: { id },
     select: {
@@ -63,9 +54,11 @@ async function fetchTenantData(id: string): Promise<{
       date_registered: true,
     },
   })
-  if (!rawTenant) throw new Error('Nájemník nenalezen')
+  if (!rawTenant) {
+    throw new Error('Nájemník nenalezen')
+  }
 
-  // 2) Připravíme objekt pro TenantHeader
+  // 2) Přemapování na string
   const tenant: TenantForHeader = {
     id:              rawTenant.id,
     full_name:       rawTenant.full_name,
@@ -78,7 +71,7 @@ async function fetchTenantData(id: string): Promise<{
     date_registered: rawTenant.date_registered.toISOString(),
   }
 
-  // 3) Načteme smlouvy spolu s jednotkou a nemovitostí
+  // 3) Smlouvy s jednotkou a nemovitostí
   const rawLeases = await prisma.lease.findMany({
     where: { tenant_id: id },
     select: {
@@ -102,7 +95,6 @@ async function fetchTenantData(id: string): Promise<{
     }
   })
 
-  // 4) Přemapujeme na stringové datumy a non-nullable name
   const leases: LeaseForList[] = rawLeases.map(l => {
     if (!l.unit || !l.unit.property) {
       throw new Error(`Smlouva ${l.id} chybí vazba na jednotku nebo nemovitost`)
@@ -124,16 +116,7 @@ async function fetchTenantData(id: string): Promise<{
     }
   })
 
-  // 5) Shrnutí plateb – doplňte vlastní logiku
-  const summary: Summary = {
-    totalDue:      0,
-    paidThisMonth: 0,
-    totalPaid:     0,
-    debt:          0,
-    debtThisMonth: 0,
-  }
-
-  return { tenant, leases, summary }
+  return { tenant, leases }
 }
 
 export default async function TenantPage({
@@ -151,18 +134,16 @@ export default async function TenantPage({
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
-      <TenantHeader
-        tenant={data.tenant}
-      />
-     <PaymentSummary tenantId={data.tenant.id} />
-      />
-      <DocumentsSection
-        tenantId={data.tenant.id}
-      />
-      <LeasesSection
-        leases={data.leases}
-        tenantId={data.tenant.id}
-      />
+      <TenantHeader tenant={data.tenant} />
+
+      {/* Souhrn plateb – načte se klientsky */}
+      <PaymentSummary tenantId={data.tenant.id} />
+
+      {/* Dokumenty */}
+      <DocumentsSection tenantId={data.tenant.id} />
+
+      {/* Seznam smluv */}
+      <LeasesSection leases={data.leases} tenantId={data.tenant.id} />
     </div>
   )
 }
