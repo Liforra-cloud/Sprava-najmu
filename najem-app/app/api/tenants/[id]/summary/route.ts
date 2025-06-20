@@ -1,5 +1,4 @@
 // app/api/tenants/[id]/summary/route.ts
-
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -23,9 +22,9 @@ export async function GET(
     },
     select: { total_due: true },
   })
-  const totalRent = obligationsToDate.reduce((sum, o) => sum + o.total_due, 0)
+  const totalDue = obligationsToDate.reduce((sum, o) => sum + o.total_due, 0)
 
-  // 2) Povinnosti za tento měsíc
+  // 2) Povinnosti právě za tento měsíc
   const obligationsThisMonth = await prisma.monthlyObligation.findMany({
     where: {
       lease: { tenant_id: tenantId },
@@ -54,14 +53,15 @@ export async function GET(
     })
     .reduce((sum, p) => sum + p.amount, 0)
 
-  // 5) Spočítáme dluhy
-  const totalDebt = totalRent - totalPaid
+  // 5) Výpočet dluhů
+  const totalDebt = totalDue - totalPaid
   const monthDebt = monthRent - paidThisMonth
 
   return NextResponse.json({
-    totalRent,
+    totalDue,
+    totalPaid,
+    paidThisMonth,
     totalDebt,
-    monthRent,
     monthDebt,
     owes: totalDebt > 0,
   })
