@@ -5,11 +5,11 @@
 import { useEffect, useState } from 'react'
 
 type SummaryData = {
-  totalDue: number       // „Celkem dlužné“ (součet povinností do dneška)
-  totalPaid: number      // „Celkem zaplaceno“
-  paidThisMonth: number  // „Zaplaceno tento měsíc“
-  totalDebt: number      // „Celkový dluh“ (totalDue − totalPaid)
-  monthDebt: number      // „Dluh tento měsíc“ (monthRent − paidThisMonth)
+  totalDue: number       // Celkem dlužné
+  totalPaid: number      // Celkem zaplaceno
+  paidThisMonth: number  // Zaplaceno tento měsíc
+  totalDebt: number      // Celkový dluh (totalDue − totalPaid)
+  monthDebt: number      // Dluh tento měsíc (monthRent − paidThisMonth)
   owes: boolean
 }
 
@@ -24,11 +24,15 @@ export default function PaymentSummary({ tenantId }: { tenantId: string }) {
       try {
         const res = await fetch(`/api/tenants/${tenantId}/summary`)
         if (!res.ok) throw new Error('Chyba při načítání souhrnu')
-        const json = await res.json()
+        const json: SummaryData = await res.json()
         setData(json)
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err)
-        setError(err.message || 'Neznámá chyba')
+        if (err instanceof Error) {
+          setError(err.message)
+        } else {
+          setError('Neznámá chyba')
+        }
       } finally {
         setLoading(false)
       }
