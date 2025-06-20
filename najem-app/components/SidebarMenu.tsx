@@ -19,7 +19,7 @@ export default function SidebarMenu({
 
   return (
     <>
-      {/* tlačítko pro otevření/zavření sidebaru na mobilu */}
+      {/* Mobilní lišta */}
       <div className="md:hidden flex justify-between items-center p-4 bg-gray-100 border-b border-gray-300">
         <h1 className="text-lg font-bold">Menu</h1>
         <button
@@ -31,7 +31,7 @@ export default function SidebarMenu({
         </button>
       </div>
 
-      {/* samotný sidebar */}
+      {/* Sidebar */}
       <aside
         className={`
           bg-gray-100 border-r border-gray-300
