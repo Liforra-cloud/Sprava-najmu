@@ -33,6 +33,7 @@ type LeaseFromAPI = {
   total_billable_rent: number
   created_at: string
   updated_at: string
+  deposit: number // ← přidej
 }
 
 export default function EditLeasePage() {
