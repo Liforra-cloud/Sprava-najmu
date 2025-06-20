@@ -12,17 +12,21 @@ export async function POST(
 ) {
   try {
     const leaseId = params.id
-    const body = (await req.json()) as RequestBody
-    const mode = body.mode
+    const { mode } = (await req.json()) as RequestBody
     console.log('🔍 update-obligations called for lease:', leaseId, 'mode:', mode)
 
     // načteme jen to nejnutnější
     const lease = await prisma.lease.findUnique({
       where: { id: leaseId },
       select: {
-        rent_amount: true, monthly_water: true, monthly_gas: true,
-        monthly_electricity: true, monthly_services: true, repair_fund: true,
-        charge_flags: true, custom_charges: true,
+        rent_amount: true,
+        monthly_water: true,
+        monthly_gas: true,
+        monthly_electricity: true,
+        monthly_services: true,
+        repair_fund: true,
+        charge_flags: true,
+        custom_charges: true,
       },
     })
     if (!lease) {
@@ -30,14 +34,22 @@ export async function POST(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    // postavíme WHERE
+    // postavíme WHERE podle režimu
     let whereClause: Prisma.MonthlyObligationWhereInput = { lease_id: leaseId }
     if (mode === 'future') {
       const now = new Date()
       const nextMonthFirst = new Date(now.getFullYear(), now.getMonth() + 1, 1)
       const year = nextMonthFirst.getFullYear()
       const month = nextMonthFirst.getMonth() + 1
-      whereClause = { lease_id: leaseId, year, month }
+
+      // všechny závazky od příštího měsíce dál
+      whereClause = {
+        lease_id: leaseId,
+        OR: [
+          { year: year,  month: { gte: month } },
+          { year: {    gt:  year  } }
+        ],
+      }
     }
     console.log('🔍 whereClause bude:', JSON.stringify(whereClause))
 
@@ -50,25 +62,35 @@ export async function POST(
       : []
 
     for (const ob of obligations) {
-      // spočítáme nově
+      // spočítáme nové částky
       const rent = flags.rent_amount ? Number(lease.rent_amount) : 0
       const water = flags.monthly_water ? Number(lease.monthly_water) : 0
       const gas = flags.monthly_gas ? Number(lease.monthly_gas) : 0
       const electricity = flags.monthly_electricity ? Number(lease.monthly_electricity) : 0
       const services = flags.monthly_services ? Number(lease.monthly_services) : 0
       const repairs = flags.repair_fund ? Number(lease.repair_fund) : 0
-      const customSum = customs.reduce((s, c) => c.enabled ? s + Number(c.amount) : s, 0)
+      const customSum = customs.reduce(
+        (sum, c) => c.enabled ? sum + Number(c.amount) : sum,
+        0
+      )
       const total_due = rent + water + gas + electricity + services + repairs + customSum
       const debt = total_due - ob.paid_amount
 
-      console.log(`  🔄 updating obligation ${ob.id}: total_due=${total_due}, debt=${debt}`)
+      console.log(
+        `  🔄 updating obligation ${ob.id}: total_due=${total_due}, debt=${debt}`
+      )
 
       await prisma.monthlyObligation.update({
         where: { id: ob.id },
         data: {
-          rent, water, gas, electricity, services,
+          rent,
+          water,
+          gas,
+          electricity,
+          services,
           repair_fund: repairs,
-          total_due, debt,
+          total_due,
+          debt,
           charge_flags: flags as unknown as Prisma.JsonObject,
           custom_charges: customs as unknown as Prisma.JsonArray,
         },
