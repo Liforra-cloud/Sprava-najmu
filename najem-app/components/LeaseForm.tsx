@@ -151,8 +151,9 @@ export default function LeaseForm({
   function validate(): boolean {
     const errs: Record<string, boolean> = {}
     if (!tenantId) errs.tenantId = true
-    if (!unitId)   errs.unitId = true
+    if (!unitId)   errs.unitId   = true
     if (!startDate) errs.startDate = true
+    if (!name.trim()) errs.name = true
     setFieldErrors(errs)
     if (Object.keys(errs).length) {
       setError('Vyplňte všechna povinná pole.')
@@ -288,7 +289,9 @@ export default function LeaseForm({
           <select
             value={tenantId}
             onChange={e => setTenantId(e.target.value)}
-            className={`w-full border p-2 rounded ${fieldErrors.tenantId ? 'border-red-500' : ''}`}
+            className={`w-full border p-2 rounded ${
+              fieldErrors.tenantId ? 'border-red-500' : ''
+            }`}
           >
             <option value="">-- Vyber nájemníka --</option>
             {tenants.map(t => (
@@ -297,11 +300,13 @@ export default function LeaseForm({
           </select>
         </label>
         <label className="flex flex-col">
-          Název smlouvy:
+          Název smlouvy*:
           <input
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full border p-2 rounded"
+            className={`w-full border p-2 rounded ${
+              fieldErrors.name ? 'border-red-500' : ''
+            }`}
           />
         </label>
         <label className="flex flex-col">
@@ -322,7 +327,9 @@ export default function LeaseForm({
           <select
             value={unitId}
             onChange={e => setUnitId(e.target.value)}
-            className={`w-full border p-2 rounded ${fieldErrors.unitId ? 'border-red-500' : ''}`}
+            className={`w-full border p-2 rounded ${
+              fieldErrors.unitId ? 'border-red-500' : ''
+            }`}
           >
             <option value="">-- Vyber jednotku --</option>
             {filteredUnits.map(u => (
@@ -336,7 +343,9 @@ export default function LeaseForm({
             type="date"
             value={startDate}
             onChange={e => setStartDate(e.target.value)}
-            className={`w-full border p-2 rounded ${fieldErrors.startDate ? 'border-red-500' : ''}`}
+            className={`w-full border p-2 rounded ${
+              fieldErrors.startDate ? 'border-red-500' : ''
+            }`}
           />
         </label>
         <label className="flex flex-col">
@@ -452,7 +461,7 @@ export default function LeaseForm({
           <button
             type="button"
             disabled={isProcessing}
-            className="bg-green-800 text-white px-4 py-2 rounded"
+            className="bg-green-800 text-white px-4 py-2 rounded"}
             onClick={() => handleSaveAndUpdate('all')}
           >
             {isProcessing ? '⏳ Zpracovávám…' : 'Uložit & aktualizovat vše'}
