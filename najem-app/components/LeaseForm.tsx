@@ -357,11 +357,12 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       <fieldset className="border p-4 rounded">
         <legend className="text-lg font-bold mb-2">Přiložený dokument</legend>
         <DocumentUpload
+          initialUrl={documentUrl}
           propertyId={selectedPropertyId}
           unitId={unitId}
           tenantId={tenantId}
           expenseId={existingLease?.id}
-          onUpload={() => alert('Dokument úspěšně nahrán')}
+          onUpload={(url: string) => setDocumentUrl(url)}
         />
       </fieldset>
 
