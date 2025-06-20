@@ -1,158 +1,96 @@
-// najem-app/app/tenants/[id]/page.tsx
+// app/tenants/[id]/page.tsx
 
-'use client'
+import TenantHeader from '@/components/TenantHeader'
+import RentSummaryCard from '@/components/RentSummaryCard'
+import DocumentsSection from '@/components/DocumentsSection'
+import LeasesSection from '@/components/LeasesSection'
+import { notFound } from 'next/navigation'
+import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import Link from 'next/link'
-
-import DocumentUpload from '@/components/DocumentUpload'
-import DocumentList from '@/components/DocumentList'
-import PaymentSummary from '@/components/PaymentSummary'
-import LeaseForm from '@/components/LeaseForm'
+type Lease = {
+  id: string
+  name: string
+  rent_amount: number
+  start_date: string
+  end_date: string | null
+  unit: { id: string; identifier: string; property: { id: string; name: string } }
+}
 
 type Tenant = {
   id: string
   full_name: string
   email: string
-  phone?: string
-  personal_id?: string
-  address?: string
-  employer?: string
-  note?: string
+  phone: string | null
+  personal_id: string | null
+  address: string | null
+  employer: string | null
+  note: string | null
   date_registered: string
 }
 
-type Unit = {
-  id: string
-  identifier: string
-  property: {
-    name: string
-  }
+type Summary = {
+  totalDue: number
+  paidThisMonth: number
+  totalPaid: number
+  debt: number
+  debtThisMonth: number
 }
 
-type Lease = {
-  id: string
-  name?: string
-  unit: Unit
-  rent_amount: number
-  start_date: string
-  end_date?: string
-  custom_fields?: { label: string; value: number; billable: boolean }[]
-  monthly_water?: number
-  monthly_gas?: number
-  monthly_electricity?: number
-  monthly_services?: number
-  repair_fund?: number
-}
+async function fetchTenantData(id: string): Promise<{
+  tenant: Tenant
+  leases: Lease[]
+  summary: Summary
+}> {
+  const supabase = supabaseRouteClient()
 
-export default function TenantDetailPage() {
-  const id = (useParams() as Record<string, string>).id
-  const [tenant, setTenant] = useState<Tenant | null>(null)
-  const [leases, setLeases] = useState<Lease[]>([])
-  const [showDocForm, setShowDocForm] = useState(false)
-  const [showLeaseForm, setShowLeaseForm] = useState(false)
+  // 1) Nájemník + smlouvy
+  const [{ data: tenant }, { data: leases }] = await Promise.all([
+    supabase.from('tenants').select('*').eq('id', id).single(),
+    supabase
+      .from('leases')
+      .select(`
+        id,
+        name,
+        rent_amount,
+        start_date,
+        end_date,
+        unit:unit_id (
+          id,
+          identifier,
+          property:property_id ( id, name )
+        )
+      `)
+      .eq('tenant_id', id),
+  ])
 
-  useEffect(() => {
-    const fetchTenantAndLeases = async () => {
-      const res = await fetch(`/api/tenants/${id}`)
-      if (!res.ok) {
-        setTenant(null)
-        setLeases([])
-        return
-      }
-      const data = await res.json()
-      setTenant(data.tenant)
-      setLeases(Array.isArray(data.leases) ? data.leases : [])
-    }
-    fetchTenantAndLeases()
-  }, [id])
+  if (!tenant) throw new Error('Nájemník nenalezen')
 
-  if (!tenant) return <p>Načítání...</p>
-
-  function formatDate(dateStr?: string) {
-    if (!dateStr) return '—'
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('cs-CZ')
+  // 2) Shrnutí plateb – tady si doplňte reálný dotaz na monthly_obligations/payments
+  const summary: Summary = {
+    totalDue: 0,
+    paidThisMonth: 0,
+    totalPaid: 0,
+    debt: 0,
+    debtThisMonth: 0,
   }
 
-  function getTotalBillable(lease: Lease) {
-    let total = 0
-    total += Number(lease.rent_amount || 0)
-    total += Number(lease.monthly_water || 0)
-    total += Number(lease.monthly_gas || 0)
-    total += Number(lease.monthly_electricity || 0)
-    total += Number(lease.monthly_services || 0)
-    total += Number(lease.repair_fund || 0)
-    if (lease.custom_fields && Array.isArray(lease.custom_fields)) {
-      total += lease.custom_fields
-        .filter(field => field.billable)
-        .reduce((sum, field) => sum + Number(field.value || 0), 0)
-    }
-    return total
+  return { tenant, leases: leases ?? [], summary }
+}
+
+export default async function TenantPage({ params }: { params: { id: string } }) {
+  let data
+  try {
+    data = await fetchTenantData(params.id)
+  } catch {
+    notFound()
   }
 
   return (
-    <div className="space-y-6 p-6 max-w-xl mx-auto">
-      <div className="flex items-center space-x-2">
-        <h1 className="text-3xl font-bold">{tenant.full_name}</h1>
-      </div>
-
-      <div className="mt-4">
-        <div><strong>Email:</strong> {tenant.email}</div>
-        <div><strong>Telefon:</strong> {tenant.phone || '—'}</div>
-        <div><strong>Rodné číslo:</strong> {tenant.personal_id || '—'}</div>
-        <div><strong>Adresa:</strong> {tenant.address || '—'}</div>
-        <div><strong>Zaměstnavatel:</strong> {tenant.employer || '—'}</div>
-        <div><strong>Poznámka:</strong> {tenant.note || '—'}</div>
-        <div><strong>Registrován:</strong> {formatDate(tenant.date_registered)}</div>
-      </div>
-
-      <PaymentSummary tenantId={id} />
-
-      <div className="mt-8 space-y-4">
-        <h2 className="text-xl font-semibold">Dokumenty k nájemníkovi</h2>
-        {!showDocForm && (
-          <button onClick={() => setShowDocForm(true)} className="bg-blue-600 text-white px-4 py-2 rounded">
-            Přidat dokument
-          </button>
-        )}
-        {showDocForm && <DocumentUpload tenantId={id} />}
-        <DocumentList tenantId={id} />
-      </div>
-
-      <div className="mt-8 space-y-4">
-        <h2 className="text-xl font-semibold">Smlouvy</h2>
-        <ul className="space-y-3">
-          {leases.length === 0 && <li>Žádné smlouvy nenalezeny</li>}
-          {leases.map(lease => (
-            <li key={lease.id} className="border-b pb-2">
-              <strong>{lease.name || 'Bez názvu'}</strong><br />
-              Jednotka: {lease.unit?.identifier || '—'}<br />
-              Nemovitost: {lease.unit?.property?.name || '—'}<br />
-              Celkové nájemné: {getTotalBillable(lease)} Kč<br />
-              Od: {formatDate(lease.start_date)} Do: {formatDate(lease.end_date)}<br />
-              <Link
-                href={`/leases/${lease.id}/edit`}
-                className="text-blue-600 text-sm underline"
-              >
-                Upravit
-              </Link>
-            </li>
-          ))}
-        </ul>
-
-        {!showLeaseForm && (
-          <button onClick={() => setShowLeaseForm(true)} className="bg-green-600 text-white px-4 py-2 rounded">
-            Přidat smlouvu
-          </button>
-        )}
-        {showLeaseForm && (
-          <div className="border p-4 rounded bg-gray-50">
-            <LeaseForm />
-          </div>
-        )}
-      </div>
+    <div className="max-w-3xl mx-auto p-6 space-y-8">
+      <TenantHeader tenant={data.tenant} />
+      <RentSummaryCard summary={data.summary} />
+      <DocumentsSection tenantId={data.tenant.id} />
+      <LeasesSection leases={data.leases} tenantId={data.tenant.id} />
     </div>
   )
 }
