@@ -16,7 +16,10 @@ type Lease = {
   unit: {
     id: string
     identifier: string
-    property: { id: string; name: string }
+    property: {
+      id: string
+      name: string
+    }
   }
 }
 
@@ -45,7 +48,7 @@ async function fetchTenantData(id: string): Promise<{
   leases: Lease[]
   summary: Summary
 }> {
-  // 1) Načíst nájemníka
+  // 1) Načtení nájemníka
   const tenant = await prisma.tenant.findUnique({
     where: { id },
     select: {
@@ -62,7 +65,7 @@ async function fetchTenantData(id: string): Promise<{
   })
   if (!tenant) throw new Error('Nájemník nenalezen')
 
-  // 2) Načíst smlouvy včetně unit → property
+  // 2) Načtení smluv s unit → property
   const rawLeases = await prisma.lease.findMany({
     where: { tenant_id: id },
     select: {
@@ -86,7 +89,7 @@ async function fetchTenantData(id: string): Promise<{
     },
   })
 
-  // 3) Přemapovat na náš typ
+  // 3) Přemapování na náš typ
   const leases: Lease[] = rawLeases.map(l => {
     const u = l.unit
     if (!u || !u.property) {
@@ -109,7 +112,7 @@ async function fetchTenantData(id: string): Promise<{
     }
   })
 
-  // 4) Shrnutí plateb (zatím placeholder)
+  // 4) Shrnutí plateb (zatím placeholder – nahraďte reálnou logikou)
   const summary: Summary = {
     totalDue: 0,
     paidThisMonth: 0,
@@ -134,12 +137,18 @@ export default async function TenantPage({
     return notFound()
   }
 
+  // Převedeme date_registered na string, jak to TenantHeader očekává
+  const headerTenant = {
+    ...data.tenant,
+    date_registered: data.tenant.date_registered.toISOString(),
+  }
+
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
-      <TenantHeader   tenant={data.tenant} />
+      <TenantHeader    tenant={headerTenant} />
       <RentSummaryCard summary={data.summary} />
       <DocumentsSection tenantId={data.tenant.id} />
-      <LeasesSection  leases={data.leases} tenantId={data.tenant.id} />
+      <LeasesSection   leases={data.leases} tenantId={data.tenant.id} />
     </div>
   )
 }
