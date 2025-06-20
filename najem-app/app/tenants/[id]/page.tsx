@@ -1,7 +1,7 @@
 // app/tenants/[id]/page.tsx
 
 import TenantHeader     from '@/components/TenantHeader'
-import RentSummaryCard  from '@/components/RentSummaryCard'
+import PaymentSummary from '@/components/PaymentSummary'
 import DocumentsSection from '@/components/DocumentsSection'
 import LeasesSection    from '@/components/LeasesSection'
 import { notFound }     from 'next/navigation'
@@ -154,8 +154,7 @@ export default async function TenantPage({
       <TenantHeader
         tenant={data.tenant}
       />
-      <RentSummaryCard
-        summary={data.summary}
+     <PaymentSummary tenantId={data.tenant.id} />
       />
       <DocumentsSection
         tenantId={data.tenant.id}
