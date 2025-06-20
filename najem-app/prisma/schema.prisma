@@ -91,7 +91,7 @@ model Lease {
   custom_charges      Json
   charge_flags        Json
   total_billable_rent Float
-  document_url        String?   // ← nově přidané pole pro URL dokumentu
+  document_url        String?   // nově přidané pole pro URL dokumentu
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
 
