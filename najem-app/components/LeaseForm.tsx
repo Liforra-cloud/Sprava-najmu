@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, FormEvent } from 'react'
 import DocumentUpload from './DocumentUpload'
 
 type LeaseFromAPI = {
@@ -44,7 +44,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
   const [units, setUnits] = useState<Unit[]>([])
   const [tenants, setTenants] = useState<Tenant[]>([])
 
-  // hlavní pole
+  // main fields
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [unitId, setUnitId] = useState(existingLease?.unit_id || '')
   const [tenantId, setTenantId] = useState(existingLease?.tenant_id || '')
@@ -53,7 +53,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
   const [endDate, setEndDate] = useState(existingLease?.end_date?.slice(0, 10) || '')
   const [dueDay, setDueDay] = useState(existingLease?.due_day?.toString() || '')
 
-  // finanční položky
+  // financial fields
   const [rentAmount, setRentAmount] = useState<FieldState>({
     value: existingLease?.rent_amount.toString() || '',
     billable: existingLease?.charge_flags.rent_amount ?? true,
@@ -79,7 +79,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     billable: existingLease?.charge_flags.repair_fund ?? false,
   })
 
-  // vlastní poplatky
+  // custom charges
   const [customFields, setCustomFields] = useState(
     existingLease?.custom_charges.map(c => ({
       label: c.name,
@@ -88,15 +88,15 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     })) || [{ label: '', value: '', billable: true }]
   )
 
-  // dokument
+  // document URL
   const [documentUrl, setDocumentUrl] = useState<string>(existingLease?.document_url || '')
 
-  // UI stavy
+  // UI state
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  // načtení selects
+  // load select options
   useEffect(() => {
     async function load() {
       const [uRes, pRes, tRes] = await Promise.all([
@@ -120,12 +120,12 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     load()
   }, [existingLease])
 
-  // filtrované jednotky
+  // filtered units by property
   const filteredUnits = selectedPropertyId
     ? units.filter((u: Unit) => u.property_id === selectedPropertyId)
     : units
 
-  // připravíme payload
+  // prepare payload
   const payload = {
     name,
     unit_id: unitId,
@@ -155,7 +155,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     document_url: documentUrl,
   }
 
-  // ulož nebo aktualizuj
+  // save or update lease
   async function saveLease(): Promise<boolean> {
     if (!tenantId || !unitId || !startDate) {
       setError('Chybí povinná pole')
@@ -180,7 +180,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     }
   }
 
-  // aktualizuj závazky
+  // update obligations
   async function updateObligations(mode: 'all' | 'future') {
     if (!existingLease) return
     await fetch(`/api/leases/${existingLease.id}/update-obligations`, {
@@ -190,7 +190,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     })
   }
 
-  // Save + update
+  // handler for save + update
   async function handleSaveAndUpdate(mode: 'future' | 'all') {
     setIsProcessing(true)
     const ok = await saveLease()
@@ -207,7 +207,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       {error && <p className="text-red-600 font-bold">{error}</p>}
       {success && <p className="text-green-600 font-bold">Smlouva uložena.</p>}
 
-      {/* Základní informace */}
+      {/* Basic info */}
       <fieldset className="border p-4 rounded grid grid-cols-1 md:grid-cols-2 gap-4">
         <legend className="text-lg font-bold mb-2 col-span-full">Základní informace</legend>
         <label>
@@ -288,7 +288,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         </label>
       </fieldset>
 
-      {/* Zálohy a náklady */}
+      {/* Advance costs */}
       <fieldset className="border p-4 rounded">
         <legend className="text-lg font-bold mb-2">Zálohy a náklady</legend>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -301,7 +301,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         </div>
       </fieldset>
 
-      {/* Vlastní poplatky */}
+      {/* Custom charges */}
       <fieldset className="border p-4 rounded">
         <legend className="text-lg font-bold mb-2">Vlastní poplatky</legend>
         {customFields.map((f, idx) => (
@@ -353,11 +353,10 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         )}
       </fieldset>
 
-      {/* Dokument */}
+      {/* Document upload */}
       <fieldset className="border p-4 rounded">
         <legend className="text-lg font-bold mb-2">Přiložený dokument</legend>
         <DocumentUpload
-          initialUrl={documentUrl}
           propertyId={selectedPropertyId}
           unitId={unitId}
           tenantId={tenantId}
@@ -366,7 +365,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         />
       </fieldset>
 
-      {/* Akční tlačítka */}
+      {/* Actions */}
       {existingLease ? (
         <div className="flex gap-2">
           <button
