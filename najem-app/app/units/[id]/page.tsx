@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import dynamicImport from 'next/dynamic';
 import DocumentUpload from '@/components/DocumentUpload';
 import DocumentList from '@/components/DocumentList';
@@ -51,7 +50,6 @@ interface Property {
 
 export default function UnitDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const router = useRouter();
 
   const [unit, setUnit] = useState<Unit | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
