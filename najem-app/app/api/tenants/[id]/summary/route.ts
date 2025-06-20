@@ -6,9 +6,9 @@ import { prisma } from '@/lib/prisma'
 type SummaryData = {
   paidThisMonth: number   // 📆 Zaplaceno tento měsíc
   rentThisMonth: number   // 💰 Nájemné tento měsíc
-  monthDebt: number       // ⚠️ Dluh tento měsíc (jen pokud splatnost uplynula)
-  totalDebt: number       // 📄 Celkový dluh (nezaplacené úhrady minulých měsíců + aktuální, pokud už po splatnosti)
-  totalPaid: number       // 📊 Celkem zaplaceno (všechny platby)
+  monthDebt: number       // ⚠️ Dluh tento měsíc (jen po splatnosti)
+  totalDebt: number       // 📄 Celkový dluh (nezaplacené minulých měsíců + aktuální po splatnosti)
+  totalPaid: number       // 📊 Celkem zaplaceno do dneška
   owes: boolean           // true pokud je totalDebt > 0
 }
 
@@ -18,7 +18,7 @@ export async function GET(
 ) {
   const tenantId = params.id
 
-  // 1) Všechny smlouvy daného nájemníka
+  // 1) Najdeme všechny smlouvy nájemníka
   const leases = await prisma.lease.findMany({
     where: { tenant_id: tenantId },
     select: { id: true },
@@ -35,13 +35,21 @@ export async function GET(
     })
   }
 
-  // 2) Všechny platby
+  const now = new Date()
+  const currYear = now.getFullYear()
+  const currMonth = now.getMonth() + 1
+  const today = now.getDate()
+
+  // 2) Vybereme jen platby do dneška
   const payments = await prisma.payment.findMany({
-    where: { lease_id: { in: leaseIds } },
+    where: {
+      lease_id: { in: leaseIds },
+      payment_date: { lte: now },
+    },
     select: { amount: true, payment_date: true },
   })
 
-  // 3) Všechny měsíční povinnosti
+  // 3) Načteme všechny měsíční povinnosti
   const obligations = await prisma.monthlyObligation.findMany({
     where: { lease_id: { in: leaseIds } },
     select: {
@@ -52,11 +60,6 @@ export async function GET(
       due_day: true,
     },
   })
-
-  const now = new Date()
-  const currYear = now.getFullYear()
-  const currMonth = now.getMonth() + 1
-  const today = now.getDate()
 
   // 4) Spočítáme platby
   let totalPaid = 0
@@ -77,16 +80,16 @@ export async function GET(
   for (const o of obligations) {
     const unpaid = Math.max(0, o.total_due - o.paid_amount)
 
-    // minulý měsíc (nebo starší) => vždy do totalDebt
+    // Minulé měsíce => vždy do totalDebt
     if (o.year < currYear || (o.year === currYear && o.month < currMonth)) {
       totalDebt += unpaid
     }
 
-    // tento měsíc
+    // Tento měsíc
     if (o.year === currYear && o.month === currMonth) {
       rentThisMonth += o.total_due
 
-      // pokud už jsme po dni splatnosti, přičteme i k celkovému dluhu
+      // Až po dni splatnosti přičteme k dluhu
       if (o.due_day != null && today > o.due_day) {
         totalDebt += unpaid
         monthDebt = unpaid
