@@ -2,7 +2,7 @@
 
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, FormEvent } from 'react'
 import DocumentUpload from './DocumentUpload'
 
 type LeaseFromAPI = {
@@ -29,9 +29,11 @@ type LeaseFromAPI = {
 }
 
 type LeaseFormProps = {
+  /** Při úpravě stávající smlouvy */
   existingLease?: LeaseFromAPI
-  /** při vytváření nové smlouvy můžeš předat tenantId */
+  /** Při přidávání nové: předvyplní tenantId */
   initialTenantId?: string
+  /** Zavolá se po úspěšném uložení */
   onSaved?: () => void
 }
 
@@ -52,17 +54,11 @@ export default function LeaseForm({
 
   // hlavní pole
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
-  const [unitId, setUnitId] = useState(
-    existingLease?.unit_id || ''
-  )
+  const [unitId, setUnitId] = useState(existingLease?.unit_id || '')
   const [tenantId, setTenantId] = useState(
-    existingLease?.tenant_id ||
-      initialTenantId ||
-      ''
+    existingLease?.tenant_id || initialTenantId || ''
   )
-  const [name, setName] = useState(
-    existingLease?.name || ''
-  )
+  const [name, setName] = useState(existingLease?.name || '')
   const [startDate, setStartDate] = useState(
     existingLease?.start_date.slice(0, 10) || ''
   )
@@ -75,69 +71,40 @@ export default function LeaseForm({
 
   // finanční položky
   const [rentAmount, setRentAmount] = useState<FieldState>({
-    value:
-      existingLease?.rent_amount.toString() || '',
-    billable:
-      existingLease?.charge_flags.rent_amount ??
-      true,
+    value: existingLease?.rent_amount.toString() || '',
+    billable: existingLease?.charge_flags.rent_amount ?? true,
   })
-  const [monthlyWater, setMonthlyWater] =
-    useState<FieldState>({
-      value:
-        existingLease?.monthly_water.toString() ||
-        '',
-      billable:
-        existingLease?.charge_flags.monthly_water ??
-        true,
-    })
-  const [monthlyGas, setMonthlyGas] =
-    useState<FieldState>({
-      value:
-        existingLease?.monthly_gas.toString() || '',
-      billable:
-        existingLease?.charge_flags.monthly_gas ??
-        true,
-    })
-  const [monthlyElectricity, setMonthlyElectricity] =
-    useState<FieldState>({
-      value:
-        existingLease?.monthly_electricity.toString() ||
-        '',
-      billable:
-        existingLease
-          ?.charge_flags.monthly_electricity ??
-        true,
-    })
-  const [monthlyServices, setMonthlyServices] =
-    useState<FieldState>({
-      value:
-        existingLease?.monthly_services.toString() ||
-        '',
-      billable:
-        existingLease?.charge_flags.monthly_services ??
-        true,
-    })
-  const [monthlyFund, setMonthlyFund] =
-    useState<FieldState>({
-      value:
-        existingLease?.repair_fund.toString() || '',
-      billable:
-        existingLease?.charge_flags.repair_fund ??
-        false,
-    })
+  const [monthlyWater, setMonthlyWater] = useState<FieldState>({
+    value: existingLease?.monthly_water.toString() || '',
+    billable: existingLease?.charge_flags.monthly_water ?? true,
+  })
+  const [monthlyGas, setMonthlyGas] = useState<FieldState>({
+    value: existingLease?.monthly_gas.toString() || '',
+    billable: existingLease?.charge_flags.monthly_gas ?? true,
+  })
+  const [monthlyElectricity, setMonthlyElectricity] = useState<FieldState>({
+    value: existingLease?.monthly_electricity.toString() || '',
+    billable: existingLease?.charge_flags.monthly_electricity ?? true,
+  })
+  const [monthlyServices, setMonthlyServices] = useState<FieldState>({
+    value: existingLease?.monthly_services.toString() || '',
+    billable: existingLease?.charge_flags.monthly_services ?? true,
+  })
+  const [monthlyFund, setMonthlyFund] = useState<FieldState>({
+    value: existingLease?.repair_fund.toString() || '',
+    billable: existingLease?.charge_flags.repair_fund ?? false,
+  })
 
   // vlastní poplatky
   const [customFields, setCustomFields] = useState(
-    existingLease?.custom_charges.map((c) => ({
+    existingLease?.custom_charges.map(c => ({
       label: c.name,
       value: c.amount.toString(),
       billable: c.enabled,
-    })) || [
-      { label: '', value: '', billable: true },
-    ]
+    })) || [{ label: '', value: '', billable: true }]
   )
 
-  // URL dokumentu
+  // dokument URL
   const [documentUrl, setDocumentUrl] = useState<string>(
     existingLease?.document_url || ''
   )
@@ -145,12 +112,11 @@ export default function LeaseForm({
   // UI stavy
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [isProcessing, setIsProcessing] =
-    useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  // načtení možností pro selects
+  // načtení selectů
   useEffect(() => {
-    async function load() {
+    async function loadOptions() {
       const [uRes, pRes, tRes] = await Promise.all([
         fetch('/api/units'),
         fetch('/api/properties'),
@@ -165,55 +131,41 @@ export default function LeaseForm({
       setTenants(tenantsList)
 
       if (existingLease) {
-        const unit = unitsList.find(
-          (u) => u.id === existingLease.unit_id
-        )
-        if (unit)
-          setSelectedPropertyId(unit.property_id)
+        const unit = unitsList.find(u => u.id === existingLease.unit_id)
+        if (unit) setSelectedPropertyId(unit.property_id)
       }
     }
-    load()
+    loadOptions()
   }, [existingLease])
 
   // filtrované jednotky dle nemovitosti
   const filteredUnits = selectedPropertyId
-    ? units.filter(
-        (u) => u.property_id === selectedPropertyId
-      )
+    ? units.filter(u => u.property_id === selectedPropertyId)
     : units
 
-  // payload pro API
+  // sestavení payloadu
   const payload = {
     name,
     unit_id: unitId,
     tenant_id: tenantId,
     start_date: new Date(startDate),
-    end_date: endDate
-      ? new Date(endDate)
-      : null,
-    due_day:
-      dueDay === '' ? null : Number(dueDay),
+    end_date: endDate ? new Date(endDate) : null,
+    due_day: dueDay === '' ? null : Number(dueDay),
     rent_amount: Number(rentAmount.value),
     monthly_water: Number(monthlyWater.value),
     monthly_gas: Number(monthlyGas.value),
-    monthly_electricity: Number(
-      monthlyElectricity.value
-    ),
-    monthly_services: Number(
-      monthlyServices.value
-    ),
+    monthly_electricity: Number(monthlyElectricity.value),
+    monthly_services: Number(monthlyServices.value),
     repair_fund: Number(monthlyFund.value),
     charge_flags: {
       rent_amount: rentAmount.billable,
       monthly_water: monthlyWater.billable,
       monthly_gas: monthlyGas.billable,
-      monthly_electricity:
-        monthlyElectricity.billable,
-      monthly_services:
-        monthlyServices.billable,
+      monthly_electricity: monthlyElectricity.billable,
+      monthly_services: monthlyServices.billable,
       repair_fund: monthlyFund.billable,
     },
-    custom_charges: customFields.map((f) => ({
+    custom_charges: customFields.map(f => ({
       name: f.label,
       amount: Number(f.value),
       enabled: f.billable,
@@ -221,7 +173,7 @@ export default function LeaseForm({
     document_url: documentUrl,
   }
 
-  // uložit/aktualizovat smlouvu
+  // uložení/aktualizace
   async function saveLease(): Promise<boolean> {
     if (!tenantId || !unitId || !startDate) {
       setError('Chybí povinná pole')
@@ -234,9 +186,7 @@ export default function LeaseForm({
       : '/api/leases'
     const res = await fetch(url, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
     if (res.ok) {
@@ -251,26 +201,17 @@ export default function LeaseForm({
   }
 
   // aktualizace závazků
-  async function updateObligations(
-    mode: 'all' | 'future'
-  ) {
+  async function updateObligations(mode: 'future' | 'all') {
     if (!existingLease) return
-    await fetch(
-      `/api/leases/${existingLease.id}/update-obligations`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ mode }),
-      }
-    )
+    await fetch(`/api/leases/${existingLease.id}/update-obligations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+    })
   }
 
-  // handler pro uložení + aktualizaci
-  async function handleSaveAndUpdate(
-    mode: 'future' | 'all'
-  ) {
+  // handler tlačítek
+  async function handleSaveAndUpdate(mode: 'future' | 'all') {
     setIsProcessing(true)
     const ok = await saveLease()
     if (ok) {
@@ -283,16 +224,8 @@ export default function LeaseForm({
 
   return (
     <form className="space-y-6">
-      {error && (
-        <p className="text-red-600 font-bold">
-          {error}
-        </p>
-      )}
-      {success && (
-        <p className="text-green-600 font-bold">
-          Smlouva uložena.
-        </p>
-      )}
+      {error && <p className="text-red-600 font-bold">{error}</p>}
+      {success && <p className="text-green-600 font-bold">Smlouva uložena.</p>}
 
       {/* Základní informace */}
       <fieldset className="border p-4 rounded grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -303,97 +236,73 @@ export default function LeaseForm({
           Nájemník:
           <select
             value={tenantId}
-            onChange={(e) =>
-              setTenantId(e.target.value)
-            }
+            onChange={e => setTenantId(e.target.value)}
             className="w-full border p-2 rounded"
           >
-            <option value="">
-              -- Vyber nájemníka --
-            </option>
-            {tenants.map((t) => (
+            <option value="">-- Vyber nájemníka --</option>
+            {tenants.map(t => (
               <option key={t.id} value={t.id}>
                 {t.full_name}
               </option>
             ))}
           </select>
         </label>
-
         <label>
           Název smlouvy:
           <input
             value={name}
-            onChange={(e) =>
-              setName(e.target.value)
-            }
+            onChange={e => setName(e.target.value)}
             className="w-full border p-2 rounded"
           />
         </label>
-
         <label>
           Nemovitost:
           <select
             value={selectedPropertyId}
-            onChange={(e) =>
-              setSelectedPropertyId(e.target.value)
-            }
+            onChange={e => setSelectedPropertyId(e.target.value)}
             className="w-full border p-2 rounded"
           >
-            <option value="">
-              -- Vyber nemovitost --
-            </option>
-            {properties.map((p) => (
+            <option value="">-- Vyber nemovitost --</option>
+            {properties.map(p => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
           </select>
         </label>
-
         <label>
           Jednotka:
           <select
             value={unitId}
-            onChange={(e) =>
-              setUnitId(e.target.value)
-            }
+            onChange={e => setUnitId(e.target.value)}
             className="w-full border p-2 rounded"
           >
-            <option value="">
-              -- Vyber jednotku --
-            </option>
-            {filteredUnits.map((u) => (
+            <option value="">-- Vyber jednotku --</option>
+            {filteredUnits.map(u => (
               <option key={u.id} value={u.id}>
                 {u.identifier}
               </option>
             ))}
           </select>
         </label>
-
         <label>
           Začátek nájmu:
           <input
             type="date"
             value={startDate}
-            onChange={(e) =>
-              setStartDate(e.target.value)
-            }
+            onChange={e => setStartDate(e.target.value)}
             className="w-full border p-2 rounded"
           />
         </label>
-
         <label>
           Konec nájmu:
           <input
             type="date"
             value={endDate}
-            onChange={(e) =>
-              setEndDate(e.target.value)
-            }
+            onChange={e => setEndDate(e.target.value)}
             className="w-full border p-2 rounded"
           />
         </label>
-
         <label>
           Den splatnosti:
           <input
@@ -401,9 +310,7 @@ export default function LeaseForm({
             min="1"
             max="31"
             value={dueDay}
-            onChange={(e) =>
-              setDueDay(e.target.value)
-            }
+            onChange={e => setDueDay(e.target.value)}
             className="w-full border p-2 rounded"
           />
         </label>
@@ -411,14 +318,16 @@ export default function LeaseForm({
 
       {/* Zálohy a náklady */}
       <fieldset className="border p-4 rounded">
-        <legend className="text-lg font-bold mb-2">
-          Zálohy a náklady
-        </legend>
+        <legend className="text-lg font-bold mb-2">Zálohy a náklady</legend>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {renderField('Měsíční nájem', rentAmount, setRentAmount)}
           {renderField('Voda', monthlyWater, setMonthlyWater)}
           {renderField('Plyn', monthlyGas, setMonthlyGas)}
-          {renderField('Elektřina', monthlyElectricity, setMonthlyElectricity)}
+          {renderField(
+            'Elektřina',
+            monthlyElectricity,
+            setMonthlyElectricity
+          )}
           {renderField('Služby', monthlyServices, setMonthlyServices)}
           {renderField('Fond oprav', monthlyFund, setMonthlyFund)}
         </div>
@@ -426,19 +335,14 @@ export default function LeaseForm({
 
       {/* Vlastní poplatky */}
       <fieldset className="border p-4 rounded">
-        <legend className="text-lg font-bold mb-2">
-          Vlastní poplatky
-        </legend>
+        <legend className="text-lg font-bold mb-2">Vlastní poplatky</legend>
         {customFields.map((f, idx) => (
-          <div
-            key={idx}
-            className="grid grid-cols-3 gap-2"
-          >
+          <div key={idx} className="grid grid-cols-3 gap-2">
             <input
               type="text"
               placeholder="Název"
               value={f.label}
-              onChange={(e) => {
+              onChange={e => {
                 const arr = [...customFields]
                 arr[idx].label = e.target.value
                 setCustomFields(arr)
@@ -449,7 +353,7 @@ export default function LeaseForm({
               type="number"
               placeholder="Částka"
               value={f.value}
-              onChange={(e) => {
+              onChange={e => {
                 const arr = [...customFields]
                 arr[idx].value = e.target.value
                 setCustomFields(arr)
@@ -460,10 +364,9 @@ export default function LeaseForm({
               <input
                 type="checkbox"
                 checked={f.billable}
-                onChange={(e) => {
+                onChange={e => {
                   const arr = [...customFields]
-                  arr[idx].billable =
-                    e.target.checked
+                  arr[idx].billable = e.target.checked
                   setCustomFields(arr)
                 }}
               />
@@ -497,7 +400,7 @@ export default function LeaseForm({
           unitId={unitId}
           tenantId={tenantId}
           expenseId={existingLease?.id}
-          onUpload={(url) => setDocumentUrl(url)}
+          onUpload={url => setDocumentUrl(url)}
         />
       </fieldset>
 
@@ -508,9 +411,7 @@ export default function LeaseForm({
             type="button"
             disabled={isProcessing}
             className="bg-green-600 text-white px-4 py-2 rounded"
-            onClick={() =>
-              handleSaveAndUpdate('future')
-            }
+            onClick={() => handleSaveAndUpdate('future')}
           >
             {isProcessing
               ? '⏳ Zpracovávám…'
@@ -520,13 +421,9 @@ export default function LeaseForm({
             type="button"
             disabled={isProcessing}
             className="bg-green-800 text-white px-4 py-2 rounded"
-            onClick={() =>
-              handleSaveAndUpdate('all')
-            }
+            onClick={() => handleSaveAndUpdate('all')}
           >
-            {isProcessing
-              ? '⏳ Zpracovávám…'
-              : 'Uložit & aktualizovat vše'}
+            {isProcessing ? '⏳ Zpracovávám…' : 'Uložit & aktualizovat vše'}
           </button>
         </div>
       ) : (
@@ -554,24 +451,14 @@ export default function LeaseForm({
           <input
             type="number"
             value={state.value}
-            onChange={(e) =>
-              setter({
-                ...state,
-                value: e.target.value,
-              })
-            }
+            onChange={e => setter({ ...state, value: e.target.value })}
             className="border p-2 rounded w-full"
           />
           <label className="flex items-center gap-1">
             <input
               type="checkbox"
               checked={state.billable}
-              onChange={(e) =>
-                setter({
-                  ...state,
-                  billable: e.target.checked,
-                })
-              }
+              onChange={e => setter({ ...state, billable: e.target.checked })}
             />
             Účtovat
           </label>
