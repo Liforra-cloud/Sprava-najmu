@@ -1,9 +1,10 @@
+// app/api/leases/[id]/route.ts
+
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import type { InputJsonValue } from '@prisma/client/runtime/library'
 
-type CustomCharge = {
+interface CustomCharge {
   name: string
   amount: number
   enabled: boolean
@@ -36,11 +37,9 @@ export async function GET(
         monthly_electricity: true,
         monthly_services: true,
         repair_fund: true,
-        custom_fields: true,
-        total_billable_rent: true,
         custom_charges: true,
         charge_flags: true,
-        document_url: true,          // <--- přidáno
+        document_url: true,
         created_at: true,
         updated_at: true,
         tenant: { select: { full_name: true } },
@@ -62,12 +61,11 @@ export async function GET(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    const flags = (lease.charge_flags as Record<string, boolean>) ?? {}
-    const customCharges = Array.isArray(lease.custom_charges)
+    const flags = (lease.charge_flags as Record<string, boolean>) || {}
+    const customs = Array.isArray(lease.custom_charges)
       ? (lease.custom_charges as CustomCharge[])
       : []
-
-    const customTotal = customCharges.reduce(
+    const customTotal = customs.reduce(
       (sum, c) => (c.enabled ? sum + parseNumber(c.amount) : sum),
       0
     )
@@ -109,17 +107,19 @@ export async function PUT(
         tenant_id: body.tenant_id,
         start_date: body.start_date ? new Date(body.start_date) : undefined,
         end_date: body.end_date ? new Date(body.end_date) : null,
-        due_day: body.due_day !== undefined ? parseInt(body.due_day) : null,
+        due_day:
+          body.due_day !== undefined && body.due_day !== null
+            ? parseInt(body.due_day, 10)
+            : null,
         rent_amount: Number(body.rent_amount ?? 0),
         monthly_water: Number(body.monthly_water ?? 0),
         monthly_gas: Number(body.monthly_gas ?? 0),
         monthly_electricity: Number(body.monthly_electricity ?? 0),
         monthly_services: Number(body.monthly_services ?? 0),
         repair_fund: Number(body.repair_fund ?? 0),
-        custom_fields: body.custom_fields as InputJsonValue,
-        custom_charges: body.custom_charges as InputJsonValue,
-        charge_flags: body.charge_flags as InputJsonValue,
-        document_url: body.document_url ?? null,  // <--- přidáno
+        custom_charges: body.custom_charges,
+        charge_flags: body.charge_flags,
+        document_url: body.document_url ?? null,
       },
     })
 
@@ -138,13 +138,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await prisma.payment.deleteMany({
-      where: { lease_id: params.id },
-    })
-
-    await prisma.lease.delete({
-      where: { id: params.id },
-    })
+    // nejprve smažeme platby
+    await prisma.payment.deleteMany({ where: { lease_id: params.id } })
+    // potom smažeme smlouvu
+    await prisma.lease.delete({ where: { id: params.id } })
 
     return NextResponse.json({ success: true })
   } catch (err) {
