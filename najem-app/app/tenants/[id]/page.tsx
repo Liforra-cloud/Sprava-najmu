@@ -7,6 +7,19 @@ import LeasesSection from '@/components/LeasesSection'
 import { notFound } from 'next/navigation'
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
+type RawLease = {
+  id: string
+  name: string
+  rent_amount: number
+  start_date: string
+  end_date: string | null
+  unit: Array<{
+    id: string
+    identifier: string
+    property: Array<{ id: string; name: string }>
+  }>
+}
+
 type Lease = {
   id: string
   name: string
@@ -43,42 +56,52 @@ async function fetchTenantData(id: string): Promise<{
 }> {
   const supabase = supabaseRouteClient()
 
-  // 1) Načteme nájemníka a jeho smlouvy
-  const [{ data: tenant, error: tenantError }, { data: leases, error: leasesError }] =
-    await Promise.all([
-      supabase
-        .from('tenants')
-        .select('id, full_name, email, phone, personal_id, address, employer, note, date_registered')
-        .eq('id', id)
-        .single(),
-      supabase
-        .from('leases')
-        .select(`
-          id,
-          name,
-          rent_amount,
-          start_date,
-          end_date,
-          unit:unit_id (
-            id,
-            identifier,
-            property:property_id (
-              id,
-              name
-            )
-          )
-        `)
-        .eq('tenant_id', id),
-    ])
+  // 1) Načteme nájemníka
+  const { data: tenant, error: tenantError } = await supabase
+    .from('tenants')
+    .select('id, full_name, email, phone, personal_id, address, employer, note, date_registered')
+    .eq('id', id)
+    .single()
+  if (tenantError || !tenant) throw new Error('Nájemník nenalezen')
 
-  if (tenantError || !tenant) {
-    throw new Error('Nájemník nenalezen')
-  }
-  if (leasesError) {
-    console.error('Chyba při načítání smluv:', leasesError.message)
-  }
+  // 2) Načteme surové smlouvy
+  const { data: rawLeases, error: leasesError } = await supabase
+    .from('leases')
+    .select(`
+      id,
+      name,
+      rent_amount,
+      start_date,
+      end_date,
+      unit:unit_id (
+        id,
+        identifier,
+        property:property_id ( id, name )
+      )
+    `)
+    .eq('tenant_id', id)
 
-  // 2) Shrnutí plateb (ukázková data, nahraďte reálným dotazem na monthly_obligations/payments)
+  if (leasesError) console.error('Chyba při načítání smluv:', leasesError.message)
+
+  // Přetypujeme a zploštíme unit/property do Lease[]
+  const leases: Lease[] = (rawLeases ?? []).map((l: RawLease) => {
+    const u = l.unit[0]
+    const p = u.property[0]
+    return {
+      id: l.id,
+      name: l.name,
+      rent_amount: l.rent_amount,
+      start_date: l.start_date,
+      end_date: l.end_date,
+      unit: {
+        id: u.id,
+        identifier: u.identifier,
+        property: { id: p.id, name: p.name },
+      },
+    }
+  })
+
+  // 3) Shrnutí plateb – placeholder, doplňte reálný dotaz
   const summary: Summary = {
     totalDue: 0,
     paidThisMonth: 0,
@@ -87,11 +110,7 @@ async function fetchTenantData(id: string): Promise<{
     debtThisMonth: 0,
   }
 
-  return {
-    tenant,
-    leases: leases ?? [],
-    summary,
-  }
+  return { tenant, leases, summary }
 }
 
 export default async function TenantPage({
@@ -109,16 +128,9 @@ export default async function TenantPage({
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
-      {/* Záhlaví s údaji o nájemníkovi */}
       <TenantHeader tenant={data.tenant} />
-
-      {/* Souhrn nájemného */}
       <RentSummaryCard summary={data.summary} />
-
-      {/* Sekce dokumentů */}
       <DocumentsSection tenantId={data.tenant.id} />
-
-      {/* Sekce smluv */}
       <LeasesSection leases={data.leases} tenantId={data.tenant.id} />
     </div>
   )
