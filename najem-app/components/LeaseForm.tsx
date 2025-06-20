@@ -2,7 +2,7 @@
 
 'use client'
 
-import React, { useEffect, useState, FormEvent } from 'react'
+import React, { useEffect, useState } from 'react'
 import DocumentUpload from './DocumentUpload'
 
 type LeaseFromAPI = {
@@ -29,11 +29,8 @@ type LeaseFromAPI = {
 }
 
 type LeaseFormProps = {
-  /** Při úpravě stávající smlouvy */
   existingLease?: LeaseFromAPI
-  /** Při přidávání nové: předvyplní tenantId */
   initialTenantId?: string
-  /** Zavolá se po úspěšném uložení */
   onSaved?: () => void
 }
 
@@ -323,11 +320,7 @@ export default function LeaseForm({
           {renderField('Měsíční nájem', rentAmount, setRentAmount)}
           {renderField('Voda', monthlyWater, setMonthlyWater)}
           {renderField('Plyn', monthlyGas, setMonthlyGas)}
-          {renderField(
-            'Elektřina',
-            monthlyElectricity,
-            setMonthlyElectricity
-          )}
+          {renderField('Elektřina', monthlyElectricity, setMonthlyElectricity)}
           {renderField('Služby', monthlyServices, setMonthlyServices)}
           {renderField('Fond oprav', monthlyFund, setMonthlyFund)}
         </div>
