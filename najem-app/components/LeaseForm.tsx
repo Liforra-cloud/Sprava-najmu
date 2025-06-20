@@ -1,5 +1,7 @@
 // components/LeaseForm.tsx
 
+// components/LeaseForm.tsx
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -88,9 +90,6 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     })) || [{ label: '', value: '', billable: true }]
   )
 
-  // dokument
-  const [documentUrl, setDocumentUrl] = useState<string>(existingLease?.document_url || '')
-
   // UI-stavy
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -110,7 +109,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       setTenants(t)
 
       if (existingLease) {
-        const unit = u.find((x: Unit) => x.id === existingLease.unit_id)
+        const unit = u.find(x => x.id === existingLease.unit_id)
         if (unit) setSelectedPropertyId(unit.property_id)
       }
     }
@@ -149,7 +148,6 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       amount: Number(f.value),
       enabled: f.billable,
     })),
-    document_url: documentUrl,
   }
 
   // CRUD
@@ -346,8 +344,11 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       <fieldset className="border p-4 rounded">
         <legend className="text-lg font-bold mb-2">Přiložený dokument</legend>
         <DocumentUpload
-          value={documentUrl}
-          onChange={url => setDocumentUrl(url)}
+          propertyId={selectedPropertyId}
+          unitId={unitId}
+          tenantId={tenantId}
+          expenseId={existingLease?.id}
+          onUpload={() => alert('Dokument úspěšně nahrán')}
         />
       </fieldset>
 
@@ -408,3 +409,4 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     )
   }
 }
+
