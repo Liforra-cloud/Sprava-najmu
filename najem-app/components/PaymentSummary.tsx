@@ -5,12 +5,12 @@
 import { useEffect, useState } from 'react'
 
 type SummaryData = {
-  totalDue: number       // Celkem dlužné
-  totalPaid: number      // Celkem zaplaceno
-  paidThisMonth: number  // Zaplaceno tento měsíc
-  totalDebt: number      // Celkový dluh (totalDue − totalPaid)
-  monthDebt: number      // Dluh tento měsíc (monthRent − paidThisMonth)
-  owes: boolean
+  paidThisMonth:   number  // 📆 Zaplaceno tento měsíc
+  rentThisMonth:   number  // 💰 Nájemné tento měsíc
+  monthDebt:       number  // ⚠️ Dluh tento měsíc
+  totalDebt:       number  // 📄 Celkový dluh
+  totalPaid:       number  // 📊 Celkem zaplaceno
+  owes:            boolean // true pokud je celkový dluh > 0 nebo měsíční dluh > 0
 }
 
 export default function PaymentSummary({ tenantId }: { tenantId: string }) {
@@ -24,7 +24,7 @@ export default function PaymentSummary({ tenantId }: { tenantId: string }) {
       try {
         const res = await fetch(`/api/tenants/${tenantId}/summary`)
         if (!res.ok) throw new Error('Chyba při načítání souhrnu')
-        const json: SummaryData = await res.json()
+        const json = await res.json() as SummaryData
         setData(json)
       } catch (err: unknown) {
         console.error(err)
@@ -41,22 +41,20 @@ export default function PaymentSummary({ tenantId }: { tenantId: string }) {
   }, [tenantId])
 
   if (loading) return <p>Načítám souhrn plateb…</p>
-  if (error) return <p className="text-red-600">⚠️ {error}</p>
-  if (!data) return null
+  if (error)   return <p className="text-red-600">⚠️ {error}</p>
+  if (!data)  return null
 
   return (
     <div className="p-4 border rounded-xl shadow bg-white mt-4">
       <h2 className="text-xl font-bold mb-3">Souhrn nájemného</h2>
-      <div className="space-y-1">
-        <p>💰 Celkem dlužné: <strong>{data.totalDue} Kč</strong></p>
+      <div className="space-y-1 text-lg">
         <p>📆 Zaplaceno tento měsíc: <strong>{data.paidThisMonth} Kč</strong></p>
+        <p>💰 Nájemné tento měsíc: <strong>{data.rentThisMonth} Kč</strong></p>
+        {data.monthDebt > 0 && (
+          <p className="text-red-600">⚠️ Dluh tento měsíc: <strong>{data.monthDebt} Kč</strong></p>
+        )}
+        <p>📄 Celkový dluh: <strong>{data.totalDebt} Kč</strong></p>
         <p>📊 Celkem zaplaceno: <strong>{data.totalPaid} Kč</strong></p>
-        <p className={data.totalDebt > 0 ? 'text-red-600' : ''}>
-          📄 Celkový dluh: <strong>{data.totalDebt} Kč</strong>
-        </p>
-        <p className={data.monthDebt > 0 ? 'text-red-600' : ''}>
-          ⚠️ Dluh tento měsíc: <strong>{data.monthDebt} Kč</strong>
-        </p>
         {data.owes ? (
           <p className="text-red-700 font-semibold">⚠️ Nájemník má dluh</p>
         ) : (
