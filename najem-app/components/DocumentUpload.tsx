@@ -1,5 +1,3 @@
-// /components/DocumentUpload.tsx
-
 // components/DocumentUpload.tsx
 
 'use client'
@@ -11,7 +9,8 @@ type Props = {
   unitId?: string
   tenantId?: string
   expenseId?: string
-  onUpload?: () => void
+  /** Zavolá se s URL po úspěšném nahrání */
+  onUpload?: (url: string) => void
 }
 
 export default function DocumentUpload({
@@ -45,18 +44,21 @@ export default function DocumentUpload({
     if (propertyId) formData.append('property_id', propertyId)
     if (unitId) formData.append('unit_id', unitId)
     if (tenantId) formData.append('tenant_id', tenantId)
-    if (expenseId) formData.append('lease_id', expenseId) // přejmenováno na lease_id
+    if (expenseId) formData.append('lease_id', expenseId)
+
     try {
       const res = await fetch('/api/documents', {
         method: 'POST',
         body: formData,
       })
       if (res.ok) {
+        const data = await res.json()
+        const url = data.publicUrl as string  // předpokládáme, že API vrací publicUrl
         setSuccess(true)
         setFile(null)
         setName('')
         setDate(new Date().toISOString().slice(0, 10))
-        onUpload?.()
+        onUpload?.(url)
       } else {
         const data = await res.json()
         setError(data.error || 'Chyba při nahrávání.')
@@ -109,5 +111,3 @@ export default function DocumentUpload({
     </form>
   )
 }
-
-
