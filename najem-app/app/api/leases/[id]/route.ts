@@ -63,7 +63,7 @@ export async function GET(
 
     const flags = (lease.charge_flags as Record<string, boolean>) || {}
     const customs = Array.isArray(lease.custom_charges)
-      ? (lease.custom_charges as CustomCharge[])
+      ? (lease.custom_charges as unknown as CustomCharge[])
       : []
     const customTotal = customs.reduce(
       (sum, c) => (c.enabled ? sum + parseNumber(c.amount) : sum),
@@ -138,9 +138,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // nejprve smažeme platby
     await prisma.payment.deleteMany({ where: { lease_id: params.id } })
-    // potom smažeme smlouvu
     await prisma.lease.delete({ where: { id: params.id } })
 
     return NextResponse.json({ success: true })
@@ -152,3 +150,4 @@ export async function DELETE(
     )
   }
 }
+
