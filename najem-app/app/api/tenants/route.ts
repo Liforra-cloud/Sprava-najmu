@@ -1,14 +1,13 @@
 // app/api/tenants/route.ts
 
-import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(_: NextRequest) {
+export async function GET(request: NextRequest) {
   const now = new Date()
 
-  // Načteme všechny nájemníky, 
-  // ale jen ty jejich smlouvy, které právě běží:
+  // Načteme všechny nájemníky včetně právě běžících smluv
   const tenants = await prisma.tenant.findMany({
     include: {
       leases: {
@@ -24,7 +23,7 @@ export async function GET(_: NextRequest) {
     orderBy: { full_name: 'asc' },
   })
 
-  // Připravíme DTO, kde active_unit_count = počet aktivních smluv
+  // Připravíme výstup s počtem aktivních smluv
   const result = tenants.map(t => ({
     id: t.id,
     full_name: t.full_name,
