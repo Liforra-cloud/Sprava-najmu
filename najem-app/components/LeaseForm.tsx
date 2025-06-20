@@ -1,7 +1,5 @@
 // components/LeaseForm.tsx
 
-// components/LeaseForm.tsx
-
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -41,12 +39,12 @@ type Tenant = { id: string; full_name: string }
 type FieldState = { value: string; billable: boolean }
 
 export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
-  // data pro selects
+  // selects data
   const [properties, setProperties] = useState<Property[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [tenants, setTenants] = useState<Tenant[]>([])
 
-  // vybraná hlavní data
+  // hlavní pole
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [unitId, setUnitId] = useState(existingLease?.unit_id || '')
   const [tenantId, setTenantId] = useState(existingLease?.tenant_id || '')
@@ -90,12 +88,15 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     })) || [{ label: '', value: '', billable: true }]
   )
 
-  // UI-stavy
+  // dokument
+  const [documentUrl, setDocumentUrl] = useState<string>(existingLease?.document_url || '')
+
+  // UI stavy
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  // načtení selectů
+  // načtení selects
   useEffect(() => {
     async function load() {
       const [uRes, pRes, tRes] = await Promise.all([
@@ -103,25 +104,28 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         fetch('/api/properties'),
         fetch('/api/tenants'),
       ])
-      const [u, p, t] = await Promise.all([uRes.json(), pRes.json(), tRes.json()])
-      setUnits(u)
-      setProperties(p)
-      setTenants(t)
+      const unitsList = (await uRes.json()) as Unit[]
+      const propsList = (await pRes.json()) as Property[]
+      const tenantsList = (await tRes.json()) as Tenant[]
+
+      setUnits(unitsList)
+      setProperties(propsList)
+      setTenants(tenantsList)
 
       if (existingLease) {
-        const unit = u.find(x => x.id === existingLease.unit_id)
+        const unit = unitsList.find((x: Unit) => x.id === existingLease.unit_id)
         if (unit) setSelectedPropertyId(unit.property_id)
       }
     }
     load()
   }, [existingLease])
 
-  // jednotky podle vybrané nemovitosti
+  // filtrované jednotky
   const filteredUnits = selectedPropertyId
-    ? units.filter(u => u.property_id === selectedPropertyId)
+    ? units.filter((u: Unit) => u.property_id === selectedPropertyId)
     : units
 
-  // data pro API
+  // připravíme payload
   const payload = {
     name,
     unit_id: unitId,
@@ -148,9 +152,10 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       amount: Number(f.value),
       enabled: f.billable,
     })),
+    document_url: documentUrl,
   }
 
-  // CRUD
+  // ulož nebo aktualizuj
   async function saveLease(): Promise<boolean> {
     if (!tenantId || !unitId || !startDate) {
       setError('Chybí povinná pole')
@@ -175,6 +180,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     }
   }
 
+  // aktualizuj závazky
   async function updateObligations(mode: 'all' | 'future') {
     if (!existingLease) return
     await fetch(`/api/leases/${existingLease.id}/update-obligations`, {
@@ -184,6 +190,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     })
   }
 
+  // Save + update
   async function handleSaveAndUpdate(mode: 'future' | 'all') {
     setIsProcessing(true)
     const ok = await saveLease()
@@ -211,7 +218,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
             className="w-full border p-2 rounded"
           >
             <option value="">-- Vyber nájemníka --</option>
-            {tenants.map(t => (
+            {tenants.map((t: Tenant) => (
               <option key={t.id} value={t.id}>{t.full_name}</option>
             ))}
           </select>
@@ -232,7 +239,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
             className="w-full border p-2 rounded"
           >
             <option value="">-- Vyber nemovitost --</option>
-            {properties.map(p => (
+            {properties.map((p: Property) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
@@ -245,7 +252,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
             className="w-full border p-2 rounded"
           >
             <option value="">-- Vyber jednotku --</option>
-            {filteredUnits.map(u => (
+            {filteredUnits.map((u: Unit) => (
               <option key={u.id} value={u.id}>{u.identifier}</option>
             ))}
           </select>
@@ -304,7 +311,9 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
               placeholder="Název"
               value={f.label}
               onChange={e => {
-                const arr = [...customFields]; arr[idx].label = e.target.value; setCustomFields(arr)
+                const arr = [...customFields]
+                arr[idx].label = e.target.value
+                setCustomFields(arr)
               }}
               className="border p-2 rounded"
             />
@@ -313,7 +322,9 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
               placeholder="Částka"
               value={f.value}
               onChange={e => {
-                const arr = [...customFields]; arr[idx].value = e.target.value; setCustomFields(arr)
+                const arr = [...customFields]
+                arr[idx].value = e.target.value
+                setCustomFields(arr)
               }}
               className="border p-2 rounded"
             />
@@ -322,7 +333,9 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
                 type="checkbox"
                 checked={f.billable}
                 onChange={e => {
-                  const arr = [...customFields]; arr[idx].billable = e.target.checked; setCustomFields(arr)
+                  const arr = [...customFields]
+                  arr[idx].billable = e.target.checked
+                  setCustomFields(arr)
                 }}
               />
               Účtovat
@@ -385,7 +398,11 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     </form>
   )
 
-  function renderField(label: string, state: FieldState, setter: (v: FieldState) => void) {
+  function renderField(
+    label: string,
+    state: FieldState,
+    setter: (v: FieldState) => void
+  ) {
     return (
       <label className="flex flex-col">
         {label}:
@@ -409,4 +426,3 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
     )
   }
 }
-
