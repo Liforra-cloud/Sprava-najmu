@@ -1,22 +1,24 @@
 // app/api/tenants/[id]/route.ts
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params
+export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   const supabase = supabaseRouteClient()
+  const tenantId = params.id
 
-  // Získání nájemníka
+  // 1) Načteme nájemníka
   const { data: tenant, error: tenantError } = await supabase
     .from('tenants')
     .select('*')
-    .eq('id', id)
+    .eq('id', tenantId)
     .single()
+  if (tenantError || !tenant) {
+    return NextResponse.json({ error: tenantError?.message ?? 'Nenalezeno' }, { status: 404 })
+  }
 
-  if (tenantError) return NextResponse.json({ error: tenantError.message }, { status: 500 })
-
-  // Získání smluv včetně jednotky a nemovitosti
+  // 2) Načteme smlouvy (leases)
   const { data: leases, error: leasesError } = await supabase
     .from('leases')
     .select(`
@@ -25,32 +27,27 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       rent_amount,
       start_date,
       end_date,
-      monthly_water,
-      monthly_gas,
-      monthly_electricity,
-      monthly_services,
-      repair_fund,
-      custom_fields,
       unit:unit_id (
         id,
         identifier,
-        property:property_id (
-          id,
-          name
-        )
+        property:property_id ( id, name )
       )
     `)
-    .eq('tenant_id', id)
+    .eq('tenant_id', tenantId)
+  if (leasesError) {
+    return NextResponse.json({ error: leasesError.message }, { status: 500 })
+  }
 
-  if (leasesError) return NextResponse.json({ error: leasesError.message }, { status: 500 })
+  // 3) Shrnutí plateb (volitelné; ukázka skeletonu)
+  // Tady byste volali supabase.from('monthly_obligations') nebo payments,
+  // sečtli totalDue, paidThisMonth, totalPaid, apod.
+  const summary = {
+    totalDue: 0,
+    paidThisMonth: 0,
+    totalPaid: 0,
+    debt: 0,
+    debtThisMonth: 0,
+  }
 
-  // (Volitelné) Můžeš stále vracet totalRent/totalDebt pokud potřebuješ:
-  // ...platební logika zde, případně ji můžeš odstranit
-
-  return NextResponse.json({
-    tenant,
-    leases,
-    // totalRent,
-    // totalDebt,
-  })
+  return NextResponse.json({ tenant, leases, summary })
 }
