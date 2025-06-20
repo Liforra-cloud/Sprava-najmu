@@ -66,7 +66,7 @@ model Tenant {
   personal_id     String?
   address         String?
   employer        String?
-  date_registered DateTime? @map("date_registered")
+  date_registered DateTime  @default(now()) @map("date_registered")
   note            String?
   leases          Lease[]
 
