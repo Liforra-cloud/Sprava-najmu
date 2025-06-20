@@ -19,6 +19,7 @@ type LeaseFromAPI = {
   monthly_electricity: number
   monthly_services: number
   repair_fund: number
+  deposit: number
   charge_flags: Record<string, boolean>
   custom_charges: {
     name: string
