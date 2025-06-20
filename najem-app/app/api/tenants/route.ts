@@ -27,12 +27,14 @@ export async function GET() {
     id: t.id,
     full_name: t.full_name,
     email: t.email,
-    phone: t.phone,
-    personal_id: t.personal_id,
-    address: t.address,
-    employer: t.employer,
-    note: t.note,
-    date_registered: t.date_registered.toISOString(),
+    phone: t.phone ?? null,
+    personal_id: t.personal_id ?? null,
+    address: t.address ?? null,
+    employer: t.employer ?? null,
+    note: t.note ?? null,
+    date_registered: t.date_registered
+      ? t.date_registered.toISOString()
+      : null,
     active_unit_count: t.leases.length,
   }))
 
