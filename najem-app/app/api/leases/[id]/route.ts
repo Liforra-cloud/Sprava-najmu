@@ -1,4 +1,3 @@
-// app/api/leases/[id]/route.ts
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -41,6 +40,7 @@ export async function GET(
         total_billable_rent: true,
         custom_charges: true,
         charge_flags: true,
+        document_url: true,          // <--- přidáno
         created_at: true,
         updated_at: true,
         tenant: { select: { full_name: true } },
@@ -119,10 +119,9 @@ export async function PUT(
         custom_fields: body.custom_fields as InputJsonValue,
         custom_charges: body.custom_charges as InputJsonValue,
         charge_flags: body.charge_flags as InputJsonValue,
+        document_url: body.document_url ?? null,  // <--- přidáno
       },
     })
-
-    // === POZOR: zde už neaktualizujeme obligations! ===
 
     return NextResponse.json({ success: true, lease: updatedLease })
   } catch (error) {
