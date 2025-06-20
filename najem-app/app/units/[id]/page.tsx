@@ -18,13 +18,15 @@ interface Tenant {
   phone?: string;
 }
 
-interface UnitTenant {
+interface Lease {
   id: string;
-  tenant_id: string;
-  date_from: string | null;
-  date_to: string | null;
-  note?: string | null;
   tenant: Tenant | null;
+  start_date: string;
+  end_date: string | null;
+  rent_amount: number;
+  monthly_services: number;
+  deposit: number;
+  name: string | null;
 }
 
 interface Unit {
@@ -38,7 +40,8 @@ interface Unit {
   monthly_rent: number | null;
   deposit: number | null;
   description: string;
-  tenants: UnitTenant[];
+  activeLeases: Lease[];
+  pastLeases: Lease[];
 }
 
 interface Property {
@@ -87,7 +90,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
   if (!unit) return null;
 
   return (
-    <div className="max-w-3xl mx-auto mt-10 p-6 bg-white shadow rounded space-y-6">
+    <div className="max-w-3xl mx-auto mt-10 p-6 bg-white shadow rounded space-y-8">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Detail jednotky</h1>
         <Link
@@ -98,6 +101,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         </Link>
       </div>
 
+      {/* 🏠 Základní informace */}
       <div>
         <h2 className="text-lg font-semibold mb-2">Základní informace</h2>
         <div className="space-y-1 text-gray-800">
@@ -115,11 +119,43 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      <div className="my-6">
-        <ExpensesList unitId={id} />
-      </div>
+      {/* 👤 Aktuální nájem */}
+      {unit.activeLeases.length > 0 ? (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Aktuální nájem</h2>
+          {unit.activeLeases.map(lease => (
+            <div key={lease.id} className="border p-4 rounded mb-2 bg-gray-50">
+              <p><strong>Nájemník:</strong> {lease.tenant?.full_name || 'Neznámý'}</p>
+              <p><strong>Období:</strong> {lease.start_date} — {lease.end_date ?? 'neurčito'}</p>
+              <p><strong>Nájemné:</strong> {lease.rent_amount} Kč</p>
+              <p><strong>Zálohy na služby:</strong> {lease.monthly_services} Kč</p>
+              <p><strong>Kauce:</strong> {lease.deposit} Kč</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-gray-600 italic">Jednotka je aktuálně volná</div>
+      )}
 
-      <div className="my-8">
+      {/* 📜 Historie nájmů */}
+      {unit.pastLeases.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Historie pronájmů</h2>
+          {unit.pastLeases.map(lease => (
+            <div key={lease.id} className="border p-4 rounded mb-2">
+              <p><strong>Nájemník:</strong> {lease.tenant?.full_name || 'Neznámý'}</p>
+              <p><strong>Období:</strong> {lease.start_date} — {lease.end_date}</p>
+              <p><strong>Nájemné:</strong> {lease.rent_amount} Kč</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 💸 Náklady */}
+      <ExpensesList unitId={id} />
+
+      {/* 📂 Dokumenty */}
+      <div>
         <h2 className="text-xl font-semibold mb-2">Dokumenty k jednotce</h2>
         <DocumentUpload unitId={id} onUpload={refreshDokumenty} />
         <DocumentList unitId={id} onChange={refreshDokumenty} key={refreshKey} />
@@ -127,4 +163,5 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
 
