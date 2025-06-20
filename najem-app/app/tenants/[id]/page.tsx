@@ -43,29 +43,42 @@ async function fetchTenantData(id: string): Promise<{
 }> {
   const supabase = supabaseRouteClient()
 
-  // 1) Nájemník + smlouvy
-  const [{ data: tenant }, { data: leases }] = await Promise.all([
-    supabase.from('tenants').select('*').eq('id', id).single(),
-    supabase
-      .from('leases')
-      .select(`
-        id,
-        name,
-        rent_amount,
-        start_date,
-        end_date,
-        unit:unit_id (
+  // 1) Načteme nájemníka a jeho smlouvy
+  const [{ data: tenant, error: tenantError }, { data: leases, error: leasesError }] =
+    await Promise.all([
+      supabase
+        .from('tenants')
+        .select('id, full_name, email, phone, personal_id, address, employer, note, date_registered')
+        .eq('id', id)
+        .single(),
+      supabase
+        .from('leases')
+        .select(`
           id,
-          identifier,
-          property:property_id ( id, name )
-        )
-      `)
-      .eq('tenant_id', id),
-  ])
+          name,
+          rent_amount,
+          start_date,
+          end_date,
+          unit:unit_id (
+            id,
+            identifier,
+            property:property_id (
+              id,
+              name
+            )
+          )
+        `)
+        .eq('tenant_id', id),
+    ])
 
-  if (!tenant) throw new Error('Nájemník nenalezen')
+  if (tenantError || !tenant) {
+    throw new Error('Nájemník nenalezen')
+  }
+  if (leasesError) {
+    console.error('Chyba při načítání smluv:', leasesError.message)
+  }
 
-  // 2) Shrnutí plateb – tady si doplňte reálný dotaz na monthly_obligations/payments
+  // 2) Shrnutí plateb (ukázková data, nahraďte reálným dotazem na monthly_obligations/payments)
   const summary: Summary = {
     totalDue: 0,
     paidThisMonth: 0,
@@ -74,22 +87,38 @@ async function fetchTenantData(id: string): Promise<{
     debtThisMonth: 0,
   }
 
-  return { tenant, leases: leases ?? [], summary }
+  return {
+    tenant,
+    leases: leases ?? [],
+    summary,
+  }
 }
 
-export default async function TenantPage({ params }: { params: { id: string } }) {
+export default async function TenantPage({
+  params,
+}: {
+  params: { id: string }
+}) {
   let data
   try {
     data = await fetchTenantData(params.id)
-  } catch {
-    notFound()
+  } catch (err) {
+    console.error(err)
+    return notFound()
   }
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
+      {/* Záhlaví s údaji o nájemníkovi */}
       <TenantHeader tenant={data.tenant} />
+
+      {/* Souhrn nájemného */}
       <RentSummaryCard summary={data.summary} />
+
+      {/* Sekce dokumentů */}
       <DocumentsSection tenantId={data.tenant.id} />
+
+      {/* Sekce smluv */}
       <LeasesSection leases={data.leases} tenantId={data.tenant.id} />
     </div>
   )
