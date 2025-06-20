@@ -27,9 +27,9 @@ export default async function SidebarLayout({
   ]
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen overflow-hidden">
       <SidebarMenu navItems={navItems} userEmail={user.email ?? ''} />
-      <main className="flex-1 overflow-auto md:ml-64">{children}</main>
+      <main className="flex-1 overflow-y-auto">{children}</main>
     </div>
   )
 }
