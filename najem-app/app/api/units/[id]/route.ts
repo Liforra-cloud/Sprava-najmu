@@ -25,18 +25,28 @@ export async function GET(
     );
   }
 
-  // Načti smlouvy k jednotce + nájemníky
+  // Načti smlouvy k jednotce + nájemníky (JOIN na tenants)
   const { data: leases, error: leasesError } = await supabase
     .from("leases")
-    .select(`
-      *,
-      tenant:tenants (
+    .select(
+      `
         id,
-        full_name,
-        email,
-        phone
-      )
-    `)
+        tenant_id,
+        unit_id,
+        start_date,
+        end_date,
+        rent_amount,
+        monthly_services,
+        deposit,
+        name,
+        tenant:tenants (
+          id,
+          full_name,
+          email,
+          phone
+        )
+      `
+    )
     .eq("unit_id", id)
     .order("start_date", { ascending: false });
 
@@ -47,7 +57,7 @@ export async function GET(
     );
   }
 
-  // Rozdělíme smlouvy podle data
+  // Rozdělení na aktivní a historické nájmy podle dnešního data
   const today = new Date().toISOString().split("T")[0];
 
   const activeLeases = leases.filter((lease) =>
@@ -103,3 +113,4 @@ export async function DELETE(
 
   return NextResponse.json({ success: true });
 }
+
