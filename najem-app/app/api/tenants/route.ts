@@ -4,10 +4,10 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(request: NextRequest) {
+export async function GET(_: NextRequest) {
   const now = new Date()
 
-  // Načteme všechny nájemníky včetně právě běžících smluv
+  // Načteme všechny nájemníky spolu s právě běžícími smlouvami
   const tenants = await prisma.tenant.findMany({
     include: {
       leases: {
