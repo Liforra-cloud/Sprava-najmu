@@ -128,6 +128,12 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
               <p><strong>Nájemné:</strong> {lease.rent_amount} Kč</p>
               <p><strong>Zálohy na služby:</strong> {lease.monthly_services} Kč</p>
               <p><strong>Kauce:</strong> {lease.deposit} Kč</p>
+              <Link
+                href={`/leases/${lease.id}`}
+                className="text-blue-600 text-sm underline hover:text-blue-800 mt-2 inline-block"
+              >
+                Upravit
+              </Link>
             </div>
           ))}
         </div>
@@ -144,6 +150,12 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
               <p><strong>Nájemník:</strong> {lease.tenant?.full_name || 'Neznámý'}</p>
               <p><strong>Období:</strong> {lease.start_date} — {lease.end_date}</p>
               <p><strong>Nájemné:</strong> {lease.rent_amount} Kč</p>
+              <Link
+                href={`/leases/${lease.id}`}
+                className="text-blue-600 text-sm underline hover:text-blue-800 mt-2 inline-block"
+              >
+                Upravit
+              </Link>
             </div>
           ))}
         </div>
@@ -161,5 +173,6 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
 
 
