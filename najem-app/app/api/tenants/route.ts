@@ -1,10 +1,9 @@
 // app/api/tenants/route.ts
 
-import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(_: NextRequest) {
+export async function GET() {
   const now = new Date()
 
   // Načteme všechny nájemníky spolu s právě běžícími smlouvami
