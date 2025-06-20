@@ -36,23 +36,21 @@ export async function POST(
 
     // postavíme WHERE podle režimu
     let whereClause: Prisma.MonthlyObligationWhereInput = { lease_id: leaseId }
-    if (mode === 'future') {
-      const now = new Date()
-      const nextMonthFirst = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-      const year = nextMonthFirst.getFullYear()
-      const month = nextMonthFirst.getMonth() + 1
 
-      // všechny závazky od příštího měsíce dál
+    if (mode === 'future') {
+      // === DEBUG: jen červenec 2025 ===
       whereClause = {
         lease_id: leaseId,
-        OR: [
-          { year: year,  month: { gte: month } },
-          { year: {    gt:  year  } }
-        ],
+        year: 2025,
+        month: 7,
       }
+      console.log('🔍 [DEBUG] budu aktualizovat pouze 07/2025')
     }
-    console.log('🔍 whereClause bude:', JSON.stringify(whereClause))
+    else {
+      console.log('🔍 režim all – aktualizuji všechny záznamy')
+    }
 
+    console.log('🔍 whereClause bude:', JSON.stringify(whereClause))
     const obligations = await prisma.monthlyObligation.findMany({ where: whereClause })
     console.log(`🔍 našel jsem ${obligations.length} závazků k aktualizaci`)
 
