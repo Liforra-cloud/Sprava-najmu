@@ -1,37 +1,9 @@
 // app/api/units/[id]/route.ts
 
-
-
 import { NextResponse } from "next/server";
 import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 
-// Definice typů
-type Tenant = {
-  id: string;
-  full_name: string;
-  email: string;
-  phone?: string;
-};
-
-type UnitTenantDb = {
-  id: string;
-  tenant_id: string;
-  date_from: string | null;
-  date_to: string | null;
-  note?: string | null;
-  tenant: Tenant[]; // Supabase vrací vždy pole!
-};
-
-type UnitTenant = {
-  id: string;
-  tenant_id: string;
-  date_from: string | null;
-  date_to: string | null;
-  note?: string | null;
-  tenant: Tenant | null; // My chceme objekt nebo null
-};
-
-// GET - Detail jednotky + nájemníci
+// GET - Detail jednotky + nájmy
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -39,7 +11,7 @@ export async function GET(
   const { id } = params;
   const supabase = supabaseRouteClient();
 
-  // Základní data jednotky
+  // Načti jednotku
   const { data: unit, error } = await supabase
     .from("units")
     .select("*")
@@ -53,47 +25,47 @@ export async function GET(
     );
   }
 
-  // Najdi nájemníky této jednotky (JOIN na tenants)
-  const { data: unitTenants, error: tenantsError } = await supabase
-    .from("unit_tenants")
-    .select(
-      `
-      id,
-      tenant_id,
-     date_from,
-      date_to,
-      note,
+  // Načti smlouvy k jednotce + nájemníky
+  const { data: leases, error: leasesError } = await supabase
+    .from("leases")
+    .select(`
+      *,
       tenant:tenants (
         id,
         full_name,
         email,
         phone
       )
-    `
-    )
-    .eq("unit_id", id);
+    `)
+    .eq("unit_id", id)
+    .order("start_date", { ascending: false });
 
-  if (tenantsError) {
-    return NextResponse.json({ error: tenantsError.message }, { status: 500 });
+  if (leasesError) {
+    return NextResponse.json(
+      { error: leasesError.message },
+      { status: 500 }
+    );
   }
 
-  // Přetypování každé položky, tenant je objekt nebo null (nikdy pole)
-  const tenants: UnitTenant[] = (unitTenants as UnitTenantDb[] || []).map(
-    (ut) => ({
-      id: ut.id,
-      tenant_id: ut.tenant_id,
-      date_from: ut.date_from,
-      date_to: ut.date_to,
-      note: ut.note,
-      tenant:
-        Array.isArray(ut.tenant) && ut.tenant.length > 0 ? ut.tenant[0] : null,
-    })
+  // Rozdělíme smlouvy podle data
+  const today = new Date().toISOString().split("T")[0];
+
+  const activeLeases = leases.filter((lease) =>
+    lease.start_date <= today && (!lease.end_date || lease.end_date >= today)
   );
 
-  return NextResponse.json({ ...unit, tenants });
+  const pastLeases = leases.filter((lease) =>
+    lease.end_date && lease.end_date < today
+  );
+
+  return NextResponse.json({
+    ...unit,
+    activeLeases,
+    pastLeases,
+  });
 }
 
-// PATCH - Aktualizace jednotky (beze změny)
+// PATCH - Aktualizace jednotky
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
@@ -116,7 +88,7 @@ export async function PATCH(
   return NextResponse.json(data);
 }
 
-// DELETE - Smazání jednotky (beze změny)
+// DELETE - Smazání jednotky
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
