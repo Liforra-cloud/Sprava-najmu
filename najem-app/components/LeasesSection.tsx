@@ -43,19 +43,17 @@ export default function LeasesSection({
             <div className="flex justify-between items-center">
               <div>
                 <strong>{l.name || '—'}</strong>{' '}
-                ({l.unit.identifier} /{' '}
-                {l.unit.property.name})
+                ({l.unit.identifier} / {l.unit.property.name})
               </div>
               <Link
-                href={`/tenants/${tenantId}/leases/${l.id}/edit`}
+                href={`/leases/${l.id}/edit`}
                 className="text-blue-600 underline text-sm"
               >
                 Upravit
               </Link>
             </div>
             <div className="text-sm text-gray-600 mt-1">
-              {new Date(l.start_date).toLocaleDateString()}{' '}
-              –{' '}
+              {new Date(l.start_date).toLocaleDateString()} –{' '}
               {l.end_date
                 ? new Date(l.end_date).toLocaleDateString()
                 : 'běží'}
@@ -66,3 +64,4 @@ export default function LeasesSection({
     </section>
   )
 }
+
