@@ -16,25 +16,26 @@ type SummaryData = {
 export default function PaymentSummary({ tenantId }: { tenantId: string }) {
   const [data, setData] = useState<SummaryData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    async function fetchSummary() {
-      try {
-        const res = await fetch(`/api/tenants/${tenantId}/summary`)
-        if (!res.ok) throw new Error('Chyba při načítání souhrnu')
-        const json = await res.json()
-        setData(json)
-      } catch (err) {
+    setLoading(true)
+    fetch(`/api/tenants/${tenantId}/summary`)
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+      .then(json => setData(json))
+      .catch(err => {
         console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchSummary()
+        setError('Chyba při načítání souhrnu')
+      })
+      .finally(() => setLoading(false))
   }, [tenantId])
 
-  if (loading) return <p>Načítám souhrn plateb…</p>
-  if (!data) return <p>Souhrn plateb nelze načíst.</p>
+  if (loading) return <p>Načítám souhrn…</p>
+  if (error)   return <p className="text-red-600">{error}</p>
+  if (!data)  return null
 
   return (
     <div className="p-4 border rounded-xl shadow bg-white mt-4">
@@ -43,7 +44,7 @@ export default function PaymentSummary({ tenantId }: { tenantId: string }) {
         <p>💰 Celkem dlužné: <strong>{data.totalDebt} Kč</strong></p>
         <p>📆 Zaplaceno tento měsíc: <strong>{data.paidThisMonth} Kč</strong></p>
         <p>📊 Celkem zaplaceno: <strong>{data.totalPaid} Kč</strong></p>
-        <p className={data.totalDue - data.totalPaid > 0 ? 'text-red-600' : ''}>
+        <p className={data.totalDebt > 0 ? 'text-red-600' : ''}>
           📄 Celkový dluh: <strong>{data.totalDue - data.totalPaid} Kč</strong>
         </p>
         <p className={data.debtThisMonth > 0 ? 'text-red-600' : ''}>
