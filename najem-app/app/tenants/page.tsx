@@ -29,8 +29,11 @@ export default function TenantsPage() {
     fetch('/api/tenants')
       .then(async res => {
         const json = await res.json()
-        if (res.ok && Array.isArray(json)) setTenants(json)
-        else throw new Error(json.error || 'Chyba při načítání')
+        if (res.ok && Array.isArray(json)) {
+          setTenants(json)
+        } else {
+          throw new Error(json.error || 'Chyba při načítání')
+        }
       })
       .catch(err => setError(err.message))
   }, [])
@@ -67,13 +70,17 @@ export default function TenantsPage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div>
-          <label className="font-semibold mr-2">Pouze aktivní</label>
+        <div className="flex items-center">
           <input
+            id="active-checkbox"
             type="checkbox"
             checked={showOnlyActive}
             onChange={e => setShowOnlyActive(e.target.checked)}
+            className="mr-2"
           />
+          <label htmlFor="active-checkbox" className="font-semibold">
+            Pouze aktivní
+          </label>
         </div>
       </div>
 
@@ -83,11 +90,11 @@ export default function TenantsPage() {
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
-              <th className="px-4 py-2">Jméno</th>
-              <th className="px-4 py-2">E-mail</th>
-              <th className="px-4 py-2">Telefon</th>
-              <th className="px-4 py-2">Počet jednotek</th>
-              <th className="px-4 py-2">Akce</th>
+              <th className="px-4 py-2 text-left">Jméno</th>
+              <th className="px-4 py-2 text-left">E-mail</th>
+              <th className="px-4 py-2 text-left">Telefon</th>
+              <th className="px-4 py-2 text-center">Počet jednotek</th>
+              <th className="px-4 py-2 text-center">Akce</th>
             </tr>
           </thead>
           <tbody>
@@ -103,16 +110,32 @@ export default function TenantsPage() {
                 </td>
                 <td className="px-4 py-2">
                   {tenant.email ? (
-                    <a href={`mailto:${tenant.email}`} className="underline text-blue-700">{tenant.email}</a>
-                  ) : <span className="text-gray-400">—</span>}
+                    <a
+                      href={`mailto:${tenant.email}`}
+                      className="underline text-blue-700"
+                    >
+                      {tenant.email}
+                    </a>
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  )}
                 </td>
                 <td className="px-4 py-2">
                   {tenant.phone ? (
-                    <a href={`tel:${tenant.phone}`} className="underline text-blue-700">{tenant.phone}</a>
-                  ) : <span className="text-gray-400">—</span>}
+                    <a
+                      href={`tel:${tenant.phone}`}
+                      className="underline text-blue-700"
+                    >
+                      {tenant.phone}
+                    </a>
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  )}
                 </td>
-                <td className="px-4 py-2 text-center">{tenant.active_unit_count ?? 0}</td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 text-center">
+                  {tenant.active_unit_count ?? 0}
+                </td>
+                <td className="px-4 py-2 text-center">
                   <Link href={`/tenants/${tenant.id}`}>
                     <button className="bg-blue-100 text-blue-800 px-3 py-1 rounded">
                       Detail
