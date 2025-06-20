@@ -15,13 +15,18 @@ export async function POST(
     const { mode } = (await req.json()) as RequestBody
     console.log('🔍 update-obligations called for lease:', leaseId, 'mode:', mode)
 
-    // načteme smlouvu
+    // načteme nezbytné údaje smlouvy
     const lease = await prisma.lease.findUnique({
       where: { id: leaseId },
       select: {
-        rent_amount: true, monthly_water: true, monthly_gas: true,
-        monthly_electricity: true, monthly_services: true, repair_fund: true,
-        charge_flags: true, custom_charges: true,
+        rent_amount: true,
+        monthly_water: true,
+        monthly_gas: true,
+        monthly_electricity: true,
+        monthly_services: true,
+        repair_fund: true,
+        charge_flags: true,
+        custom_charges: true,
       },
     })
     if (!lease) {
@@ -29,12 +34,27 @@ export async function POST(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    // --- DEBUG: zkusíme i přes findMany vrátit všechno, ale pak skipnout v loopu ---
-    const whereClause: Prisma.MonthlyObligationWhereInput = { lease_id: leaseId }
-    console.log('🔍 [DEBUG] findMany WHERE:', JSON.stringify(whereClause))
+    // sestavíme WHERE klauzuli podle režimu
+    let whereClause: Prisma.MonthlyObligationWhereInput = { lease_id: leaseId }
+    if (mode === 'future') {
+      const now = new Date()
+      const nextMonthFirst = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+      const year = nextMonthFirst.getFullYear()
+      const month = nextMonthFirst.getMonth() + 1
 
+      // vybere všechny závazky od příštího měsíce (včetně) dále
+      whereClause = {
+        lease_id: leaseId,
+        OR: [
+          { year: year,    month: { gte: month } },
+          { year: {       gt: year   } }
+        ],
+      }
+    }
+
+    console.log('🔍 whereClause bude:', JSON.stringify(whereClause))
     const obligations = await prisma.monthlyObligation.findMany({ where: whereClause })
-    console.log(`🔍 našel jsem celkem ${obligations.length} závazků (měly by to být všechny)`)
+    console.log(`🔍 našel jsem ${obligations.length} závazků k aktualizaci`)
 
     const flags = (lease.charge_flags ?? {}) as Record<string, boolean>
     const customs = Array.isArray(lease.custom_charges)
@@ -42,23 +62,23 @@ export async function POST(
       : []
 
     for (const ob of obligations) {
-      // pokud testujeme future-only, skipujeme všechny kromě 7/2025
-      if (mode === 'future' && (ob.year !== 2025 || ob.month !== 7)) {
-        console.log(`⏭️ skipuju obligation ${ob.id} (${ob.year}-${String(ob.month).padStart(2,'0')})`)
-        continue
-      }
-      console.log(`✅ updateujeme obligation ${ob.id} (${ob.year}-${String(ob.month).padStart(2,'0')})`)
-
-      // spočítáme nové částky
+      // přepočítáme jednotlivé položky
       const rent = flags.rent_amount ? Number(lease.rent_amount) : 0
       const water = flags.monthly_water ? Number(lease.monthly_water) : 0
       const gas = flags.monthly_gas ? Number(lease.monthly_gas) : 0
       const electricity = flags.monthly_electricity ? Number(lease.monthly_electricity) : 0
       const services = flags.monthly_services ? Number(lease.monthly_services) : 0
       const repairs = flags.repair_fund ? Number(lease.repair_fund) : 0
-      const customSum = customs.reduce((s, c) => c.enabled ? s + Number(c.amount) : s, 0)
+      const customSum = customs.reduce(
+        (sum, c) => c.enabled ? sum + Number(c.amount) : sum,
+        0
+      )
       const total_due = rent + water + gas + electricity + services + repairs + customSum
       const debt = total_due - ob.paid_amount
+
+      console.log(
+        `  🔄 updating obligation ${ob.id}: total_due=${total_due}, debt=${debt}`
+      )
 
       await prisma.monthlyObligation.update({
         where: { id: ob.id },
