@@ -86,6 +86,7 @@ model Lease {
   monthly_gas         Float
   monthly_electricity Float
   monthly_services    Float
+deposit            Float    @default(0) // ← přidáno
   repair_fund         Float
   custom_fields       Json
   custom_charges      Json
