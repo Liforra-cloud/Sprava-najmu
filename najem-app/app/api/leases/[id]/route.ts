@@ -1,7 +1,4 @@
-// najem-app/app/api/leases/[id]/route.ts
-
-// najem-app/app/api/leases/[id]/route.ts
-
+// app/api/leases/[id]/route.ts
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -65,13 +62,13 @@ export async function GET(
       return NextResponse.json({ error: 'Smlouva nenalezena' }, { status: 404 })
     }
 
-    const flags = lease.charge_flags as Record<string, boolean> ?? {}
+    const flags = (lease.charge_flags as Record<string, boolean>) ?? {}
     const customCharges = Array.isArray(lease.custom_charges)
-      ? lease.custom_charges as CustomCharge[]
+      ? (lease.custom_charges as CustomCharge[])
       : []
 
     const customTotal = customCharges.reduce(
-      (sum, c) => (c?.enabled ? sum + parseNumber(c.amount) : sum),
+      (sum, c) => (c.enabled ? sum + parseNumber(c.amount) : sum),
       0
     )
 
@@ -125,45 +122,7 @@ export async function PUT(
       },
     })
 
-    const obligations = await prisma.monthlyObligation.findMany({
-      where: { lease_id: params.id },
-    })
-
-    for (const ob of obligations) {
-      const chargeFlags = updatedLease.charge_flags as Record<string, boolean>
-      const customCharges = Array.isArray(updatedLease.custom_charges)
-        ? updatedLease.custom_charges as CustomCharge[]
-        : []
-
-      const rent = chargeFlags.rent_amount ? updatedLease.rent_amount : 0
-      const water = chargeFlags.monthly_water ? updatedLease.monthly_water : 0
-      const gas = chargeFlags.monthly_gas ? updatedLease.monthly_gas : 0
-      const electricity = chargeFlags.monthly_electricity ? updatedLease.monthly_electricity : 0
-      const services = chargeFlags.monthly_services ? updatedLease.monthly_services : 0
-      const repairs = chargeFlags.repair_fund ? updatedLease.repair_fund : 0
-      const custom = customCharges.reduce(
-        (sum, charge) => (charge.enabled ? sum + Number(charge.amount ?? 0) : sum),
-        0
-      )
-
-      const total = rent + water + gas + electricity + services + repairs + custom
-
-      await prisma.monthlyObligation.update({
-        where: { id: ob.id },
-        data: {
-          rent,
-          water,
-          gas,
-          electricity,
-          services,
-          repair_fund: repairs,
-          total_due: total,
-          debt: total,
-          charge_flags: chargeFlags,
-          custom_charges: customCharges,
-        },
-      })
-    }
+    // === POZOR: zde už neaktualizujeme obligations! ===
 
     return NextResponse.json({ success: true, lease: updatedLease })
   } catch (error) {
@@ -181,11 +140,11 @@ export async function DELETE(
 ) {
   try {
     await prisma.payment.deleteMany({
-      where: { lease_id: params.id }
+      where: { lease_id: params.id },
     })
 
     await prisma.lease.delete({
-      where: { id: params.id }
+      where: { id: params.id },
     })
 
     return NextResponse.json({ success: true })
@@ -197,4 +156,3 @@ export async function DELETE(
     )
   }
 }
-
