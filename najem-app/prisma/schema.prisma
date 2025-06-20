@@ -45,7 +45,7 @@ model Unit {
   floor            Int?
   area             Float?
   disposition      String?
-  occupancy_status OccupancyStatus? // 👈 enum s českými hodnotami
+  occupancy_status OccupancyStatus?
   monthly_rent     Float?
   deposit          Float?
   date_added       DateTime? @map("date_added")
@@ -74,12 +74,12 @@ model Tenant {
 }
 
 model Lease {
-  id                  String   @id @default(uuid())
+  id                  String    @id @default(uuid())
   unit_id             String
   tenant_id           String
   start_date          DateTime
   end_date            DateTime?
-  due_day            Int?     // nově místo due_date
+  due_day             Int?
   name                String?
   rent_amount         Float
   monthly_water       Float
@@ -91,20 +91,20 @@ model Lease {
   custom_charges      Json
   charge_flags        Json
   total_billable_rent Float
-  created_at          DateTime @default(now())
-  updated_at          DateTime @updatedAt
-  document_url String?
+  document_url        String?   // ← nově přidané pole pro URL dokumentu
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
 
-  unit     Unit     @relation(fields: [unit_id], references: [id])
-  tenant   Tenant   @relation(fields: [tenant_id], references: [id])
-  payments Payment[]
+  unit                Unit      @relation(fields: [unit_id], references: [id])
+  tenant              Tenant    @relation(fields: [tenant_id], references: [id])
+  payments            Payment[]
   monthly_obligations MonthlyObligation[]
 
   @@map("leases")
 }
 
 model Payment {
-  id                     String   @id @default(uuid())
+  id                     String    @id @default(uuid())
   lease_id               String
   payment_date           DateTime? @map("payment_date")
   amount                 Float
@@ -115,10 +115,10 @@ model Payment {
   payment_month          String?
   created_at             DateTime? @map("created_at")
   updated_at             DateTime? @map("updated_at")
-  monthly_obligation_id  String?   // vazba na MonthlyObligation
-  payment_breakdown      Json?     // rozpad dle jednotlivých poplatků
+  monthly_obligation_id  String?   @map("monthly_obligation_id")
+  payment_breakdown      Json?     @map("payment_breakdown")
 
-  lease                  Lease    @relation(fields: [lease_id], references: [id])
+  lease                  Lease     @relation(fields: [lease_id], references: [id])
   monthly_obligation     MonthlyObligation? @relation(fields: [monthly_obligation_id], references: [id])
 
   @@map("payments")
