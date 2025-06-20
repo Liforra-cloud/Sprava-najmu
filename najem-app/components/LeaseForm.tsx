@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useState, FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import DocumentUpload from './DocumentUpload'
 
 type LeaseFromAPI = {
@@ -207,7 +207,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
       {error && <p className="text-red-600 font-bold">{error}</p>}
       {success && <p className="text-green-600 font-bold">Smlouva uložena.</p>}
 
-      {/* Basic info */}
+      {/* Základní informace */}
       <fieldset className="border p-4 rounded grid grid-cols-1 md:grid-cols-2 gap-4">
         <legend className="text-lg font-bold mb-2 col-span-full">Základní informace</legend>
         <label>
@@ -288,7 +288,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         </label>
       </fieldset>
 
-      {/* Advance costs */}
+      {/* Zálohy a náklady */}
       <fieldset className="border p-4 rounded">
         <legend className="text-lg font-bold mb-2">Zálohy a náklady</legend>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -301,7 +301,7 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
         </div>
       </fieldset>
 
-      {/* Custom charges */}
+      {/* Vlastní poplatky */}
       <fieldset className="border p-4 rounded">
         <legend className="text-lg font-bold mb-2">Vlastní poplatky</legend>
         {customFields.map((f, idx) => (
@@ -309,120 +309,12 @@ export default function LeaseForm({ existingLease, onSaved }: LeaseFormProps) {
             <input
               type="text"
               placeholder="Název"
-              value={f.label}
-              onChange={e => {
-                const arr = [...customFields]
-                arr[idx].label = e.target.value
-                setCustomFields(arr)
-              }}
-              className="border p-2 rounded"
+              value={f.label}`}
             />
-            <input
-              type="number"
-              placeholder="Částka"
-              value={f.value}
-              onChange={e => {
-                const arr = [...customFields]
-                arr[idx].value = e.target.value
-                setCustomFields(arr)
-              }}
-              className="border p-2 rounded"
-            />
-            <label className="flex items-center gap-1">
-              <input
-                type="checkbox"
-                checked={f.billable}
-                onChange={e => {
-                  const arr = [...customFields]
-                  arr[idx].billable = e.target.checked
-                  setCustomFields(arr)
-                }}
-              />
-              Účtovat
-            </label>
           </div>
         ))}
-        {customFields.length < 5 && (
-          <button
-            type="button"
-            onClick={() => setCustomFields([...customFields, { label: '', value: '', billable: true }])}
-            className="text-blue-600 mt-2 underline"
-          >
-            Přidat položku
-          </button>
-        )}
       </fieldset>
-
-      {/* Document upload */}
-      <fieldset className="border p-4 rounded">
-        <legend className="text-lg font-bold mb-2">Přiložený dokument</legend>
-        <DocumentUpload
-          propertyId={selectedPropertyId}
-          unitId={unitId}
-          tenantId={tenantId}
-          expenseId={existingLease?.id}
-          onUpload={(url: string) => setDocumentUrl(url)}
-        />
-      </fieldset>
-
-      {/* Actions */}
-      {existingLease ? (
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={isProcessing}
-            className="bg-green-600 text-white px-4 py-2 rounded"
-            onClick={() => handleSaveAndUpdate('future')}
-          >
-            {isProcessing ? '⏳ Zpracovávám…' : 'Uložit a aktualizovat budoucí závazky'}
-          </button>
-          <button
-            type="button"
-            disabled={isProcessing}
-            className="bg-green-800 text-white px-4 py-2 rounded"
-            onClick={() => handleSaveAndUpdate('all')}
-          >
-            {isProcessing ? '⏳ Zpracovávám…' : 'Uložit a aktualizovat všechny závazky'}
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          disabled={isProcessing}
-          className="bg-green-600 text-white px-4 py-2 rounded"
-          onClick={() => handleSaveAndUpdate('all')}
-        >
-          {isProcessing ? '⏳ Zpracovávám…' : 'Uložit'}
-        </button>
-      )}
     </form>
   )
-
-  function renderField(
-    label: string,
-    state: FieldState,
-    setter: (v: FieldState) => void
-  ) {
-    return (
-      <label className="flex flex-col">
-        {label}:
-        <div className="flex gap-2 items-center">
-          <input
-            type="number"
-            value={state.value}
-            onChange={e => setter({ ...state, value: e.target.value })}
-            className="border p-2 rounded w-full"
-          />
-          <label className="flex items-center gap-1">
-            <input
-              type="checkbox"
-              checked={state.billable}
-              onChange={e => setter({ ...state, billable: e.target.checked })}
-            />
-            Účtovat
-          </label>
-        </div>
-      </label>
-    )
-  }
 }
+
