@@ -1,76 +1,74 @@
 //app/api/tenants/[id]/summary/route.ts
 
-import { supabaseRouteClient } from '@/lib/supabaseRouteClient'
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const supabase = supabaseRouteClient()
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   const tenantId = params.id
 
-  // Najdeme nájemní smlouvy pro daného nájemníka
-  const { data: leases, error: leaseErr } = await supabase
-    .from('leases')
-    .select('id')
-    .eq('tenant_id', tenantId)
-
-  if (leaseErr || !leases) {
-    return NextResponse.json({ error: leaseErr?.message || 'Nenalezeno' }, { status: 500 })
-  }
-
+  // 1) Načti všechny smlouvy nájemníka
+  const leases = await prisma.lease.findMany({
+    where: { tenant_id: tenantId },
+    select: { id: true }
+  })
   const leaseIds = leases.map(l => l.id)
-
   if (leaseIds.length === 0) {
+    // bez smluv žádné závazky ani platby
     return NextResponse.json({
-      totalRent: 0,
+      totalDue: 0,
+      totalPaid: 0,
+      paidThisMonth: 0,
       totalDebt: 0,
-      monthRent: 0,
-      monthDebt: 0,
+      debtThisMonth: 0,
       owes: false
     })
   }
 
-  // Načteme všechny platby pro tyto leases
-  const { data: payments, error: payErr } = await supabase
-    .from('payments')
-    .select('amount, payment_type, payment_date')
-    .in('lease_id', leaseIds)
-
-  if (payErr || !payments) {
-    return NextResponse.json({ error: payErr?.message || 'Chyba při načítání plateb' }, { status: 500 })
-  }
-
-  // Spočítáme celkové hodnoty
-  let totalRent = 0
-  let totalDebt = 0
-
-  payments.forEach(p => {
-    if (p.payment_type === 'nájemné') totalRent += Number(p.amount)
-    if (p.payment_type === 'neuhrazeno') totalDebt += Number(p.amount)
+  // 2) Načti všechny měsíční závazky
+  const obligations = await prisma.monthlyObligation.findMany({
+    where: { lease_id: { in: leaseIds } },
+    select: { year: true, month: true, total_due: true, debt: true }
   })
 
-  // Spočítáme hodnoty za aktuální měsíc
+  // 3) Načti všechny platby
+  const payments = await prisma.payment.findMany({
+    where: {
+      lease_id: { in: leaseIds },
+      payment_date: { not: null }
+    },
+    select: { amount: true, payment_date: true }
+  })
+
+  // pomocné proměnné
   const now = new Date()
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const curY = now.getFullYear()
+  const curM = now.getMonth() + 1
 
-  const monthPayments = payments.filter(p => {
-    const d = new Date(p.payment_date)
-    return d >= firstDay && d <= lastDay
-  })
-
-  let monthRent = 0
-  let monthDebt = 0
-
-  monthPayments.forEach(p => {
-    if (p.payment_type === 'nájemné') monthRent += Number(p.amount)
-    if (p.payment_type === 'neuhrazeno') monthDebt += Number(p.amount)
-  })
+  // 4) Součty
+  const totalDue       = obligations.reduce((s, o) => s + o.total_due, 0)
+  const totalPaid      = payments.reduce((s, p) => s + p.amount, 0)
+  const paidThisMonth  = payments
+    .filter(p => {
+      const d = new Date(p.payment_date!)
+      return d.getFullYear() === curY && d.getMonth()+1 === curM
+    })
+    .reduce((s, p) => s + p.amount, 0)
+  const totalDebt      = obligations.reduce((s, o) => s + o.debt, 0)
+  const debtThisMonth  = obligations
+    .filter(o => o.year === curY && o.month === curM)
+    .reduce((s, o) => s + o.debt, 0)
 
   return NextResponse.json({
-    totalRent,
+    totalDue,
+    totalPaid,
+    paidThisMonth,
     totalDebt,
-    monthRent,
-    monthDebt,
-    owes: totalDebt + monthDebt > 0
+    debtThisMonth,
+    owes: totalDebt > 0
   })
 }
+
