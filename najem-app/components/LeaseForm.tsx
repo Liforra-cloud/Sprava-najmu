@@ -69,6 +69,9 @@ export default function LeaseForm({
   const [dueDay, setDueDay]                   = useState(
     existingLease?.due_day?.toString() || ''
   )
+  const [deposit, setDeposit]                 = useState(
+    existingLease?.deposit?.toString() || ''
+  )
 
   // financial fields
   const [rentAmount, setRentAmount]   = useState<FieldState>({
@@ -210,6 +213,7 @@ export default function LeaseForm({
         enabled: f.billable,
       })),
       document_url: documentUrl,
+      deposit: Number(deposit),
     }
 
     const res = await fetch(url, {
@@ -383,6 +387,15 @@ export default function LeaseForm({
             onChange={e => setEndDate(e.target.value)}
             className="w-full border p-2 rounded"
           />
+        </label>
+          <label className="flex flex-col">
+            Kauce:
+            <input
+              type="number"
+            value={deposit}
+          onChange={(e) => setDeposit(e.target.value)}
+        className="w-full border p-2 rounded"
+        />
         </label>
 
         <label className="flex flex-col">
