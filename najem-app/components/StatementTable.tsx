@@ -1,159 +1,187 @@
 // components/StatementTable.tsx
 
-import React, { useState } from "react";
+'use client';
 
-type StatementRow = {
+import { useState } from 'react';
+
+// Typ položky vyúčtování
+type StatementItem = {
+  id: string;
   name: string;
-  unit?: string;
-  consumption?: number;
-  advances: number;
-  totalCost?: number;
-  monthsBilled: number;
-  monthsTotal: number;
-  editable?: boolean;
-  nonBillable?: boolean; // přidané uživatelem, nikdy nebylo účtovatelné
+  totalAdvance: number;
+  consumption: number | '';
+  unit: string;
+  totalCost: number | '';
+  diff: number;
 };
 
-type Props = {
-  rows: StatementRow[];
-  onChange?: (rows: StatementRow[]) => void;
-  nonBillableCandidates?: string[];
-};
+// Předdefinované položky, které můžeš přidat
+const PREDEFINED_ITEMS = [
+  { id: 'rent', name: 'Nájem', unit: 'Kč' },
+  { id: 'electricity', name: 'Elektřina', unit: 'kWh' },
+  { id: 'water', name: 'Voda', unit: 'm³' },
+  { id: 'gas', name: 'Plyn', unit: 'm³' },
+];
 
-export default function StatementTable({ rows: initialRows, onChange, nonBillableCandidates = [] }: Props) {
-  const [rows, setRows] = useState<StatementRow[]>(initialRows);
+// Pomocná funkce na generování náhodného ID (pro nové položky)
+function generateId() {
+  return Math.random().toString(36).substr(2, 9);
+}
 
-  // pomocná funkce na přepočet přeplatku/nedoplatku
-  const computeDiff = (row: StatementRow) => {
-    const total = row.totalCost ?? 0;
-    const advances = row.advances ?? 0;
-    return total - advances;
+// Dummy data pro ukázku (v reálu načteš data za období)
+const exampleData = [
+  { id: 'rent', name: 'Nájem', totalAdvance: 120000, unit: 'Kč' },
+  { id: 'electricity', name: 'Elektřina', totalAdvance: 8000, unit: 'kWh' },
+  { id: 'water', name: 'Voda', totalAdvance: 4000, unit: 'm³' },
+];
+
+export default function StatementTable() {
+  // Vnitřní stav položek
+  const [items, setItems] = useState<StatementItem[]>(
+    exampleData.map(item => ({
+      ...item,
+      consumption: '',
+      totalCost: '',
+      diff: 0,
+    }))
+  );
+
+  // Položky, které ještě nejsou přidané
+  const unusedItems = PREDEFINED_ITEMS.filter(
+    i => !items.some(used => used.id === i.id)
+  );
+
+  // Přidat položku ze seznamu nebo novou
+  const addItem = (itemId?: string) => {
+    let base: StatementItem = { id: generateId(), name: '', totalAdvance: 0, consumption: '', unit: '', totalCost: '', diff: 0 };
+    if (itemId) {
+      const found = PREDEFINED_ITEMS.find(i => i.id === itemId);
+      if (found) base = { ...base, id: found.id, name: found.name, unit: found.unit };
+    }
+    setItems(arr => [...arr, base]);
   };
 
-  const handleRowChange = (index: number, field: keyof StatementRow, value: string | number) => {
-    const newRows = [...rows];
-    // čísla převádět
-    newRows[index][field] = typeof value === "string" && field !== "name" && field !== "unit"
-      ? Number(value) || 0
-      : value;
-    setRows(newRows);
-    onChange?.(newRows);
+  // Smazat položku
+  const deleteItem = (id: string) => {
+    setItems(arr => arr.filter(item => item.id !== id));
   };
 
-  const handleDelete = (index: number) => {
-    const newRows = rows.filter((_, i) => i !== index);
-    setRows(newRows);
-    onChange?.(newRows);
+  // Přepočet přeplatků/nedoplatků
+  const recalcDiffs = () => {
+    setItems(arr =>
+      arr.map(item => ({
+        ...item,
+        diff:
+          typeof item.totalCost === 'number' && typeof item.totalAdvance === 'number'
+            ? (item.totalAdvance ?? 0) - (item.totalCost ?? 0)
+            : 0,
+      }))
+    );
   };
 
-  // Přidání položky ze seznamu neúčtovatelných kandidátů
-  const [addingName, setAddingName] = useState("");
-  const handleAddRow = () => {
-    if (!addingName) return;
-    setRows([
-      ...rows,
-      {
-        name: addingName,
-        advances: 0,
-        totalCost: 0,
-        monthsBilled: 0,
-        monthsTotal: 0,
-        nonBillable: true,
-        editable: true,
-      },
-    ]);
-    setAddingName("");
+  // Změna pole v položce
+  const updateItem = (id: string, field: keyof StatementItem, value: any) => {
+    setItems(arr =>
+      arr.map(item =>
+        item.id === id
+          ? {
+              ...item,
+              [field]: value === '' ? '' : isNaN(value) ? value : Number(value),
+              ...(field === 'totalCost' || field === 'totalAdvance'
+                ? {
+                    diff:
+                      (field === 'totalCost'
+                        ? (item.totalAdvance ?? 0) - Number(value)
+                        : Number(value) - (item.totalCost ?? 0)),
+                  }
+                : {}),
+            }
+          : item
+      )
+    );
   };
 
   return (
-    <div>
-      <table className="min-w-full bg-white border border-gray-300 mb-4">
+    <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-8">
+      <h1 className="text-2xl font-bold mb-2">Vyúčtování za období</h1>
+
+      <table className="min-w-full border">
         <thead>
-          <tr>
-            <th className="border px-2 py-1">Název</th>
-            <th className="border px-2 py-1">Zálohy</th>
-            <th className="border px-2 py-1">Spotřeba</th>
-            <th className="border px-2 py-1">Jednotka</th>
-            <th className="border px-2 py-1">Náklady celkem</th>
-            <th className="border px-2 py-1">Počet účtovaných měsíců</th>
-            <th className="border px-2 py-1">Přeplatek / Nedoplatek</th>
-            <th className="border px-2 py-1"></th>
+          <tr className="bg-gray-100">
+            <th className="p-2 border">Název</th>
+            <th className="p-2 border">Zálohy (Kč)</th>
+            <th className="p-2 border">Spotřeba</th>
+            <th className="p-2 border">Jednotka</th>
+            <th className="p-2 border">Náklady celkem (Kč)</th>
+            <th className="p-2 border">Přeplatek / Nedoplatek</th>
+            <th className="p-2 border">Akce</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, idx) => (
-            <tr key={row.name + idx}>
-              <td className="border px-2 py-1">
-                {row.editable ? (
-                  <input
-                    className="border rounded px-1 py-0.5 w-28"
-                    value={row.name}
-                    onChange={e => handleRowChange(idx, "name", e.target.value)}
-                  />
-                ) : row.name}
-                {row.monthsBilled < row.monthsTotal && (
-                  <span className="text-xs text-gray-500 ml-1">
-                    ({row.monthsBilled}× z {row.monthsTotal})
-                  </span>
-                )}
-                {row.nonBillable && (
-                  <span className="ml-1 text-xs text-orange-600">(neúčtovatelné)</span>
-                )}
+          {items.map(item => (
+            <tr key={item.id}>
+              <td className="border p-1">
+                <input
+                  value={item.name}
+                  onChange={e => updateItem(item.id, 'name', e.target.value)}
+                  className="w-full border rounded px-1"
+                />
               </td>
-              <td className="border px-2 py-1">
+              <td className="border p-1">
                 <input
                   type="number"
-                  className="border rounded px-1 py-0.5 w-20"
-                  value={row.advances}
-                  onChange={e => handleRowChange(idx, "advances", e.target.value)}
+                  value={item.totalAdvance}
+                  onChange={e => updateItem(item.id, 'totalAdvance', e.target.value)}
+                  className="w-full border rounded px-1"
+                  min={0}
                 />
               </td>
-              <td className="border px-2 py-1">
+              <td className="border p-1">
                 <input
                   type="number"
-                  className="border rounded px-1 py-0.5 w-20"
-                  value={row.consumption ?? ""}
-                  onChange={e => handleRowChange(idx, "consumption", e.target.value)}
+                  value={item.consumption}
+                  onChange={e => updateItem(item.id, 'consumption', e.target.value)}
+                  className="w-full border rounded px-1"
+                  min={0}
                 />
               </td>
-              <td className="border px-2 py-1">
+              <td className="border p-1">
                 <input
-                  className="border rounded px-1 py-0.5 w-14"
-                  value={row.unit ?? ""}
-                  onChange={e => handleRowChange(idx, "unit", e.target.value)}
+                  value={item.unit}
+                  onChange={e => updateItem(item.id, 'unit', e.target.value)}
+                  className="w-full border rounded px-1"
                 />
               </td>
-              <td className="border px-2 py-1">
+              <td className="border p-1">
                 <input
                   type="number"
-                  className="border rounded px-1 py-0.5 w-24"
-                  value={row.totalCost ?? ""}
-                  onChange={e => handleRowChange(idx, "totalCost", e.target.value)}
+                  value={item.totalCost}
+                  onChange={e => updateItem(item.id, 'totalCost', e.target.value)}
+                  className="w-full border rounded px-1"
+                  min={0}
                 />
               </td>
-              <td className="border px-2 py-1 text-center">
-                {row.monthsBilled} / {row.monthsTotal}
-              </td>
-              <td className="border px-2 py-1 text-center">
+              <td className="border text-center">
                 <span
                   className={
-                    computeDiff(row) < 0
-                      ? "text-green-600 font-bold"
-                      : computeDiff(row) > 0
-                      ? "text-red-600 font-bold"
-                      : ""
+                    item.diff > 0
+                      ? 'text-green-700 font-bold'
+                      : item.diff < 0
+                      ? 'text-red-700 font-bold'
+                      : ''
                   }
                 >
-                  {computeDiff(row)}
+                  {item.diff > 0 ? '+' : ''}
+                  {item.diff}
                 </span>
               </td>
-              <td className="border px-2 py-1 text-center">
+              <td className="border text-center">
                 <button
-                  className="text-red-500 hover:underline"
-                  onClick={() => handleDelete(idx)}
-                  title="Smazat řádek"
+                  onClick={() => deleteItem(item.id)}
+                  className="bg-red-500 text-white px-2 py-1 rounded"
+                  title="Smazat"
                 >
-                  Smazat
+                  ✕
                 </button>
               </td>
             </tr>
@@ -161,45 +189,46 @@ export default function StatementTable({ rows: initialRows, onChange, nonBillabl
         </tbody>
       </table>
 
-      <div className="flex items-center space-x-2 mb-4">
-        <select
-          className="border rounded px-2 py-1"
-          value={addingName}
-          onChange={e => setAddingName(e.target.value)}
+      {/* Pod tabulkou */}
+      <div className="flex gap-2 mt-4 flex-wrap">
+        {/* Přidat položku ze seznamu */}
+        {unusedItems.length > 0 && (
+          <div>
+            <label>Přidat existující položku: </label>
+            <select
+              onChange={e => {
+                if (e.target.value) addItem(e.target.value);
+              }}
+              defaultValue=""
+              className="border rounded p-1"
+            >
+              <option value="">-- vyberte --</option>
+              {unusedItems.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {/* Přidat úplně novou položku */}
+        <button
+          onClick={() => addItem()}
+          className="bg-blue-600 text-white px-3 py-1 rounded"
         >
-          <option value="">Přidat položku…</option>
-          {nonBillableCandidates
-            .filter(name => !rows.some(row => row.name === name))
-            .map(name => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          <option value="__new__">Nová položka…</option>
-        </select>
-        {addingName && addingName !== "__new__" && (
-          <button
-            className="bg-blue-600 text-white px-3 py-1 rounded"
-            onClick={handleAddRow}
-          >
-            Přidat
-          </button>
-        )}
-        {addingName === "__new__" && (
-          <input
-            className="border rounded px-2 py-1"
-            placeholder="Název nové položky"
-            onBlur={e => setAddingName(e.target.value)}
-            autoFocus
-          />
-        )}
+          Přidat novou položku
+        </button>
+        {/* Přepočítat rozdíly */}
+        <button
+          onClick={recalcDiffs}
+          className="bg-green-700 text-white px-3 py-1 rounded"
+        >
+          Přepočítat přeplatky/nedoplatky
+        </button>
       </div>
-      <button
-        className="bg-green-600 text-white px-4 py-2 rounded"
-        onClick={() => setRows([...rows])} // “přepočet” - v tomto případě jen re-render (můžeš navázat reálný přepočet)
-      >
-        Přepočítat přeplatky
-      </button>
+      <div className="mt-4 text-sm text-gray-500">
+        <strong>Poznámka:</strong> Zálohy jsou součtem všech plateb za sledované období. Pokud má nájemník dluh, můžeš ho vyznačit přepsáním záloh, nebo doplnit zvláštní položku.
+      </div>
     </div>
   );
 }
