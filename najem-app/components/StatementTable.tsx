@@ -2,9 +2,35 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-// Typ položky vyúčtování
+// --- Typy z API ---
+type CustomCharge = {
+  name: string;
+  amount: number;
+  billable?: boolean;
+  enabled?: boolean;
+};
+
+type MonthlyObligation = {
+  id: string;
+  lease_id: string;
+  year: number;
+  month: number;
+  rent: number;
+  water: number;
+  gas: number;
+  electricity: number;
+  services: number;
+  repair_fund: number;
+  total_due: number;
+  paid_amount: number;
+  debt: number;
+  note?: string;
+  custom_charges?: CustomCharge[] | string;
+  charge_flags?: Record<string, boolean>;
+};
+
 type StatementItem = {
   id: string;
   name: string;
@@ -15,61 +41,101 @@ type StatementItem = {
   diff: number;                 // přeplatek/nedoplatek
   chargeableMonths?: number[];  // čísla měsíců kdy byla položka účtovaná
   note?: string;
-  manual?: boolean;             // ručně přidaná položka
+  manual?: boolean;
 };
 
-// Každý lease za období (první návrh, v praxi ti to přichází z API)
-type LeasePeriod = {
-  leaseId: string;
-  tenant: string;
-  from: string; // např. "2024-01-01"
-  to: string;   // např. "2024-05-31"
-  months: number[]; // například [1,2,3,4,5] - leden až květen
-};
-
-// Ukázkové lease periody (nahraď fetchnutými z DB!)
-const leases: LeasePeriod[] = [
-  { leaseId: '1', tenant: 'Karel Novák', from: '2024-01-01', to: '2024-05-31', months: [1,2,3,4,5] },
-  { leaseId: '2', tenant: 'Jana Malá',   from: '2024-06-01', to: '2024-12-31', months: [6,7,8,9,10,11,12] }
-];
-
-// Předdefinované typy položek
 const PREDEFINED_ITEMS = [
   { id: 'rent', name: 'Nájem', unit: 'Kč' },
   { id: 'electricity', name: 'Elektřina', unit: 'kWh' },
   { id: 'water', name: 'Voda', unit: 'm³' },
   { id: 'gas', name: 'Plyn', unit: 'm³' },
-  { id: 'internet', name: 'Internet', unit: 'Kč' }
+  { id: 'services', name: 'Služby', unit: 'Kč' },
+  { id: 'repair_fund', name: 'Fond oprav', unit: 'Kč' },
 ];
 
-// Dummy data pro ukázku – v reálu to budeš plnit např. v mapě: položka -> sum(advance za období napříč leases)
-const exampleData: StatementItem[] = [
-  {
-    id: 'rent', name: 'Nájem', totalAdvance: 120000, unit: 'Kč', consumption: '', totalCost: '', diff: 0,
-    chargeableMonths: [1,2,3,4,5,6,7,8,9,10,11,12]
-  },
-  {
-    id: 'electricity', name: 'Elektřina', totalAdvance: 9000, unit: 'kWh', consumption: '', totalCost: '', diff: 0,
-    chargeableMonths: [1,2,3,4,5,7,8,9,10,11,12], // v červnu nebyla účtovaná!
-    note: 'V červnu nebyla účtováno'
-  },
-  {
-    id: 'internet', name: 'Internet', totalAdvance: 3600, unit: 'Kč', consumption: '', totalCost: '', diff: 0,
-    chargeableMonths: [6,7,8,9,10,11,12]
-  }
-];
-
-function generateId() {
-  return Math.random().toString(36).substr(2, 9);
+// --- PROPS ---
+interface StatementTableProps {
+  unitId: string;
+  year: string;
 }
 
-export default function StatementTable() {
-  const [items, setItems] = useState<StatementItem[]>(exampleData);
+// --- KOMPONENTA ---
+export default function StatementTable({ unitId, year }: StatementTableProps) {
+  const [items, setItems] = useState<StatementItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Které položky ještě nejsou v tabulce
+  // --- Načti data z API ---
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/units/${unitId}/statement/${year}`)
+      .then((res) => res.json())
+      .then((data: MonthlyObligation[]) => {
+        // --- Transformace: každý typ položky spočítej sumu záloh napříč měsíci ---
+        const agg: Record<string, StatementItem> = {};
+
+        for (const obligation of data) {
+          // --- Každá položka zvlášť ---
+          for (const key of ['rent', 'electricity', 'water', 'gas', 'services', 'repair_fund']) {
+            if (typeof obligation[key as keyof MonthlyObligation] === 'number') {
+              const value = obligation[key as keyof MonthlyObligation] as number;
+              if (!agg[key]) {
+                const predefined = PREDEFINED_ITEMS.find((i) => i.id === key);
+                agg[key] = {
+                  id: key,
+                  name: predefined?.name || key,
+                  unit: predefined?.unit || '',
+                  totalAdvance: 0,
+                  consumption: '',
+                  totalCost: '',
+                  diff: 0,
+                  chargeableMonths: [],
+                };
+              }
+              agg[key].totalAdvance += value;
+              agg[key].chargeableMonths?.push(obligation.month);
+            }
+          }
+          // --- Custom Charges (účtovatelné) ---
+          if (obligation.custom_charges) {
+            let customCharges: CustomCharge[] = [];
+            if (typeof obligation.custom_charges === 'string') {
+              try {
+                customCharges = JSON.parse(obligation.custom_charges);
+              } catch {}
+            } else {
+              customCharges = obligation.custom_charges;
+            }
+            for (const charge of customCharges) {
+              if (!charge || (!charge.billable && !charge.enabled)) continue;
+              const key = `custom_${charge.name}`;
+              if (!agg[key]) {
+                agg[key] = {
+                  id: key,
+                  name: charge.name,
+                  unit: '', // můžeš rozšířit o jednotku, pokud máš
+                  totalAdvance: 0,
+                  consumption: '',
+                  totalCost: '',
+                  diff: 0,
+                  chargeableMonths: [],
+                };
+              }
+              agg[key].totalAdvance += Number(charge.amount || 0);
+              agg[key].chargeableMonths?.push(obligation.month);
+            }
+          }
+        }
+        // Výsledek jako pole
+        setItems(Object.values(agg));
+        setLoading(false);
+      });
+  }, [unitId, year]);
+
+  // --- Ostatní logika (ruční přidávání, editace, atd.) ---
   const unusedItems = PREDEFINED_ITEMS.filter(i => !items.some(row => row.id === i.id));
-
-  // Přidání nové položky (existující nebo nová)
+  function generateId() {
+    return Math.random().toString(36).substr(2, 9);
+  }
   const addItem = (itemId?: string) => {
     let base: StatementItem = {
       id: generateId(), name: '', totalAdvance: 0, consumption: '', unit: '', totalCost: '', diff: 0, chargeableMonths: [], manual: true
@@ -80,13 +146,9 @@ export default function StatementTable() {
     }
     setItems(arr => [...arr, base]);
   };
-
-  // Smazání položky
   const deleteItem = (id: string) => {
     setItems(arr => arr.filter(item => item.id !== id));
   };
-
-  // Přepočet přeplatků/nedoplatků
   const recalcDiffs = () => {
     setItems(arr =>
       arr.map(item => ({
@@ -98,8 +160,6 @@ export default function StatementTable() {
       }))
     );
   };
-
-  // Změna pole v řádku
   const updateItem = (id: string, field: keyof StatementItem, value: string | number) => {
     setItems(arr =>
       arr.map(item =>
@@ -124,20 +184,11 @@ export default function StatementTable() {
     );
   };
 
+  if (loading) return <div>Načítám...</div>;
+
   return (
     <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-8">
       <h1 className="text-2xl font-bold mb-2">Vyúčtování za období</h1>
-
-      {/* Přehled období a všech nájemců */}
-      <div className="mb-4">
-        <span className="font-semibold">Období: </span> 01/2024 – 12/2024 <br />
-        <span className="font-semibold">Smlouvy v období: </span>
-        {leases.map(l => (
-          <span key={l.leaseId} className="mr-4">
-            {l.from} – {l.to} (<b>{l.tenant}</b>)
-          </span>
-        ))}
-      </div>
 
       <table className="min-w-full border">
         <thead>
