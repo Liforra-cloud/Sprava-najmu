@@ -290,24 +290,36 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* 👤 Aktuální nájem */}
-    {unit.activeLeases.length > 0 ? (
+  {unit.activeLeases.length > 0 ? (
   <div>
     <h2 className="text-lg font-semibold mb-2">Aktuální nájem</h2>
     {unit.activeLeases.map(lease => {
       const obligations = lease.monthly_obligations ?? [];
 
-      // Zjisti aktuální rok a měsíc
       const now = new Date();
       const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1; // JS: leden = 0!
+      const currentMonth = now.getMonth() + 1;
 
-      // Najdi obligation pro aktuální měsíc
       const currentOb = obligations.find(
         ob => ob.year === currentYear && ob.month === currentMonth
       );
 
       const monthlyRent = currentOb?.rent ?? 0;
-      const monthlyServices = currentOb?.services ?? 0;
+
+      // Výpočet záloh na služby (součet všech položek + billable poplatky)
+      let monthlyServices = 0;
+      if (currentOb) {
+        monthlyServices += currentOb.services ?? 0;
+        monthlyServices += currentOb.water ?? 0;
+        monthlyServices += currentOb.gas ?? 0;
+        monthlyServices += currentOb.electricity ?? 0;
+        if (Array.isArray(currentOb.custom_charges)) {
+          monthlyServices += currentOb.custom_charges
+            .filter(c => c.billable)
+            .reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
+        }
+      }
+
       const totalDebt = obligations.reduce((sum, ob) => sum + (ob.debt ?? 0), 0);
 
       return (
