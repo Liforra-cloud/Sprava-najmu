@@ -22,7 +22,7 @@ interface CustomCharge {
   name: string;
   amount: number;
   billable: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface MonthlyObligation {
