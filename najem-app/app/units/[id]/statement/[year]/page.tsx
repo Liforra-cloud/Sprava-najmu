@@ -4,6 +4,15 @@
 
 import { useState } from 'react';
 
+import StatementTable from '@/components/StatementTable';
+
+export default function StatementPage() {
+  return (
+    <div className="max-w-4xl mx-auto mt-8">
+      <StatementTable />
+    </div>
+  );
+}
 // Typ položky vyúčtování
 type StatementItem = {
   id: string;
