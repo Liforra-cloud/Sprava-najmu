@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 
-// GET - Detail jednotky + nájmy
+// GET - Detail jednotky + nájmy + obligations + platby
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -25,7 +25,7 @@ export async function GET(
     );
   }
 
-  // Načti smlouvy k jednotce + nájemníky (JOIN na tenants)
+  // Načti smlouvy k jednotce + nájemníky + monthly obligations + platby
   const { data: leases, error: leasesError } = await supabase
     .from("leases")
     .select(
@@ -44,6 +44,24 @@ export async function GET(
           full_name,
           email,
           phone
+        ),
+        monthly_obligations (
+          id,
+          year,
+          month,
+          total_due,
+          paid_amount,
+          debt,
+          rent,
+          services,
+          water,
+          gas,
+          electricity
+        ),
+        payments (
+          id,
+          amount,
+          payment_date
         )
       `
     )
