@@ -1,141 +1,368 @@
-//units/[id]/statement/[year]/page.tsx
-
 // app/units/[id]/statement/[year]/page.tsx
 
 'use client';
 
 import { useEffect, useState } from 'react';
 
-type CustomCharge = {
-  name: string;
-  amount: number;
-  billable?: boolean;
-  enabled?: boolean;
-};
-
-type MonthlyObligation = {
+type StatementItem = {
   id: string;
-  lease_id: string;
-  year: number;
-  month: number;
-  rent: number;
-  water: number;
-  gas: number;
-  electricity: number;
-  services: number;
-  repair_fund: number;
-  total_due: number;
-  paid_amount: number;
-  debt: number;
-  note?: string;
-  custom_charges?: CustomCharge[] | string;
-  charge_flags?: Record<string, boolean>;
+  name: string;
+  type: 'účtovatelné' | 'neúčtovatelné';
+  advance: number; // záloha
+  consumption?: number; // spotřeba (volitelně)
+  unit?: string; // jednotka (KWh, m3, ks)
+  unit_price?: number; // cena za jednotku
+  actual_price: number; // skutečná cena (lze přepočítat)
+  chargeable: boolean; // zahrnout do vyúčtování
 };
 
-export default function StatementPage({
-  params,
-}: {
-  params: { id: string; year: string };
-}) {
+type Payment = {
+  id: string;
+  date: string;
+  amount: number;
+  type: string;
+  note?: string;
+};
+
+type StatementData = {
+  items: StatementItem[];
+  payments: Payment[];
+};
+
+function generateId() {
+  return Math.random().toString(36).substr(2, 9);
+}
+
+export default function StatementPage({ params }: { params: { id: string; year: string } }) {
   const { id, year } = params;
-  const [obligations, setObligations] = useState<MonthlyObligation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/units/${id}/statement/${year}`);
-        if (!res.ok) {
-          throw new Error('Failed to fetch statement');
-        }
-        const data: MonthlyObligation[] = await res.json();
-        setObligations(data);
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [id, year]);
+  // Zde bude fetch na API
+  const [data, setData] = useState<StatementData>({
+    items: [
+      {
+        id: 'rent',
+        name: 'Nájem',
+        type: 'účtovatelné',
+        advance: 60000,
+        actual_price: 60000,
+        chargeable: true,
+      },
+      {
+        id: 'electricity',
+        name: 'Elektřina',
+        type: 'účtovatelné',
+        advance: 3000,
+        consumption: 2850,
+        unit: 'kWh',
+        unit_price: 4.5,
+        actual_price: 2850 * 4.5,
+        chargeable: true,
+      },
+      {
+        id: 'internet',
+        name: 'Internet',
+        type: 'neúčtovatelné',
+        advance: 0,
+        consumption: 1,
+        unit: 'ks',
+        unit_price: 450,
+        actual_price: 450,
+        chargeable: false,
+      },
+    ],
+    payments: [
+      { id: 'p1', date: '2024-01-03', amount: 10000, type: 'Nájem', note: '' },
+      { id: 'p2', date: '2024-01-10', amount: 1000, type: 'Elektřina', note: '' },
+      { id: 'p3', date: '2024-02-10', amount: 2000, type: 'Nájem', note: 'druhá platba' },
+    ],
+  });
 
-  if (isLoading) return <p>Loading...</p>;
-  if (error) return <p className="text-red-600">{error}</p>;
-  if (obligations.length === 0) return <p>No data for this year.</p>;
+  // SUMY (za chargeable/účtovatelné položky)
+  const totalAdvance = data.items.filter(i => i.chargeable).reduce((sum, i) => sum + i.advance, 0);
+  const totalActual = data.items.filter(i => i.chargeable).reduce((sum, i) => sum + i.actual_price, 0);
+  const totalDiff = totalAdvance - totalActual;
 
+  // HANDLERY PRO ÚPRAVU, MAZÁNÍ, PŘIDÁNÍ
+  const updateItem = (id: string, update: Partial<StatementItem>) => {
+    setData(d => ({
+      ...d,
+      items: d.items.map(i => (i.id === id ? { ...i, ...update } : i)),
+    }));
+  };
+
+  const deleteItem = (id: string) => {
+    setData(d => ({
+      ...d,
+      items: d.items.filter(i => i.id !== id),
+    }));
+  };
+
+  const addItem = () => {
+    setData(d => ({
+      ...d,
+      items: [
+        ...d.items,
+        {
+          id: generateId(),
+          name: '',
+          type: 'účtovatelné',
+          advance: 0,
+          actual_price: 0,
+          chargeable: true,
+        },
+      ],
+    }));
+  };
+
+  const updatePayment = (id: string, update: Partial<Payment>) => {
+    setData(d => ({
+      ...d,
+      payments: d.payments.map(p => (p.id === id ? { ...p, ...update } : p)),
+    }));
+  };
+
+  const deletePayment = (id: string) => {
+    setData(d => ({
+      ...d,
+      payments: d.payments.filter(p => p.id !== id),
+    }));
+  };
+
+  const addPayment = () => {
+    setData(d => ({
+      ...d,
+      payments: [
+        ...d.payments,
+        { id: generateId(), date: '', amount: 0, type: '', note: '' },
+      ],
+    }));
+  };
+
+  // Render
   return (
-    <div className="max-w-3xl mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-6">Unit Statement for {year}</h1>
-      <table className="w-full border text-sm">
+    <div className="max-w-4xl mx-auto p-6 bg-white shadow rounded space-y-8">
+      <h1 className="text-2xl font-bold mb-2">Vyúčtování za období {year}</h1>
+      <div className="space-y-2">
+        <div>
+          <strong>Zaplacené zálohy (účtovatelné):</strong> {totalAdvance.toLocaleString()} Kč
+        </div>
+        <div>
+          <strong>Skutečné náklady (účtovatelné):</strong> {totalActual.toLocaleString()} Kč
+        </div>
+        <div>
+          <strong>Přeplatek / Nedoplatek:</strong>{" "}
+          <span className={totalDiff >= 0 ? "text-green-700" : "text-red-700"}>
+            {totalDiff.toLocaleString()} Kč
+          </span>
+        </div>
+      </div>
+
+      {/* TABULKA POLOŽEK */}
+      <h2 className="text-lg font-semibold mt-6">Položky vyúčtování</h2>
+      <table className="min-w-full border">
         <thead>
           <tr className="bg-gray-100">
-            <th className="border px-2 py-1">Month</th>
-            <th className="border px-2 py-1">Rent</th>
-            <th className="border px-2 py-1">Services</th>
-            <th className="border px-2 py-1">Water</th>
-            <th className="border px-2 py-1">Gas</th>
-            <th className="border px-2 py-1">Electricity</th>
-            <th className="border px-2 py-1">Repair Fund</th>
-            <th className="border px-2 py-1">Custom Charges</th>
-            <th className="border px-2 py-1">Total Due</th>
-            <th className="border px-2 py-1">Paid</th>
-            <th className="border px-2 py-1">Debt</th>
+            <th className="p-2 border">Název</th>
+            <th className="p-2 border">Typ</th>
+            <th className="p-2 border">Zálohy</th>
+            <th className="p-2 border">Spotřeba/jednotky</th>
+            <th className="p-2 border">Jednotka</th>
+            <th className="p-2 border">Cena/jedn.</th>
+            <th className="p-2 border">Skutečnost</th>
+            <th className="p-2 border">Účtovat</th>
+            <th className="p-2 border">Akce</th>
           </tr>
         </thead>
         <tbody>
-          {obligations.map((ob) => {
-            // Parse custom_charges if needed
-            let customChargesArr: CustomCharge[] = [];
-            if (ob.custom_charges) {
-              if (typeof ob.custom_charges === 'string') {
-                try {
-                  customChargesArr = JSON.parse(ob.custom_charges);
-                } catch {
-                  customChargesArr = [];
-                }
-              } else if (Array.isArray(ob.custom_charges)) {
-                customChargesArr = ob.custom_charges;
-              }
-            }
-            const customChargesSum = customChargesArr
-              .filter(c => c && (c.billable ?? c.enabled))
-              .reduce(
-                (sum, c) =>
-                  sum + (typeof c.amount === 'number' ? c.amount : Number(c.amount) || 0),
-                0
-              );
-
-            return (
-              <tr key={ob.id}>
-                <td className="border px-2 py-1">{ob.month}</td>
-                <td className="border px-2 py-1">{ob.rent} Kč</td>
-                <td className="border px-2 py-1">{ob.services} Kč</td>
-                <td className="border px-2 py-1">{ob.water} Kč</td>
-                <td className="border px-2 py-1">{ob.gas} Kč</td>
-                <td className="border px-2 py-1">{ob.electricity} Kč</td>
-                <td className="border px-2 py-1">{ob.repair_fund} Kč</td>
-                <td className="border px-2 py-1">
-                  {customChargesSum > 0
-                    ? customChargesArr
-                        .filter(c => c.billable ?? c.enabled)
-                        .map((c, idx) => (
-                          <div key={idx}>
-                            {c.name}: {c.amount} Kč
-                          </div>
-                        ))
-                    : '-'}
-                </td>
-                <td className="border px-2 py-1">{ob.total_due} Kč</td>
-                <td className="border px-2 py-1">{ob.paid_amount} Kč</td>
-                <td className="border px-2 py-1">{ob.debt} Kč</td>
-              </tr>
-            );
-          })}
+          {data.items.map(item => (
+            <tr key={item.id}>
+              <td className="border p-1">
+                <input
+                  value={item.name}
+                  onChange={e => updateItem(item.id, { name: e.target.value })}
+                  className="w-full border rounded px-1"
+                />
+              </td>
+              <td className="border p-1">
+                <select
+                  value={item.type}
+                  onChange={e => updateItem(item.id, { type: e.target.value as any })}
+                  className="border rounded"
+                >
+                  <option value="účtovatelné">účtovatelné</option>
+                  <option value="neúčtovatelné">neúčtovatelné</option>
+                </select>
+              </td>
+              <td className="border p-1">
+                <input
+                  type="number"
+                  value={item.advance}
+                  onChange={e => updateItem(item.id, { advance: Number(e.target.value) })}
+                  className="w-full border rounded px-1"
+                />
+              </td>
+              <td className="border p-1">
+                <input
+                  type="number"
+                  value={item.consumption ?? ''}
+                  onChange={e => {
+                    const v = Number(e.target.value);
+                    updateItem(item.id, {
+                      consumption: v,
+                      actual_price:
+                        v && item.unit_price
+                          ? v * (item.unit_price ?? 0)
+                          : item.actual_price,
+                    });
+                  }}
+                  className="w-full border rounded px-1"
+                />
+              </td>
+              <td className="border p-1">
+                <input
+                  value={item.unit ?? ''}
+                  onChange={e => updateItem(item.id, { unit: e.target.value })}
+                  className="w-full border rounded px-1"
+                />
+              </td>
+              <td className="border p-1">
+                <input
+                  type="number"
+                  value={item.unit_price ?? ''}
+                  onChange={e => {
+                    const v = Number(e.target.value);
+                    updateItem(item.id, {
+                      unit_price: v,
+                      actual_price:
+                        item.consumption && v
+                          ? item.consumption * v
+                          : item.actual_price,
+                    });
+                  }}
+                  className="w-full border rounded px-1"
+                />
+              </td>
+              <td className="border p-1">
+                <input
+                  type="number"
+                  value={item.actual_price}
+                  onChange={e => updateItem(item.id, { actual_price: Number(e.target.value) })}
+                  className="w-full border rounded px-1"
+                />
+              </td>
+              <td className="border text-center">
+                <input
+                  type="checkbox"
+                  checked={item.chargeable}
+                  onChange={e => updateItem(item.id, { chargeable: e.target.checked })}
+                />
+              </td>
+              <td className="border text-center">
+                <button
+                  onClick={() => deleteItem(item.id)}
+                  className="bg-red-500 text-white px-2 py-1 rounded"
+                  title="Smazat"
+                >
+                  ✕
+                </button>
+              </td>
+            </tr>
+          ))}
         </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={9}>
+              <button
+                onClick={addItem}
+                className="mt-2 bg-blue-600 text-white px-3 py-1 rounded"
+              >
+                Přidat položku
+              </button>
+            </td>
+          </tr>
+        </tfoot>
       </table>
+
+      {/* TABULKA PLATEB */}
+      <h2 className="text-lg font-semibold mt-6">Platby za období</h2>
+      <table className="min-w-full border">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="p-2 border">Datum</th>
+            <th className="p-2 border">Částka</th>
+            <th className="p-2 border">Typ</th>
+            <th className="p-2 border">Poznámka</th>
+            <th className="p-2 border">Akce</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.payments.map(payment => (
+            <tr key={payment.id}>
+              <td className="border p-1">
+                <input
+                  type="date"
+                  value={payment.date}
+                  onChange={e => updatePayment(payment.id, { date: e.target.value })}
+                  className="w-full border rounded px-1"
+                />
+              </td>
+              <td className="border p-1">
+                <input
+                  type="number"
+                  value={payment.amount}
+                  onChange={e => updatePayment(payment.id, { amount: Number(e.target.value) })}
+                  className="w-full border rounded px-1"
+                />
+              </td>
+              <td className="border p-1">
+                <input
+                  value={payment.type}
+                  onChange={e => updatePayment(payment.id, { type: e.target.value })}
+                  className="w-full border rounded px-1"
+                />
+              </td>
+              <td className="border p-1">
+                <input
+                  value={payment.note ?? ''}
+                  onChange={e => updatePayment(payment.id, { note: e.target.value })}
+                  className="w-full border rounded px-1"
+                />
+              </td>
+              <td className="border text-center">
+                <button
+                  onClick={() => deletePayment(payment.id)}
+                  className="bg-red-500 text-white px-2 py-1 rounded"
+                  title="Smazat"
+                >
+                  ✕
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={5}>
+              <button
+                onClick={addPayment}
+                className="mt-2 bg-blue-600 text-white px-3 py-1 rounded"
+              >
+                Přidat platbu
+              </button>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {/* Místo pro tlačítka Uložit / Exportovat (budoucí implementace) */}
+      <div className="flex gap-4 mt-6">
+        <button className="bg-green-600 text-white px-4 py-2 rounded">
+          Uložit změny
+        </button>
+        <button className="bg-gray-700 text-white px-4 py-2 rounded">
+          Exportovat do PDF
+        </button>
+      </div>
     </div>
   );
 }
