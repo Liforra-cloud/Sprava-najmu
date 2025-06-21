@@ -79,14 +79,14 @@ export default function StatementTable() {
     );
   };
 
-  // Změna pole v položce
-  const updateItem = (id: string, field: keyof StatementItem, value: any) => {
+  // Změna pole v položce – POZOR, typ pro value je string | number!
+  const updateItem = (id: string, field: keyof StatementItem, value: string | number) => {
     setItems(arr =>
       arr.map(item =>
         item.id === id
           ? {
               ...item,
-              [field]: value === '' ? '' : isNaN(value) ? value : Number(value),
+              [field]: value === '' ? '' : isNaN(Number(value)) ? value : Number(value),
               ...(field === 'totalCost' || field === 'totalAdvance'
                 ? {
                     diff:
@@ -232,3 +232,4 @@ export default function StatementTable() {
     </div>
   );
 }
+
