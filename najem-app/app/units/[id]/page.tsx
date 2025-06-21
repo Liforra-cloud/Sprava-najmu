@@ -18,6 +18,20 @@ interface Tenant {
   phone?: string;
 }
 
+interface MonthlyObligation {
+  id: string;
+  year: number;
+  month: number;
+  total_due: number;
+  paid_amount: number;
+  debt: number;
+  rent: number;
+  services: number;
+  water?: number;
+  gas?: number;
+  electricity?: number;
+}
+
 interface Lease {
   id: string;
   tenant: Tenant | null;
@@ -25,14 +39,9 @@ interface Lease {
   end_date: string | null;
   rent_amount: number;
   monthly_services?: number;
-  monthly_water?: number;
-  monthly_gas?: number;
-  monthly_electricity?: number;
   deposit: number;
   name: string | null;
-  custom_charges?: CustomCharge[];
-  total_debt?: number;
-  debt?: number;
+  monthly_obligations?: MonthlyObligation[];
 }
 
 interface Unit {
@@ -53,13 +62,6 @@ interface Unit {
 interface Property {
   id: string;
   name: string;
-}
-
-interface CustomCharge {
-  name: string;
-  amount: number;
-  billable: boolean;
-  [key: string]: unknown;
 }
 
 export default function UnitDetailPage({ params }: { params: { id: string } }) {
@@ -292,29 +294,10 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         <div>
           <h2 className="text-lg font-semibold mb-2">Aktuální nájem</h2>
           {unit.activeLeases.map(lease => {
-            // Zpracuj vlastní poplatky s typem
-            let customCharges: CustomCharge[] = [];
-            if (Array.isArray(lease.custom_charges)) {
-              customCharges = lease.custom_charges as CustomCharge[];
-            } else if (lease.custom_charges && typeof lease.custom_charges === 'object') {
-              customCharges = Object.values(lease.custom_charges) as CustomCharge[];
-            }
-
-            const servicesSum =
-              (lease.monthly_services ?? 0) +
-              (lease.monthly_water ?? 0) +
-              (lease.monthly_gas ?? 0) +
-              (lease.monthly_electricity ?? 0) +
-              customCharges
-                .filter((c) => c.billable)
-                .reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
-
-            const totalDebt =
-              (typeof lease.total_debt === 'number'
-                ? lease.total_debt
-                : typeof lease.debt === 'number'
-                ? lease.debt
-                : 0);
+            const obligations = lease.monthly_obligations ?? [];
+            const totalDebt = obligations.reduce((sum, ob) => sum + (ob.debt ?? 0), 0);
+            const totalServices = obligations.reduce((sum, ob) => sum + (ob.services ?? 0), 0);
+            const totalRent = obligations.reduce((sum, ob) => sum + (ob.rent ?? 0), 0);
 
             return (
               <div key={lease.id} className="border p-4 rounded mb-2 bg-gray-50 space-y-1">
@@ -335,10 +318,10 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
                   <strong>Období nájmu:</strong> {lease.start_date} — {lease.end_date ?? 'neurčito'}
                 </p>
                 <p>
-                  <strong>Nájemné:</strong> {lease.rent_amount} Kč
+                  <strong>Nájemné (celkem):</strong> {totalRent} Kč
                 </p>
                 <p>
-                  <strong>Zálohy na služby (souhrn):</strong> {servicesSum} Kč
+                  <strong>Zálohy na služby (celkem):</strong> {totalServices} Kč
                 </p>
                 <p>
                   <strong>Kauce:</strong> {lease.deposit} Kč
@@ -374,21 +357,26 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       {unit.pastLeases.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-2">Historie pronájmů</h2>
-          {unit.pastLeases.map(lease => (
-            <div key={lease.id} className="border p-4 rounded mb-2">
-              <p><strong>Nájemník:</strong> {lease.tenant?.full_name || 'Neznámý'}</p>
-              <p><strong>Období:</strong> {lease.start_date} — {lease.end_date}</p>
-              <p><strong>Nájemné:</strong> {lease.rent_amount} Kč</p>
-              <div className="flex gap-2 mt-2">
-                <Link
-                  href={`/leases/${lease.id}/edit`}
-                  className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
-                >
-                  Detail smlouvy
-                </Link>
+          {unit.pastLeases.map(lease => {
+            const obligations = lease.monthly_obligations ?? [];
+            const totalRent = obligations.reduce((sum, ob) => sum + (ob.rent ?? 0), 0);
+
+            return (
+              <div key={lease.id} className="border p-4 rounded mb-2">
+                <p><strong>Nájemník:</strong> {lease.tenant?.full_name || 'Neznámý'}</p>
+                <p><strong>Období:</strong> {lease.start_date} — {lease.end_date}</p>
+                <p><strong>Nájemné (celkem):</strong> {totalRent} Kč</p>
+                <div className="flex gap-2 mt-2">
+                  <Link
+                    href={`/leases/${lease.id}/edit`}
+                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
+                  >
+                    Detail smlouvy
+                  </Link>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -404,4 +392,5 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
 
