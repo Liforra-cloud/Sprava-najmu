@@ -1,5 +1,4 @@
 // app/api/units/[id]/route.ts
-
 import { NextResponse } from "next/server";
 import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 
@@ -56,7 +55,9 @@ export async function GET(
           services,
           water,
           gas,
-          electricity
+          electricity,
+          custom_charges,
+          charge_flags
         )
       `
     )
