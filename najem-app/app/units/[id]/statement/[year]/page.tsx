@@ -2,18 +2,18 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 type StatementItem = {
   id: string;
   name: string;
   type: 'účtovatelné' | 'neúčtovatelné';
-  advance: number; // záloha
-  consumption?: number; // spotřeba (volitelně)
-  unit?: string; // jednotka (KWh, m3, ks)
-  unit_price?: number; // cena za jednotku
-  actual_price: number; // skutečná cena (lze přepočítat)
-  chargeable: boolean; // zahrnout do vyúčtování
+  advance: number;
+  consumption?: number;
+  unit?: string;
+  unit_price?: number;
+  actual_price: number;
+  chargeable: boolean;
 };
 
 type Payment = {
@@ -34,9 +34,9 @@ function generateId() {
 }
 
 export default function StatementPage({ params }: { params: { id: string; year: string } }) {
-  const { id, year } = params;
+  // const { id, year } = params; // id není využité, můžeš použít později na fetch
+  const { year } = params;
 
-  // Zde bude fetch na API
   const [data, setData] = useState<StatementData>({
     items: [
       {
@@ -77,12 +77,10 @@ export default function StatementPage({ params }: { params: { id: string; year: 
     ],
   });
 
-  // SUMY (za chargeable/účtovatelné položky)
   const totalAdvance = data.items.filter(i => i.chargeable).reduce((sum, i) => sum + i.advance, 0);
   const totalActual = data.items.filter(i => i.chargeable).reduce((sum, i) => sum + i.actual_price, 0);
   const totalDiff = totalAdvance - totalActual;
 
-  // HANDLERY PRO ÚPRAVU, MAZÁNÍ, PŘIDÁNÍ
   const updateItem = (id: string, update: Partial<StatementItem>) => {
     setData(d => ({
       ...d,
@@ -138,7 +136,6 @@ export default function StatementPage({ params }: { params: { id: string; year: 
     }));
   };
 
-  // Render
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white shadow rounded space-y-8">
       <h1 className="text-2xl font-bold mb-2">Vyúčtování za období {year}</h1>
@@ -157,7 +154,6 @@ export default function StatementPage({ params }: { params: { id: string; year: 
         </div>
       </div>
 
-      {/* TABULKA POLOŽEK */}
       <h2 className="text-lg font-semibold mt-6">Položky vyúčtování</h2>
       <table className="min-w-full border">
         <thead>
@@ -186,7 +182,11 @@ export default function StatementPage({ params }: { params: { id: string; year: 
               <td className="border p-1">
                 <select
                   value={item.type}
-                  onChange={e => updateItem(item.id, { type: e.target.value as any })}
+                  onChange={e =>
+                    updateItem(item.id, {
+                      type: e.target.value === 'účtovatelné' ? 'účtovatelné' : 'neúčtovatelné',
+                    })
+                  }
                   className="border rounded"
                 >
                   <option value="účtovatelné">účtovatelné</option>
@@ -283,7 +283,6 @@ export default function StatementPage({ params }: { params: { id: string; year: 
         </tfoot>
       </table>
 
-      {/* TABULKA PLATEB */}
       <h2 className="text-lg font-semibold mt-6">Platby za období</h2>
       <table className="min-w-full border">
         <thead>
@@ -354,7 +353,6 @@ export default function StatementPage({ params }: { params: { id: string; year: 
         </tfoot>
       </table>
 
-      {/* Místo pro tlačítka Uložit / Exportovat (budoucí implementace) */}
       <div className="flex gap-4 mt-6">
         <button className="bg-green-600 text-white px-4 py-2 rounded">
           Uložit změny
