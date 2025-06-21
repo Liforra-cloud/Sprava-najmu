@@ -437,12 +437,14 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
 
       {/* 💸 Náklady */}
       <ExpensesList unitId={id} />
-{/* 📊 Statements (vyúčtování) */}
+
+
+      
+{/* 📊 Vyúčtování */}
 {unit && (
   <div>
-    <h2 className="text-xl font-semibold mb-2">Statements</h2>
+    <h2 className="text-xl font-semibold mb-2">Vyúčtování</h2>
     <div className="space-x-2">
-      {/* Automaticky vygeneruj roky, pro které existují monthly obligations */}
       {[
         ...new Set(
           [
@@ -456,7 +458,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
           href={`/units/${id}/statement/${year}`}
           className="inline-block bg-blue-100 text-blue-800 rounded px-3 py-1 mb-1 mr-2 hover:bg-blue-200"
         >
-          Statement {year}
+          Vyúčtování {year}
         </Link>
       ))}
     </div>
@@ -465,7 +467,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         href={`/units/${id}/statement/new`}
         className="inline-block bg-green-100 text-green-800 rounded px-3 py-1 hover:bg-green-200"
       >
-        + New Statement
+        + Nové vyúčtování
       </Link>
     </div>
   </div>
