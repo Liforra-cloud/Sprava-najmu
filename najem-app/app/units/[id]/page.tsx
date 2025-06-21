@@ -30,6 +30,8 @@ interface MonthlyObligation {
   water?: number;
   gas?: number;
   electricity?: number;
+  custom_charges?: CustomCharge[];
+  // případně charge_flags?: { [key: string]: boolean };
 }
 
 interface Lease {
@@ -290,23 +292,24 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* 👤 Aktuální nájem */}
-  {unit.activeLeases.length > 0 ? (
+ {unit.activeLeases.length > 0 ? (
   <div>
     <h2 className="text-lg font-semibold mb-2">Aktuální nájem</h2>
     {unit.activeLeases.map(lease => {
-      const obligations = lease.monthly_obligations ?? [];
+      const obligations: MonthlyObligation[] = lease.monthly_obligations ?? [];
 
+      // Aktuální měsíc a rok
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth() + 1;
 
+      // Najdi obligation pro aktuální měsíc
       const currentOb = obligations.find(
         ob => ob.year === currentYear && ob.month === currentMonth
       );
 
+      // Nájemné a zálohy na služby pro aktuální měsíc
       const monthlyRent = currentOb?.rent ?? 0;
-
-      // Výpočet záloh na služby (součet všech položek + billable poplatky)
       let monthlyServices = 0;
       if (currentOb) {
         monthlyServices += currentOb.services ?? 0;
@@ -320,6 +323,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         }
       }
 
+      // Dluh za celé období (součet ob.debt)
       const totalDebt = obligations.reduce((sum, ob) => sum + (ob.debt ?? 0), 0);
 
       return (
