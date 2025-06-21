@@ -274,65 +274,56 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         )}
       </div>
 
-      {/* 👤 Aktuální nájem */}
-      {unit.activeLeases.length > 0 ? (
-        <div>
-          <h2 className="text-lg font-semibold mb-2">Aktuální nájem</h2>
-          {unit.activeLeases.map(lease => (
-            <div key={lease.id} className="border p-4 rounded mb-2 bg-gray-50">
-              <p><strong>Nájemník:</strong> {lease.tenant?.full_name || 'Neznámý'}</p>
-              <p><strong>Období:</strong> {lease.start_date} — {lease.end_date ?? 'neurčito'}</p>
-              <p><strong>Nájemné:</strong> {lease.rent_amount} Kč</p>
-              <p><strong>Zálohy na služby:</strong> {lease.monthly_services} Kč</p>
-              <p><strong>Kauce:</strong> {lease.deposit} Kč</p>
-              <Link
-                href={`/leases/${lease.id}`}
-                className="text-blue-600 text-sm underline hover:text-blue-800 mt-2 inline-block"
-              >
-                Upravit
-              </Link>
-              <button
-                onClick={async () => {
-                  if (confirm('Opravdu ukončit tento nájem?')) {
-                    await fetch(`/api/leases/${lease.id}`, {
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ end_date: new Date().toISOString().split('T')[0] })
-                    });
-                    // po ukončení načíst znovu jednotku
-                    setRefreshKey(k => k + 1);
-                  }
-                }}
-                className="ml-4 text-red-600 text-sm hover:underline"
-              >
-                Ukončit nájem
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-gray-600 italic">Jednotka je aktuálně volná</div>
-      )}
+            {/* 👤 Aktuální nájem */}
+        {unit.activeLeases.length > 0 ? (
+          <div>
+            <h2 className="text-lg font-semibold mb-2">Aktuální nájem</h2>
+            {unit.activeLeases.map(lease => (
+              <div key={lease.id} className="border p-4 rounded mb-2 bg-gray-50">
+                <p><strong>Nájemník:</strong> {lease.tenant?.full_name || 'Neznámý'}</p>
+                <p><strong>Období:</strong> {lease.start_date} — {lease.end_date ?? 'neurčito'}</p>
+                <p><strong>Nájemné:</strong> {lease.rent_amount} Kč</p>
+                <p><strong>Zálohy na služby:</strong> {lease.monthly_services} Kč</p>
+                <p><strong>Kauce:</strong> {lease.deposit} Kč</p>
+                <div className="flex gap-2 mt-2">
+                  <Link
+                    href={`/leases/${lease.id}/edit`}
+                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
+                  >
+                    Detail smlouvy
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-gray-600 italic">Jednotka je aktuálně volná</div>
+        )}
 
-      {/* 📜 Historie pronájmů */}
-      {unit.pastLeases.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold mb-2">Historie pronájmů</h2>
-          {unit.pastLeases.map(lease => (
-            <div key={lease.id} className="border p-4 rounded mb-2">
-              <p><strong>Nájemník:</strong> {lease.tenant?.full_name || 'Neznámý'}</p>
-              <p><strong>Období:</strong> {lease.start_date} — {lease.end_date}</p>
-              <p><strong>Nájemné:</strong> {lease.rent_amount} Kč</p>
-              <Link
-                href={`/leases/${lease.id}`}
-                className="text-blue-600 text-sm underline hover:text-blue-800 mt-2 inline-block"
-              >
-                Upravit
-              </Link>
-            </div>
-          ))}
-        </div>
-      )}
+
+      
+            {/* 📜 Historie pronájmů */}
+        {unit.pastLeases.length > 0 && (
+          <div>
+            <h2 className="text-lg font-semibold mb-2">Historie pronájmů</h2>
+            {unit.pastLeases.map(lease => (
+              <div key={lease.id} className="border p-4 rounded mb-2">
+                <p><strong>Nájemník:</strong> {lease.tenant?.full_name || 'Neznámý'}</p>
+                <p><strong>Období:</strong> {lease.start_date} — {lease.end_date}</p>
+                <p><strong>Nájemné:</strong> {lease.rent_amount} Kč</p>
+                <div className="flex gap-2 mt-2">
+                  <Link
+                    href={`/leases/${lease.id}/edit`}
+                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
+                  >
+                    Detail smlouvy
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
 
       {/* 💸 Náklady */}
       <ExpensesList unitId={id} />
