@@ -32,6 +32,15 @@ type MonthlyObligation = {
   charge_flags?: Record<string, boolean>;
 };
 
+type Lease = {
+  id: string;
+  tenant_id: string;
+  unit_id: string;
+  start_date: string;
+  end_date: string | null;
+  monthly_obligations: MonthlyObligation[];
+};
+
 export async function GET(
   request: Request,
   { params }: { params: Params }
@@ -39,7 +48,6 @@ export async function GET(
   const { id, year } = params;
   const supabase = supabaseRouteClient();
 
-  // Fetch monthly obligations for the unit in the given year
   const { data, error } = await supabase
     .from("leases")
     .select(
@@ -78,10 +86,18 @@ export async function GET(
     );
   }
 
-  // Flatten and filter obligations by year
-  const obligations: MonthlyObligation[] = (data ?? [])
-   .flatMap((lease: { monthly_obligations?: MonthlyObligation[] }) => lease.monthly_obligations ?? [])
-    .filter((ob: MonthlyObligation) => String(ob.year) === String(year));
+  // Vytvoř pole obligations obohacené o info o lease
+  const obligationsWithLease = (data as Lease[]).flatMap((lease) =>
+    (lease.monthly_obligations ?? [])
+      .filter((ob) => String(ob.year) === String(year))
+      .map((ob) => ({
+        ...ob,
+        lease_start: lease.start_date,
+        lease_end: lease.end_date,
+        lease_id: lease.id,
+        tenant_id: lease.tenant_id,
+      }))
+  );
 
-  return NextResponse.json(obligations);
+  return NextResponse.json(obligationsWithLease);
 }
