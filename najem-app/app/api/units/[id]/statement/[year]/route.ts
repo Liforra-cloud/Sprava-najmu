@@ -80,7 +80,7 @@ export async function GET(
 
   // Flatten and filter obligations by year
   const obligations: MonthlyObligation[] = (data ?? [])
-    .flatMap((lease: any) => lease.monthly_obligations ?? [])
+   .flatMap((lease: { monthly_obligations?: MonthlyObligation[] }) => lease.monthly_obligations ?? [])
     .filter((ob: MonthlyObligation) => String(ob.year) === String(year));
 
   return NextResponse.json(obligations);
