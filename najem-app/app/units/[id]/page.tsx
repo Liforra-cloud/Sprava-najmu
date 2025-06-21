@@ -299,111 +299,114 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* 👤 Aktuální nájem */}
+     {unit.activeLeases.length > 0 ? (
+  <div>
+    <h2 className="text-lg font-semibold mb-2">Aktuální nájem</h2>
+    {unit.activeLeases.map(lease => {
+      const obligations: MonthlyObligation[] = lease.monthly_obligations ?? [];
+
+      // Aktuální měsíc a rok
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+
+      // Najdi obligation pro aktuální měsíc
+      const currentOb = obligations.find(
+        ob => ob.year === currentYear && ob.month === currentMonth
+      );
+
+      // ---- TADY JE LOG, CO POTŘEBUJEME! ----
       console.log("monthly_obligations pro aktuální měsíc:", lease.monthly_obligations);
-      
-      {unit.activeLeases.length > 0 ? (
-        <div>
-          <h2 className="text-lg font-semibold mb-2">Aktuální nájem</h2>
-          {unit.activeLeases.map(lease => {
-            const obligations: MonthlyObligation[] = lease.monthly_obligations ?? [];
+      console.log("currentOb pro aktuální měsíc:", currentOb);
 
-            // Aktuální měsíc a rok
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1;
+      // Načti vlastní poplatky (pole nebo string)
+      let customChargesArr: CustomCharge[] = [];
+      if (currentOb && currentOb.custom_charges) {
+        if (typeof currentOb.custom_charges === 'string') {
+          try {
+            customChargesArr = JSON.parse(currentOb.custom_charges);
+          } catch {
+            customChargesArr = [];
+          }
+        } else if (Array.isArray(currentOb.custom_charges)) {
+          customChargesArr = currentOb.custom_charges;
+        }
+      }
 
-            // Najdi obligation pro aktuální měsíc
-            const currentOb = obligations.find(
-              ob => ob.year === currentYear && ob.month === currentMonth
-            );
+      const customServicesSum = customChargesArr
+        .filter((c) => c && (c.billable ?? c.enabled)) // POZOR: některé mají 'enabled', některé 'billable'
+        .reduce((sum, c) => sum + (typeof c.amount === "number" ? c.amount : Number(c.amount) || 0), 0);
 
-            // Načti vlastní poplatky (pole nebo string)
-            let customChargesArr: CustomCharge[] = [];
-            if (currentOb && currentOb.custom_charges) {
-              if (typeof currentOb.custom_charges === 'string') {
-                try {
-                  customChargesArr = JSON.parse(currentOb.custom_charges);
-                } catch {
-                  customChargesArr = [];
-                }
-              } else if (Array.isArray(currentOb.custom_charges)) {
-                customChargesArr = currentOb.custom_charges;
-              }
-            }
+      // Výpočet měsíčních záloh (součet všech položek za měsíc)
+      let monthlyServices = 0;
+      if (currentOb) {
+        monthlyServices += currentOb.services ?? 0;
+        monthlyServices += currentOb.water ?? 0;
+        monthlyServices += currentOb.gas ?? 0;
+        monthlyServices += currentOb.electricity ?? 0;
+        monthlyServices += customServicesSum;
+      }
 
-            const customServicesSum = customChargesArr
-              .filter((c) => c && c.enabled)
-              .reduce((sum, c) => sum + (typeof c.amount === "number" ? c.amount : Number(c.amount) || 0), 0);
+      // Nájemné na aktuální měsíc
+      const monthlyRent = currentOb?.rent ?? 0;
 
-            // Výpočet měsíčních záloh (součet všech položek za měsíc)
-            let monthlyServices = 0;
-            if (currentOb) {
-              monthlyServices += currentOb.services ?? 0;
-              monthlyServices += currentOb.water ?? 0;
-              monthlyServices += currentOb.gas ?? 0;
-              monthlyServices += currentOb.electricity ?? 0;
-              monthlyServices += customServicesSum;
-            }
+      // Dluh za celé období
+      const totalDebt = obligations.reduce((sum, ob) => sum + (ob.debt ?? 0), 0);
 
-            // Nájemné na aktuální měsíc
-            const monthlyRent = currentOb?.rent ?? 0;
-
-            // Dluh za celé období
-            const totalDebt = obligations.reduce((sum, ob) => sum + (ob.debt ?? 0), 0);
-
-            return (
-              <div key={lease.id} className="border p-4 rounded mb-2 bg-gray-50 space-y-1">
-                <p>
-                  <strong>Nájemník:</strong>{' '}
-                  {lease.tenant ? (
-                    <Link
-                      href={`/tenants/${lease.tenant.id}`}
-                      className="text-blue-700 underline"
-                    >
-                      {lease.tenant.full_name}
-                    </Link>
-                  ) : (
-                    'Neznámý'
-                  )}
-                </p>
-                <p>
-                  <strong>Období nájmu:</strong> {lease.start_date} — {lease.end_date ?? 'neurčito'}
-                </p>
-                <p>
-                  <strong>Nájemné (aktuální měsíc):</strong> {monthlyRent} Kč
-                </p>
-                <p>
-                  <strong>Zálohy na služby (aktuální měsíc):</strong> {monthlyServices} Kč
-                </p>
-                <p>
-                  <strong>Kauce:</strong> {lease.deposit} Kč
-                </p>
-                <p>
-                  <strong>Celkový dluh:</strong> {totalDebt} Kč
-                </p>
-                <div className="flex gap-2 mt-2">
-                  <Link
-                    href={`/leases/${lease.id}/edit`}
-                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
-                  >
-                    Detail smlouvy
-                  </Link>
-                  {lease.tenant && (
-                    <Link
-                      href={`/tenants/${lease.tenant.id}`}
-                      className="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-800 text-sm"
-                    >
-                      Detail nájemníka
-                    </Link>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      return (
+        <div key={lease.id} className="border p-4 rounded mb-2 bg-gray-50 space-y-1">
+          <p>
+            <strong>Nájemník:</strong>{' '}
+            {lease.tenant ? (
+              <Link
+                href={`/tenants/${lease.tenant.id}`}
+                className="text-blue-700 underline"
+              >
+                {lease.tenant.full_name}
+              </Link>
+            ) : (
+              'Neznámý'
+            )}
+          </p>
+          <p>
+            <strong>Období nájmu:</strong> {lease.start_date} — {lease.end_date ?? 'neurčito'}
+          </p>
+          <p>
+            <strong>Nájemné (aktuální měsíc):</strong> {monthlyRent} Kč
+          </p>
+          <p>
+            <strong>Zálohy na služby (aktuální měsíc):</strong> {monthlyServices} Kč
+          </p>
+          <p>
+            <strong>Kauce:</strong> {lease.deposit} Kč
+          </p>
+          <p>
+            <strong>Celkový dluh:</strong> {totalDebt} Kč
+          </p>
+          <div className="flex gap-2 mt-2">
+            <Link
+              href={`/leases/${lease.id}/edit`}
+              className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
+            >
+              Detail smlouvy
+            </Link>
+            {lease.tenant && (
+              <Link
+                href={`/tenants/${lease.tenant.id}`}
+                className="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-800 text-sm"
+              >
+                Detail nájemníka
+              </Link>
+            )}
+          </div>
         </div>
-      ) : (
-        <div className="text-gray-600 italic">Jednotka je aktuálně volná</div>
-      )}
+      );
+    })}
+  </div>
+) : (
+  <div className="text-gray-600 italic">Jednotka je aktuálně volná</div>
+)}
+
 
       {/* 📜 Historie pronájmů */}
       {unit.pastLeases.length > 0 && (
