@@ -4,10 +4,14 @@
 
 import StatementTable from '@/components/StatementTable';
 
-export default function StatementPage() {
+// Next.js předává params jako props:
+export default function StatementPage({ params }: { params: { id: string; year: string } }) {
+  const { id, year } = params;
+
   return (
     <div className="max-w-4xl mx-auto mt-8">
-      <StatementTable />
+      {/* Předáváš id a year do komponenty */}
+      <StatementTable unitId={id} year={year} />
     </div>
   );
 }
