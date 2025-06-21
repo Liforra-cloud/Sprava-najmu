@@ -330,7 +330,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
             }
 
             const customServicesSum = customChargesArr
-              .filter((c) => c && c.billable)
+              .filter((c) => c && c.enabled)
               .reduce((sum, c) => sum + (typeof c.amount === "number" ? c.amount : Number(c.amount) || 0), 0);
 
             // Výpočet měsíčních záloh (součet všech položek za měsíc)
