@@ -321,7 +321,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
               if (typeof currentOb.custom_charges === 'string') {
                 try {
                   customChargesArr = JSON.parse(currentOb.custom_charges);
-                } catch (e) {
+                } catch {
                   customChargesArr = [];
                 }
               } else if (Array.isArray(currentOb.custom_charges)) {
