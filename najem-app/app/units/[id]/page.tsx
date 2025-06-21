@@ -299,6 +299,8 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* 👤 Aktuální nájem */}
+      console.log("monthly_obligations pro aktuální měsíc:", lease.monthly_obligations);
+      
       {unit.activeLeases.length > 0 ? (
         <div>
           <h2 className="text-lg font-semibold mb-2">Aktuální nájem</h2>
