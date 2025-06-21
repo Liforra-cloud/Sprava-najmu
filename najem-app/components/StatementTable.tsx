@@ -80,26 +80,29 @@ export default function StatementTable() {
   };
 
   // Změna pole v položce – POZOR, typ pro value je string | number!
-  const updateItem = (id: string, field: keyof StatementItem, value: string | number) => {
-    setItems(arr =>
-      arr.map(item =>
-        item.id === id
-          ? {
-              ...item,
-              [field]: value === '' ? '' : isNaN(Number(value)) ? value : Number(value),
-              ...(field === 'totalCost' || field === 'totalAdvance'
-                ? {
-                    diff:
-                      (field === 'totalCost'
-                        ? (item.totalAdvance ?? 0) - Number(value)
-                        : Number(value) - (item.totalCost ?? 0)),
-                  }
-                : {}),
-            }
-          : item
-      )
-    );
-  };
+const updateItem = (id: string, field: keyof StatementItem, value: string | number) => {
+  setItems(arr =>
+    arr.map(item =>
+      item.id === id
+        ? {
+            ...item,
+            [field]: value === '' ? '' : isNaN(Number(value)) ? value : Number(value),
+            ...(field === 'totalCost' || field === 'totalAdvance'
+              ? {
+                  diff:
+                    (typeof (field === 'totalCost' ? item.totalAdvance : value) === 'number' &&
+                     typeof (field === 'totalCost' ? value : item.totalCost) === 'number')
+                      ? (field === 'totalCost'
+                          ? (item.totalAdvance as number) - (value as number)
+                          : (value as number) - (item.totalCost as number))
+                      : 0,
+                }
+              : {}),
+          }
+        : item
+    )
+  );
+};
 
   return (
     <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-8">
