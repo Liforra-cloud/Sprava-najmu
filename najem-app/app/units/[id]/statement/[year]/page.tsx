@@ -1,6 +1,7 @@
 // app/units/[id]/statement/[year]/page.tsx
 
 'use client';
+
 import StatementTable from '@/components/StatementTable';
 
 export default function StatementPage() {
