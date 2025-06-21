@@ -7,6 +7,7 @@ import Link from 'next/link';
 import dynamicImport from 'next/dynamic';
 import DocumentUpload from '@/components/DocumentUpload';
 import DocumentList from '@/components/DocumentList';
+import { PencilIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 const ExpensesList = dynamicImport(() => import('@/components/ExpensesList'), { ssr: false });
 
@@ -57,9 +58,21 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshDokumenty = () => setRefreshKey(k => k + 1);
-  const propertyName = properties.find(p => p.id === unit?.property_id)?.name;
+  // stav pro inline edit
+  const [isEditingBasic, setIsEditingBasic] = useState(false);
+  const [basicForm, setBasicForm] = useState({
+    identifier: '',
+    disposition: '',
+    floor: '' as string|number,
+    area: '' as string|number,
+    description: '',
+    property_id: ''
+  });
 
+  const refreshDokumenty = () => setRefreshKey(k => k + 1);
+  const propertyName = properties.find(p => p.id === unit?.property_id)?.name || '';
+
+  // načtení dat
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -69,8 +82,8 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         ]);
 
         if (!unitRes.ok) throw new Error('Jednotka nenalezena');
-        const unitData = await unitRes.json();
-        const propList = await propRes.json();
+        const unitData: Unit = await unitRes.json();
+        const propList: Property[] = await propRes.json();
 
         setUnit(unitData);
         setProperties(Array.isArray(propList) ? propList : []);
@@ -81,7 +94,45 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       }
     };
     fetchData();
-  }, [id]);
+  }, [id, refreshKey]);
+
+  // inicializace formuláře po načtení jednotky
+  useEffect(() => {
+    if (unit) {
+      setBasicForm({
+        identifier: unit.identifier,
+        disposition: unit.disposition,
+        floor: unit.floor ?? '',
+        area: unit.area ?? '',
+        description: unit.description,
+        property_id: unit.property_id
+      });
+    }
+  }, [unit]);
+
+  // uložení změn
+  const handleSaveBasic = async () => {
+    try {
+      const res = await fetch(`/api/units/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: basicForm.identifier,
+          disposition: basicForm.disposition,
+          floor: basicForm.floor === '' ? null : Number(basicForm.floor),
+          area: basicForm.area === '' ? null : Number(basicForm.area),
+          description: basicForm.description,
+          property_id: basicForm.property_id
+        })
+      });
+      if (!res.ok) throw new Error('Chyba při ukládání');
+      const updated: Unit = await res.json();
+      setUnit(prev => prev ? ({ ...prev, ...updated }) : updated);
+      setIsEditingBasic(false);
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  };
 
   if (isLoading) return <p className="p-8">Načítání...</p>;
   if (error) return <p className="p-8 text-red-600">{error}</p>;
@@ -91,30 +142,136 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     <div className="max-w-3xl mx-auto mt-10 p-6 bg-white shadow rounded space-y-8">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Detail jednotky</h1>
-        <Link
-          href={`/units/${id}/edit`}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        {/* Smazat jednotku */}
+        <button
+          onClick={async () => {
+            if (confirm('Opravdu smazat tuto jednotku?')) {
+              await fetch(`/api/units/${id}`, { method: 'DELETE' });
+              window.location.href = '/units';
+            }
+          }}
+          className="text-red-600 hover:underline"
         >
-          Upravit jednotku
-        </Link>
+          Smazat jednotku
+        </button>
       </div>
 
       {/* 🏠 Základní informace */}
-      <div>
+      <div className="relative">
         <h2 className="text-lg font-semibold mb-2">Základní informace</h2>
-        <div className="space-y-1 text-gray-800">
-          <p><strong>Označení:</strong> {unit.identifier}</p>
-          <p><strong>Dispozice:</strong> {unit.disposition}</p>
-          <p><strong>Patro:</strong> {unit.floor ?? '-'}</p>
-          <p><strong>Plocha:</strong> {unit.area ?? '-'} m²</p>
-          <p>
-            <strong>Nemovitost:</strong>{' '}
-            <Link href={`/properties/${unit.property_id}`} className="text-blue-700 underline">
-              {propertyName}
-            </Link>
-          </p>
-          <p><strong>Popis:</strong> {unit.description || '-'}</p>
-        </div>
+        {!isEditingBasic ? (
+          <>
+            <button
+              onClick={() => setIsEditingBasic(true)}
+              className="absolute top-0 right-0 p-1 hover:bg-gray-100 rounded"
+              title="Upravit základní údaje"
+            >
+              <PencilIcon className="h-5 w-5 text-gray-600" />
+            </button>
+            <div className="space-y-1 text-gray-800">
+              <p><strong>Označení:</strong> {unit.identifier}</p>
+              <p><strong>Dispozice:</strong> {unit.disposition}</p>
+              <p><strong>Patro:</strong> {unit.floor ?? '-'}</p>
+              <p><strong>Plocha:</strong> {unit.area ?? '-'} m²</p>
+              <p>
+                <strong>Nemovitost:</strong>{' '}
+                <Link href={`/properties/${unit.property_id}`} className="text-blue-700 underline">
+                  {propertyName}
+                </Link>
+              </p>
+              <p><strong>Popis:</strong> {unit.description || '-'}</p>
+            </div>
+          </>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium">Označení</label>
+                <input
+                  type="text"
+                  value={basicForm.identifier}
+                  onChange={e => setBasicForm(f => ({ ...f, identifier: e.target.value }))}
+                  className="mt-1 block w-full border rounded p-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Dispozice</label>
+                <input
+                  type="text"
+                  value={basicForm.disposition}
+                  onChange={e => setBasicForm(f => ({ ...f, disposition: e.target.value }))}
+                  className="mt-1 block w-full border rounded p-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Patro</label>
+                <input
+                  type="number"
+                  value={basicForm.floor}
+                  onChange={e => setBasicForm(f => ({ ...f, floor: e.target.value }))}
+                  className="mt-1 block w-full border rounded p-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Plocha (m²)</label>
+                <input
+                  type="number"
+                  value={basicForm.area}
+                  onChange={e => setBasicForm(f => ({ ...f, area: e.target.value }))}
+                  className="mt-1 block w-full border rounded p-2"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Nemovitost</label>
+              <select
+                value={basicForm.property_id}
+                onChange={e => setBasicForm(f => ({ ...f, property_id: e.target.value }))}
+                className="mt-1 block w-full border rounded p-2"
+              >
+                {properties.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Popis</label>
+              <textarea
+                value={basicForm.description}
+                onChange={e => setBasicForm(f => ({ ...f, description: e.target.value }))}
+                className="mt-1 block w-full border rounded p-2"
+                rows={3}
+              />
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleSaveBasic}
+                className="flex items-center bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+              >
+                <CheckIcon className="h-5 w-5 mr-1" /> Uložit
+              </button>
+              <button
+                onClick={() => {
+                  // obnovit data a zrušit editaci
+                  if (unit) {
+                    setBasicForm({
+                      identifier: unit.identifier,
+                      disposition: unit.disposition,
+                      floor: unit.floor ?? '',
+                      area: unit.area ?? '',
+                      description: unit.description,
+                      property_id: unit.property_id
+                    });
+                  }
+                  setIsEditingBasic(false);
+                }}
+                className="flex items-center bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400"
+              >
+                <XMarkIcon className="h-5 w-5 mr-1" /> Zrušit
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 👤 Aktuální nájem */}
@@ -134,6 +291,22 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
               >
                 Upravit
               </Link>
+              <button
+                onClick={async () => {
+                  if (confirm('Opravdu ukončit tento nájem?')) {
+                    await fetch(`/api/leases/${lease.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ end_date: new Date().toISOString().split('T')[0] })
+                    });
+                    // po ukončení načíst znovu jednotku
+                    setRefreshKey(k => k + 1);
+                  }
+                }}
+                className="ml-4 text-red-600 text-sm hover:underline"
+              >
+                Ukončit nájem
+              </button>
             </div>
           ))}
         </div>
@@ -141,7 +314,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         <div className="text-gray-600 italic">Jednotka je aktuálně volná</div>
       )}
 
-      {/* 📜 Historie nájmů */}
+      {/* 📜 Historie pronájmů */}
       {unit.pastLeases.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-2">Historie pronájmů</h2>
@@ -173,6 +346,3 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-
-
