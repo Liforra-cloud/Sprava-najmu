@@ -7,7 +7,7 @@ import Link from 'next/link';
 import dynamicImport from 'next/dynamic';
 import DocumentUpload from '@/components/DocumentUpload';
 import DocumentList from '@/components/DocumentList';
-import { PencilIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, XMarkIcon, CheckIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 const ExpensesList = dynamicImport(() => import('@/components/ExpensesList'), { ssr: false });
 
@@ -21,7 +21,8 @@ interface Tenant {
 interface CustomCharge {
   name: string;
   amount: number;
-  billable: boolean;
+  billable?: boolean;
+  enabled?: boolean;
   [key: string]: unknown;
 }
 
@@ -37,8 +38,7 @@ interface MonthlyObligation {
   water?: number;
   gas?: number;
   electricity?: number;
-  custom_charges?: CustomCharge[] | string; // může přijít jako string
-  // případně charge_flags?: { [key: string]: boolean };
+  custom_charges?: CustomCharge[] | string;
 }
 
 interface Lease {
@@ -104,7 +104,6 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
           fetch(`/api/units/${id}`, { credentials: 'include' }),
           fetch('/api/properties', { credentials: 'include' }),
         ]);
-
         if (!unitRes.ok) throw new Error('Jednotka nenalezena');
         const unitData: Unit = await unitRes.json();
         const propList: Property[] = await propRes.json();
@@ -158,6 +157,22 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
     }
   };
 
+  // Smazání jednotky s potvrzením
+  const handleDeleteUnit = async () => {
+    if (unit?.activeLeases?.length) {
+      alert('Nelze smazat jednotku s aktivní smlouvou.');
+      return;
+    }
+    if (confirm('Opravdu smazat tuto jednotku?')) {
+      const res = await fetch(`/api/units/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        window.location.href = '/units';
+      } else {
+        alert('Nepodařilo se smazat jednotku.');
+      }
+    }
+  };
+
   if (isLoading) return <p className="p-8">Načítání...</p>;
   if (error) return <p className="p-8 text-red-600">{error}</p>;
   if (!unit) return null;
@@ -168,12 +183,7 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         <h1 className="text-2xl font-bold">Detail jednotky</h1>
         {/* Smazat jednotku */}
         <button
-          onClick={async () => {
-            if (confirm('Opravdu smazat tuto jednotku?')) {
-              await fetch(`/api/units/${id}`, { method: 'DELETE' });
-              window.location.href = '/units';
-            }
-          }}
+          onClick={handleDeleteUnit}
           className="text-red-600 hover:underline"
         >
           Smazat jednotku
@@ -276,7 +286,6 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
               </button>
               <button
                 onClick={() => {
-                  // obnovit data a zrušit editaci
                   if (unit) {
                     setBasicForm({
                       identifier: unit.identifier,
@@ -298,115 +307,105 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
         )}
       </div>
 
-      {/* 👤 Aktuální nájem */}
-     {unit.activeLeases.length > 0 ? (
-  <div>
-    <h2 className="text-lg font-semibold mb-2">Aktuální nájem</h2>
-    {unit.activeLeases.map(lease => {
-      const obligations: MonthlyObligation[] = lease.monthly_obligations ?? [];
+      {/* 👤 Aktuální nájem + možnost přidat novou smlouvu */}
+      {unit.activeLeases.length > 0 ? (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Aktuální nájem</h2>
+          {unit.activeLeases.map(lease => {
+            const obligations: MonthlyObligation[] = lease.monthly_obligations ?? [];
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+            const currentOb = obligations.find(
+              ob => ob.year === currentYear && ob.month === currentMonth
+            );
+            let customChargesArr: CustomCharge[] = [];
+            if (currentOb && currentOb.custom_charges) {
+              if (typeof currentOb.custom_charges === 'string') {
+                try {
+                  customChargesArr = JSON.parse(currentOb.custom_charges);
+                } catch {
+                  customChargesArr = [];
+                }
+              } else if (Array.isArray(currentOb.custom_charges)) {
+                customChargesArr = currentOb.custom_charges;
+              }
+            }
+            const customServicesSum = customChargesArr
+              .filter((c) => c && (c.billable ?? c.enabled))
+              .reduce((sum, c) => sum + (typeof c.amount === "number" ? c.amount : Number(c.amount) || 0), 0);
+            let monthlyServices = 0;
+            if (currentOb) {
+              monthlyServices += currentOb.services ?? 0;
+              monthlyServices += currentOb.water ?? 0;
+              monthlyServices += currentOb.gas ?? 0;
+              monthlyServices += currentOb.electricity ?? 0;
+              monthlyServices += customServicesSum;
+            }
+            const monthlyRent = currentOb?.rent ?? 0;
+            const totalDebt = obligations.reduce((sum, ob) => sum + (ob.debt ?? 0), 0);
 
-      // Aktuální měsíc a rok
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1;
-
-      // Najdi obligation pro aktuální měsíc
-      const currentOb = obligations.find(
-        ob => ob.year === currentYear && ob.month === currentMonth
-      );
-
-      // ---- TADY JE LOG, CO POTŘEBUJEME! ----
-      console.log("monthly_obligations pro aktuální měsíc:", lease.monthly_obligations);
-      console.log("currentOb pro aktuální měsíc:", currentOb);
-
-      // Načti vlastní poplatky (pole nebo string)
-      let customChargesArr: CustomCharge[] = [];
-      if (currentOb && currentOb.custom_charges) {
-        if (typeof currentOb.custom_charges === 'string') {
-          try {
-            customChargesArr = JSON.parse(currentOb.custom_charges);
-          } catch {
-            customChargesArr = [];
-          }
-        } else if (Array.isArray(currentOb.custom_charges)) {
-          customChargesArr = currentOb.custom_charges;
-        }
-      }
-
-      const customServicesSum = customChargesArr
-        .filter((c) => c && (c.billable ?? c.enabled)) // POZOR: některé mají 'enabled', některé 'billable'
-        .reduce((sum, c) => sum + (typeof c.amount === "number" ? c.amount : Number(c.amount) || 0), 0);
-
-      // Výpočet měsíčních záloh (součet všech položek za měsíc)
-      let monthlyServices = 0;
-      if (currentOb) {
-        monthlyServices += currentOb.services ?? 0;
-        monthlyServices += currentOb.water ?? 0;
-        monthlyServices += currentOb.gas ?? 0;
-        monthlyServices += currentOb.electricity ?? 0;
-        monthlyServices += customServicesSum;
-      }
-
-      // Nájemné na aktuální měsíc
-      const monthlyRent = currentOb?.rent ?? 0;
-
-      // Dluh za celé období
-      const totalDebt = obligations.reduce((sum, ob) => sum + (ob.debt ?? 0), 0);
-
-      return (
-        <div key={lease.id} className="border p-4 rounded mb-2 bg-gray-50 space-y-1">
-          <p>
-            <strong>Nájemník:</strong>{' '}
-            {lease.tenant ? (
-              <Link
-                href={`/tenants/${lease.tenant.id}`}
-                className="text-blue-700 underline"
-              >
-                {lease.tenant.full_name}
-              </Link>
-            ) : (
-              'Neznámý'
-            )}
-          </p>
-          <p>
-            <strong>Období nájmu:</strong> {lease.start_date} — {lease.end_date ?? 'neurčito'}
-          </p>
-          <p>
-            <strong>Nájemné (aktuální měsíc):</strong> {monthlyRent} Kč
-          </p>
-          <p>
-            <strong>Zálohy na služby (aktuální měsíc):</strong> {monthlyServices} Kč
-          </p>
-          <p>
-            <strong>Kauce:</strong> {lease.deposit} Kč
-          </p>
-          <p>
-            <strong>Celkový dluh:</strong> {totalDebt} Kč
-          </p>
-          <div className="flex gap-2 mt-2">
-            <Link
-              href={`/leases/${lease.id}/edit`}
-              className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
-            >
-              Detail smlouvy
-            </Link>
-            {lease.tenant && (
-              <Link
-                href={`/tenants/${lease.tenant.id}`}
-                className="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-800 text-sm"
-              >
-                Detail nájemníka
-              </Link>
-            )}
-          </div>
+            return (
+              <div key={lease.id} className="border p-4 rounded mb-2 bg-gray-50 space-y-1">
+                <p>
+                  <strong>Nájemník:</strong>{' '}
+                  {lease.tenant ? (
+                    <Link
+                      href={`/tenants/${lease.tenant.id}`}
+                      className="text-blue-700 underline"
+                    >
+                      {lease.tenant.full_name}
+                    </Link>
+                  ) : (
+                    'Neznámý'
+                  )}
+                </p>
+                <p>
+                  <strong>Období nájmu:</strong> {lease.start_date} — {lease.end_date ?? 'neurčito'}
+                </p>
+                <p>
+                  <strong>Nájemné (aktuální měsíc):</strong> {monthlyRent} Kč
+                </p>
+                <p>
+                  <strong>Zálohy na služby (aktuální měsíc):</strong> {monthlyServices} Kč
+                </p>
+                <p>
+                  <strong>Kauce:</strong> {lease.deposit} Kč
+                </p>
+                <p>
+                  <strong>Celkový dluh:</strong> {totalDebt} Kč
+                </p>
+                <div className="flex gap-2 mt-2">
+                  <Link
+                    href={`/leases/${lease.id}/edit`}
+                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
+                  >
+                    Detail smlouvy
+                  </Link>
+                  {lease.tenant && (
+                    <Link
+                      href={`/tenants/${lease.tenant.id}`}
+                      className="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-800 text-sm"
+                    >
+                      Detail nájemníka
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      );
-    })}
-  </div>
-) : (
-  <div className="text-gray-600 italic">Jednotka je aktuálně volná</div>
-)}
-
+      ) : (
+        <div className="flex flex-col gap-2">
+          <div className="text-gray-600 italic">Jednotka je aktuálně volná.</div>
+          <Link
+            href={`/leases/new?unit_id=${unit.id}`}
+            className="inline-flex items-center gap-1 text-sm bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 w-fit"
+          >
+            <PlusIcon className="h-4 w-4" /> Přidat smlouvu k této jednotce
+          </Link>
+        </div>
+      )}
 
       {/* 📜 Historie pronájmů */}
       {unit.pastLeases.length > 0 && (
@@ -438,41 +437,39 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
       {/* 💸 Náklady */}
       <ExpensesList unitId={id} />
 
+      {/* 📊 Vyúčtování */}
+      {unit && (
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Vyúčtování</h2>
+          <div className="space-x-2">
+            {[
+              ...new Set(
+                [
+                  ...unit.activeLeases.flatMap(l => l.monthly_obligations?.map(mo => mo.year) ?? []),
+                  ...unit.pastLeases.flatMap(l => l.monthly_obligations?.map(mo => mo.year) ?? []),
+                ]
+              ),
+            ].sort((a, b) => b - a).map(year => (
+              <Link
+                key={year}
+                href={`/units/${id}/statement/${year}`}
+                className="inline-block bg-blue-100 text-blue-800 rounded px-3 py-1 mb-1 mr-2 hover:bg-blue-200"
+              >
+                Vyúčtování {year}
+              </Link>
+            ))}
+          </div>
+          <div className="mt-3">
+            <Link
+              href={`/units/${id}/statement/new`}
+              className="inline-block bg-green-100 text-green-800 rounded px-3 py-1 hover:bg-green-200"
+            >
+              + Nové vyúčtování
+            </Link>
+          </div>
+        </div>
+      )}
 
-      
-{/* 📊 Vyúčtování */}
-{unit && (
-  <div>
-    <h2 className="text-xl font-semibold mb-2">Vyúčtování</h2>
-    <div className="space-x-2">
-      {[
-        ...new Set(
-          [
-            ...unit.activeLeases.flatMap(l => l.monthly_obligations?.map(mo => mo.year) ?? []),
-            ...unit.pastLeases.flatMap(l => l.monthly_obligations?.map(mo => mo.year) ?? []),
-          ]
-        ),
-      ].sort((a, b) => b - a).map(year => (
-        <Link
-          key={year}
-          href={`/units/${id}/statement/${year}`}
-          className="inline-block bg-blue-100 text-blue-800 rounded px-3 py-1 mb-1 mr-2 hover:bg-blue-200"
-        >
-          Vyúčtování {year}
-        </Link>
-      ))}
-    </div>
-    <div className="mt-3">
-      <Link
-        href={`/units/${id}/statement/new`}
-        className="inline-block bg-green-100 text-green-800 rounded px-3 py-1 hover:bg-green-200"
-      >
-        + Nové vyúčtování
-      </Link>
-    </div>
-  </div>
-)}
-      
       {/* 📂 Dokumenty */}
       <div>
         <h2 className="text-xl font-semibold mb-2">Dokumenty k jednotce</h2>
