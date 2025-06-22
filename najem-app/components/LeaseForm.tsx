@@ -79,7 +79,7 @@ type FieldState = { value: string; billable: boolean }
   const [rentAmount, setRentAmount] = useState<FieldState>({
     value:
       existingLease?.rent_amount !== undefined && existingLease?.rent_amount !== null
-        ? existingLease.rent_amount.toString()
+        ? existingLease?.rent_amount?.toString() ?? ''
         : '',
     billable: existingLease?.charge_flags?.rent_amount ?? true,
   })
@@ -114,7 +114,7 @@ type FieldState = { value: string; billable: boolean }
   const [monthlyFund, setMonthlyFund] = useState<FieldState>({
     value:
       existingLease?.repair_fund !== undefined && existingLease?.repair_fund !== null
-        ? existingLease.repair_fund.toString()
+        ? existingLease?.rent_amount?.toString() ?? ''
         : '',
     billable: existingLease?.charge_flags?.repair_fund ?? false,
   })
