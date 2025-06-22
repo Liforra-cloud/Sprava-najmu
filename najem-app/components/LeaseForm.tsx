@@ -55,8 +55,12 @@ export default function LeaseForm({
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [unitId, setUnitId] = useState(existingLease?.unit_id || '')
   const [name, setName] = useState(existingLease?.name || '')
-  const [startDate, setStartDate] = useState(existingLease?.start_date.slice(0, 10) || '')
-  const [endDate, setEndDate] = useState(existingLease?.end_date?.slice(0, 10) || '')
+const [startDate, setStartDate] = useState(
+  existingLease?.start_date ? existingLease.start_date.slice(0, 10) : ''
+)
+const [endDate, setEndDate] = useState(
+  existingLease?.end_date ? existingLease.end_date.slice(0, 10) : ''
+)
   const [dueDay, setDueDay] = useState(existingLease?.due_day?.toString() || '')
   const [deposit, setDeposit] = useState(existingLease?.deposit?.toString() || '')
 
@@ -152,14 +156,16 @@ export default function LeaseForm({
   // detekuj změnu období (datum)
   useEffect(() => {
     if (!existingLease) return
-    if (
-      startDate !== existingLease.start_date.slice(0, 10) ||
-      (existingLease.end_date ? endDate !== existingLease.end_date.slice(0, 10) : endDate !== '')
-    ) {
-      setDateChanged(true)
-    } else {
-      setDateChanged(false)
-    }
+ if (
+  startDate !== (existingLease?.start_date ? existingLease.start_date.slice(0, 10) : '') ||
+  (existingLease?.end_date
+    ? endDate !== existingLease.end_date.slice(0, 10)
+    : endDate !== '')
+) {
+  setDateChanged(true)
+} else {
+  setDateChanged(false)
+}
   }, [startDate, endDate, existingLease])
 
   // validate required fields
