@@ -1,11 +1,15 @@
 // app/tenants/[id]/page.tsx
 
+// app/tenants/[id]/page.tsx
+
 import TenantHeader       from '@/components/TenantHeader'
 import PaymentSummary     from '@/components/PaymentSummary'
 import DocumentsSection   from '@/components/DocumentsSection'
 import LeasesSection      from '@/components/LeasesSection'
 import { notFound }       from 'next/navigation'
 import { prisma }         from '@/lib/prisma'
+import Link               from 'next/link'
+import { PlusIcon }       from '@heroicons/react/24/outline'
 
 type TenantForHeader = {
   id:              string
@@ -141,6 +145,17 @@ export default async function TenantPage({
 
       {/* Dokumenty */}
       <DocumentsSection tenantId={data.tenant.id} />
+
+      {/* Možnost přidat novou smlouvu */}
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-lg font-semibold">Smlouvy</h2>
+        <Link
+          href={`/leases/new?tenant_id=${data.tenant.id}`}
+          className="inline-flex items-center gap-1 text-sm bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700"
+        >
+          <PlusIcon className="h-4 w-4" /> Přidat novou smlouvu
+        </Link>
+      </div>
 
       {/* Seznam smluv */}
       <LeasesSection leases={data.leases} tenantId={data.tenant.id} />
