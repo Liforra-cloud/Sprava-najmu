@@ -186,6 +186,16 @@ export default function LeaseForm({
     load()
   }, [existingLease])
 
+  useEffect(() => {
+  if (!unitId || !units.length) return
+  const unit = units.find(u => u.id === unitId)
+  if (unit) {
+    setSelectedPropertyId(unit.property_id)
+  }
+}, [unitId, units])
+
+  
+
   // filter units by property
   const filteredUnits = selectedPropertyId
     ? units.filter(u => u.property_id === selectedPropertyId)
