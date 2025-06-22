@@ -47,20 +47,22 @@ export default function MonthlyObligationsTable({ leaseId }: Props) {
   const [editedRow, setEditedRow] = useState<Partial<ObligationRow>>({})
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    const fetchObligations = async () => {
-      const { data, error } = await supabase
-        .from('monthly_obligations')
-        .select('*')
-        .eq('lease_id', leaseId)
-        .order('year')
-        .order('month')
+useEffect(() => {
+  if (!leaseId) return; // pokud není leaseId, nedělej nic
 
-      if (!error && data) setData(data as ObligationRow[])
-    }
+  const fetchObligations = async () => {
+    const { data, error } = await supabase
+      .from('monthly_obligations')
+      .select('*')
+      .eq('lease_id', leaseId)
+      .order('year')
+      .order('month')
 
-    fetchObligations()
-  }, [leaseId])
+    if (!error && data) setData(data as ObligationRow[])
+  }
+
+  fetchObligations()
+}, [leaseId])
 
   const handleEdit = (row: ObligationRow) => {
     setExpandedId(prev => (prev === row.id ? null : row.id))
