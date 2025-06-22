@@ -59,7 +59,7 @@ export async function GET(request: Request, { params }: { params: Params }) {
   }
 
   // Vracíme obligations z leases, které spadají do období from-to
-  const obligationsWithLease = (data as any[]).flatMap((lease) =>
+  const obligationsWithLease = (data as Lease[]).flatMap((lease) =>
     (lease.monthly_obligations ?? [])
       .filter((ob) => {
         const obDate = ob.year * 100 + ob.month; // YYYYMM
