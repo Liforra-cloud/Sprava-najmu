@@ -4,6 +4,7 @@
 
 import React, { useEffect, useState, useRef } from 'react'
 import DocumentUpload from './DocumentUpload'
+import { useSearchParams } from 'next/navigation'
 
 type LeaseFromAPI = {
   id: string
@@ -44,11 +45,26 @@ type FieldState = { value: string; billable: boolean }
   existingLease,
   initialTenantId,
   onSaved,
+export default function LeaseForm({
+  existingLease,
+  initialTenantId,
+  onSaved,
 }: LeaseFormProps) {
-  // select options
-  const [properties, setProperties] = useState<Property[]>([])
-  const [units, setUnits] = useState<Unit[]>([])
-  const [tenants, setTenants] = useState<Tenant[]>([])
+  // Získání query parametrů
+  const searchParams = useSearchParams();
+
+  // Pokusíme se vzít ID z existingLease, prop, nebo URL query (?tenant_id / ?unit_id)
+  const [tenantId, setTenantId] = useState(
+    existingLease?.tenant_id
+    ?? initialTenantId
+    ?? searchParams.get('tenant_id')
+    ?? ''
+  );
+  const [unitId, setUnitId] = useState(
+    existingLease?.unit_id
+    ?? searchParams.get('unit_id')
+    ?? ''
+  );
 
   // main fields
   const [tenantId, setTenantId] = useState(
