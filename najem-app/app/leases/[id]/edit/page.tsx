@@ -33,7 +33,7 @@ type LeaseFromAPI = {
   custom_charges: CustomCharge[]
   document_url?: string | null
   // Ostatní pole pokud by přišly z API, ale LeaseForm je nepotřebuje:
-  custom_fields?: any
+  custom_fields?: { [key: string]: unknown }
   total_billable_rent?: number
   created_at?: string
   updated_at?: string
