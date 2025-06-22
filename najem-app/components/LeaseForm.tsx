@@ -41,7 +41,7 @@ type Unit = { id: string; identifier: string; property_id: string }
 type Tenant = { id: string; full_name: string }
 type FieldState = { value: string; billable: boolean }
 
-// ---- TADY SPRÁVNÝ ÚVOD FUNKCE ----
+// ---- Správný úvod funkce ----
 export default function LeaseForm({
   existingLease,
   initialTenantId,
@@ -49,23 +49,23 @@ export default function LeaseForm({
 }: LeaseFormProps) {
   const searchParams = useSearchParams()
 
-  // Deklarovat JEN JEDNOU!
-const [tenantId, setTenantId] = useState(
-  existingLease?.tenant_id
-    ?? initialTenantId
-    ?? searchParams.get('tenant_id')
-    ?? ''
-)
-const [unitId, setUnitId] = useState(
-  existingLease?.unit_id
-    ?? searchParams.get('unit_id')
-    ?? ''
-)
-
-  // main fields
-
+  // Správné deklarace state
+  const [tenantId, setTenantId] = useState(
+    existingLease?.tenant_id
+      ?? initialTenantId
+      ?? searchParams.get('tenant_id')
+      ?? ''
+  )
+  const [unitId, setUnitId] = useState(
+    existingLease?.unit_id
+      ?? searchParams.get('unit_id')
+      ?? ''
+  )
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [name, setName] = useState(existingLease?.name ?? '')
+  const [properties, setProperties] = useState<Property[]>([])
+  const [units, setUnits] = useState<Unit[]>([])
+  const [tenants, setTenants] = useState<Tenant[]>([])
 
   const [startDate, setStartDate] = useState(
     existingLease?.start_date ? existingLease.start_date.slice(0, 10) : ''
@@ -123,7 +123,7 @@ const [unitId, setUnitId] = useState(
   const [monthlyFund, setMonthlyFund] = useState<FieldState>({
     value:
       existingLease?.repair_fund !== undefined && existingLease?.repair_fund !== null
-        ? existingLease?.rent_amount?.toString() ?? ''
+        ? existingLease.repair_fund?.toString() ?? ''
         : '',
     billable: existingLease?.charge_flags?.repair_fund ?? false,
   })
@@ -194,16 +194,16 @@ const [unitId, setUnitId] = useState(
   // detekuj změnu období (datum)
   useEffect(() => {
     if (!existingLease) return
- if (
-  startDate !== (existingLease?.start_date ? existingLease.start_date.slice(0, 10) : '') ||
-  (existingLease?.end_date
-    ? endDate !== existingLease.end_date.slice(0, 10)
-    : endDate !== '')
-) {
-  setDateChanged(true)
-} else {
-  setDateChanged(false)
-}
+    if (
+      startDate !== (existingLease?.start_date ? existingLease.start_date.slice(0, 10) : '') ||
+      (existingLease?.end_date
+        ? endDate !== existingLease.end_date.slice(0, 10)
+        : endDate !== '')
+    ) {
+      setDateChanged(true)
+    } else {
+      setDateChanged(false)
+    }
   }, [startDate, endDate, existingLease])
 
   // validate required fields
@@ -611,4 +611,3 @@ const [unitId, setUnitId] = useState(
     </form>
   )
 }
-
