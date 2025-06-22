@@ -63,11 +63,8 @@ const [unitId, setUnitId] = useState(
 )
 
   // main fields
-  const [tenantId, setTenantId] = useState(
-    existingLease?.tenant_id ?? initialTenantId ?? ''
-  )
+
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
-  const [unitId, setUnitId] = useState(existingLease?.unit_id ?? '')
   const [name, setName] = useState(existingLease?.name ?? '')
 
   const [startDate, setStartDate] = useState(
