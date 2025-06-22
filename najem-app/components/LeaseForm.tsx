@@ -49,6 +49,7 @@ export default function LeaseForm({
 }: LeaseFormProps) {
   const searchParams = useSearchParams()
 
+  // Deklarovat JEN JEDNOU!
   const [tenantId, setTenantId] = useState(
     existingLease?.tenant_id
       ?? initialTenantId
