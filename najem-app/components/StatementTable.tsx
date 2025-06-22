@@ -56,18 +56,19 @@ const PREDEFINED_ITEMS = [
 // --- PROPS ---
 interface StatementTableProps {
   unitId: string;
-  year: string;
+  from: string; // YYYY-MM
+  to: string;   // YYYY-MM
 }
 
 // --- KOMPONENTA ---
-export default function StatementTable({ unitId, year }: StatementTableProps) {
+export default function StatementTable({ unitId, from, to }: StatementTableProps) {
   const [items, setItems] = useState<StatementItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // --- Načti data z API ---
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/units/${unitId}/statement/${year}`)
+    fetch(`/api/units/${unitId}/statement?from=${from}&to=${to}`)
       .then((res) => res.json())
       .then((data: MonthlyObligation[]) => {
         // --- Transformace: každý typ položky spočítej sumu záloh napříč měsíci ---
@@ -129,7 +130,7 @@ export default function StatementTable({ unitId, year }: StatementTableProps) {
         setItems(Object.values(agg));
         setLoading(false);
       });
-  }, [unitId, year]);
+  }, [unitId, from, to]);
 
   // --- Ostatní logika (ruční přidávání, editace, atd.) ---
   const unusedItems = PREDEFINED_ITEMS.filter(i => !items.some(row => row.id === i.id));
@@ -322,3 +323,4 @@ export default function StatementTable({ unitId, year }: StatementTableProps) {
     </div>
   );
 }
+
