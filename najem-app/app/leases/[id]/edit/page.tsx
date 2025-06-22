@@ -101,16 +101,20 @@ export default function EditLeasePage() {
     }
   }
 
-  // Ukládání smlouvy (volá LeaseForm)
-  const handleLeaseSave = async (updatedLease: LeaseFromAPI) => {
-    // VALIDACE: zkontroluj povinná pole
-    if (!updatedLease.start_date || !updatedLease.unit_id || !updatedLease.tenant_id) {
-      setValidationError('Vyplňte prosím všechna povinná pole (datum od, jednotku, nájemníka).')
-      setSaveState('error')
-      return false
-    }
-    setValidationError(null)
+ // Ukládání smlouvy (volá LeaseForm)
+const handleLeaseSave = async (updatedLease?: LeaseFromAPI) => {
+  if (!updatedLease) return;
 
+  setLease(updatedLease);
+
+  // VALIDACE: zkontroluj povinná pole
+  if (!updatedLease.start_date || !updatedLease.unit_id || !updatedLease.tenant_id) {
+    setValidationError('Vyplňte prosím všechna povinná pole (datum od, jednotku, nájemníka).');
+    setSaveState('error');
+    return; // NEBO žádná hodnota, prostě ukončí funkci
+  }
+
+  setValidationError(null);
     // KONTROLA změny období
     const prevStart = prevDates.current.start
     const prevEnd = prevDates.current.end
