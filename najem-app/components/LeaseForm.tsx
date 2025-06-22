@@ -50,17 +50,17 @@ export default function LeaseForm({
   const searchParams = useSearchParams()
 
   // Deklarovat JEN JEDNOU!
-  const [tenantId, setTenantId] = useState(
-    existingLease?.tenant_id
-      ?? initialTenantId
-      ?? searchParams.get('tenant_id')
-      ?? ''
-  )
-  const [unitId, setUnitId] = useState(
-    existingLease?.unit_id
-      ?? searchParams.get('unit_id')
-      ?? ''
-  )
+const [tenantId, setTenantId] = useState(
+  existingLease?.tenant_id
+    ?? initialTenantId
+    ?? searchParams.get('tenant_id')
+    ?? ''
+)
+const [unitId, setUnitId] = useState(
+  existingLease?.unit_id
+    ?? searchParams.get('unit_id')
+    ?? ''
+)
 
   // main fields
   const [tenantId, setTenantId] = useState(
