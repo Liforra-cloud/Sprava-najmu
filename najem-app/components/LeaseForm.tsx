@@ -40,7 +40,7 @@ type Unit = { id: string; identifier: string; property_id: string }
 type Tenant = { id: string; full_name: string }
 type FieldState = { value: string; billable: boolean }
 
-export default function LeaseForm({
+  export default function LeaseForm({
   existingLease,
   initialTenantId,
   onSaved,
@@ -51,57 +51,86 @@ export default function LeaseForm({
   const [tenants, setTenants] = useState<Tenant[]>([])
 
   // main fields
-  const [tenantId, setTenantId] = useState(existingLease?.tenant_id || initialTenantId || '')
+  const [tenantId, setTenantId] = useState(
+    existingLease?.tenant_id ?? initialTenantId ?? ''
+  )
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
-  const [unitId, setUnitId] = useState(existingLease?.unit_id || '')
-  const [name, setName] = useState(existingLease?.name || '')
-const [startDate, setStartDate] = useState(
-  existingLease?.start_date ? existingLease.start_date.slice(0, 10) : ''
-)
-const [endDate, setEndDate] = useState(
-  existingLease?.end_date ? existingLease.end_date.slice(0, 10) : ''
-)
-  const [dueDay, setDueDay] = useState(existingLease?.due_day?.toString() || '')
-  const [deposit, setDeposit] = useState(existingLease?.deposit?.toString() || '')
+  const [unitId, setUnitId] = useState(existingLease?.unit_id ?? '')
+  const [name, setName] = useState(existingLease?.name ?? '')
+
+  const [startDate, setStartDate] = useState(
+    existingLease?.start_date ? existingLease.start_date.slice(0, 10) : ''
+  )
+  const [endDate, setEndDate] = useState(
+    existingLease?.end_date ? existingLease.end_date.slice(0, 10) : ''
+  )
+  const [dueDay, setDueDay] = useState(
+    existingLease?.due_day !== undefined && existingLease?.due_day !== null
+      ? existingLease.due_day.toString()
+      : ''
+  )
+  const [deposit, setDeposit] = useState(
+    existingLease?.deposit !== undefined && existingLease?.deposit !== null
+      ? existingLease.deposit.toString()
+      : ''
+  )
 
   // financial fields
   const [rentAmount, setRentAmount] = useState<FieldState>({
-    value: existingLease?.rent_amount?.toString() || '',
-    billable: existingLease?.charge_flags.rent_amount ?? true,
+    value:
+      existingLease?.rent_amount !== undefined && existingLease?.rent_amount !== null
+        ? existingLease.rent_amount.toString()
+        : '',
+    billable: existingLease?.charge_flags?.rent_amount ?? true,
   })
   const [monthlyWater, setMonthlyWater] = useState<FieldState>({
-    value: existingLease?.monthly_water?.toString() || '',
-    billable: existingLease?.charge_flags.monthly_water ?? true,
+    value:
+      existingLease?.monthly_water !== undefined && existingLease?.monthly_water !== null
+        ? existingLease.monthly_water.toString()
+        : '',
+    billable: existingLease?.charge_flags?.monthly_water ?? true,
   })
   const [monthlyGas, setMonthlyGas] = useState<FieldState>({
-    value: existingLease?.monthly_gas?.toString() || '',
-    billable: existingLease?.charge_flags.monthly_gas ?? true,
+    value:
+      existingLease?.monthly_gas !== undefined && existingLease?.monthly_gas !== null
+        ? existingLease.monthly_gas.toString()
+        : '',
+    billable: existingLease?.charge_flags?.monthly_gas ?? true,
   })
   const [monthlyElectricity, setMonthlyElectricity] = useState<FieldState>({
-    value: existingLease?.monthly_electricity?.toString() || '',
-    billable: existingLease?.charge_flags.monthly_electricity ?? true,
+    value:
+      existingLease?.monthly_electricity !== undefined && existingLease?.monthly_electricity !== null
+        ? existingLease.monthly_electricity.toString()
+        : '',
+    billable: existingLease?.charge_flags?.monthly_electricity ?? true,
   })
   const [monthlyServices, setMonthlyServices] = useState<FieldState>({
-    value: existingLease?.monthly_services?.toString() || '',
-    billable: existingLease?.charge_flags.monthly_services ?? true,
+    value:
+      existingLease?.monthly_services !== undefined && existingLease?.monthly_services !== null
+        ? existingLease.monthly_services.toString()
+        : '',
+    billable: existingLease?.charge_flags?.monthly_services ?? true,
   })
   const [monthlyFund, setMonthlyFund] = useState<FieldState>({
-    value: existingLease?.repair_fund?.toString() || '',
-    billable: existingLease?.charge_flags.repair_fund ?? false,
+    value:
+      existingLease?.repair_fund !== undefined && existingLease?.repair_fund !== null
+        ? existingLease.repair_fund.toString()
+        : '',
+    billable: existingLease?.charge_flags?.repair_fund ?? false,
   })
 
   // custom charges
   const [customFields, setCustomFields] = useState(
-    existingLease?.custom_charges.map(c => ({
+    existingLease?.custom_charges?.map(c => ({
       label: c.name,
-      value: c.amount.toString(),
+      value: c.amount !== undefined && c.amount !== null ? c.amount.toString() : '',
       billable: c.enabled,
     })) || [{ label: '', value: '', billable: true }]
   )
 
   // document URL
   const [documentUrl, setDocumentUrl] = useState<string>(
-    existingLease?.document_url || ''
+    existingLease?.document_url ?? ''
   )
 
   // UI state
