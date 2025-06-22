@@ -41,30 +41,25 @@ type Unit = { id: string; identifier: string; property_id: string }
 type Tenant = { id: string; full_name: string }
 type FieldState = { value: string; billable: boolean }
 
-  export default function LeaseForm({
-  existingLease,
-  initialTenantId,
-  onSaved,
+// ---- TADY SPRÁVNÝ ÚVOD FUNKCE ----
 export default function LeaseForm({
   existingLease,
   initialTenantId,
   onSaved,
 }: LeaseFormProps) {
-  // Získání query parametrů
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams()
 
-  // Pokusíme se vzít ID z existingLease, prop, nebo URL query (?tenant_id / ?unit_id)
   const [tenantId, setTenantId] = useState(
     existingLease?.tenant_id
-    ?? initialTenantId
-    ?? searchParams.get('tenant_id')
-    ?? ''
-  );
+      ?? initialTenantId
+      ?? searchParams.get('tenant_id')
+      ?? ''
+  )
   const [unitId, setUnitId] = useState(
     existingLease?.unit_id
-    ?? searchParams.get('unit_id')
-    ?? ''
-  );
+      ?? searchParams.get('unit_id')
+      ?? ''
+  )
 
   // main fields
   const [tenantId, setTenantId] = useState(
