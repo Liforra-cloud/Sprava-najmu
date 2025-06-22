@@ -7,6 +7,7 @@ import LeaseForm from '@/components/LeaseForm'
 import MonthlyObligationsTable from '@/components/MonthlyObligationsTable'
 import { useParams, useRouter } from 'next/navigation'
 
+// Kompatibilní typ s LeaseForm (sjednocený)
 type CustomCharge = {
   name: string
   amount: number
@@ -15,25 +16,27 @@ type CustomCharge = {
 
 type LeaseFromAPI = {
   id: string
-  name?: string
   unit_id: string
   tenant_id: string
+  name?: string
   start_date: string
-  end_date?: string
-  due_date?: string
+  end_date?: string | null
+  due_day?: number | null
   rent_amount: number
   monthly_water: number
   monthly_gas: number
   monthly_electricity: number
   monthly_services: number
   repair_fund: number
+  deposit: number
   charge_flags: Record<string, boolean>
   custom_charges: CustomCharge[]
-  custom_fields: Record<string, string | number | boolean | null>
-  total_billable_rent: number
-  created_at: string
-  updated_at: string
-  deposit: number
+  document_url?: string | null
+  // Ostatní pole pokud by přišly z API, ale LeaseForm je nepotřebuje:
+  custom_fields?: any
+  total_billable_rent?: number
+  created_at?: string
+  updated_at?: string
 }
 
 export default function EditLeasePage() {
@@ -51,9 +54,8 @@ export default function EditLeasePage() {
   const [error, setError] = useState<string | null>(null)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [validationError, setValidationError] = useState<string | null>(null)
-  const prevDates = useRef<{ start: string; end?: string }>({ start: '', end: undefined })
+  const prevDates = useRef<{ start: string; end?: string | null }>({ start: '', end: undefined })
 
-  // Vždy pamatuj předchozí období pro porovnání
   useEffect(() => {
     if (lease) {
       prevDates.current = { start: lease.start_date, end: lease.end_date }
@@ -70,11 +72,10 @@ export default function EditLeasePage() {
       setLease({
         ...data,
         name: data.name ?? '',
-        end_date: data.end_date ?? undefined,
-        due_date: data.due_date ?? undefined,
+        end_date: data.end_date ?? null,
+        due_day: data.due_day ?? null,
         charge_flags: data.charge_flags ?? {},
         custom_charges: data.custom_charges ?? [],
-        custom_fields: data.custom_fields ?? {},
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Neočekávaná chyba'
@@ -101,20 +102,22 @@ export default function EditLeasePage() {
     }
   }
 
- // Ukládání smlouvy (volá LeaseForm)
-const handleLeaseSave = async (updatedLease?: LeaseFromAPI) => {
-  if (!updatedLease) return;
+  // Ukládání smlouvy (volá LeaseForm)
+  // Typ odpovídá LeaseFormu: (updatedLease?: LeaseFromAPI) => void | Promise<void>
+  const handleLeaseSave = async (updatedLease?: LeaseFromAPI) => {
+    if (!updatedLease) return
 
-  setLease(updatedLease);
+    setLease(updatedLease)
 
-  // VALIDACE: zkontroluj povinná pole
-  if (!updatedLease.start_date || !updatedLease.unit_id || !updatedLease.tenant_id) {
-    setValidationError('Vyplňte prosím všechna povinná pole (datum od, jednotku, nájemníka).');
-    setSaveState('error');
-    return; // NEBO žádná hodnota, prostě ukončí funkci
-  }
+    // VALIDACE: zkontroluj povinná pole
+    if (!updatedLease.start_date || !updatedLease.unit_id || !updatedLease.tenant_id) {
+      setValidationError('Vyplňte prosím všechna povinná pole (datum od, jednotku, nájemníka).')
+      setSaveState('error')
+      return
+    }
 
-  setValidationError(null);
+    setValidationError(null)
+
     // KONTROLA změny období
     const prevStart = prevDates.current.start
     const prevEnd = prevDates.current.end
@@ -125,7 +128,7 @@ const handleLeaseSave = async (updatedLease?: LeaseFromAPI) => {
       confirmed = window.confirm(
         'Změnil/a jste období smlouvy.\n\nPokračováním dojde k aktualizaci všech měsíců v měsíčních povinnostech (přidání/smazání měsíců dle nového období). Opravdu chcete pokračovat?'
       )
-      if (!confirmed) return false
+      if (!confirmed) return
     }
 
     setSaveState('saving')
@@ -141,12 +144,11 @@ const handleLeaseSave = async (updatedLease?: LeaseFromAPI) => {
       const errText = await res.text()
       setSaveState('error')
       setValidationError('Chyba při ukládání smlouvy: ' + errText)
-      return false
+      return
     }
 
     // Pokud je změna období, aktualizuj monthly obligations na serveru
     if (isPeriodChanged) {
-      // CALL API endpoint na rekalibraci monthly obligations pro daný lease
       const periodRes = await fetch(`/api/leases/${id}/update-months`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,7 +160,7 @@ const handleLeaseSave = async (updatedLease?: LeaseFromAPI) => {
       if (!periodRes.ok) {
         setSaveState('error')
         setValidationError('Smlouva byla uložena, ale nepodařilo se aktualizovat měsíční povinnosti!')
-        return false
+        return
       }
     }
 
@@ -167,7 +169,6 @@ const handleLeaseSave = async (updatedLease?: LeaseFromAPI) => {
       setSaveState('idle')
       fetchLease()
     }, 1000)
-    return true
   }
 
   if (loading && !lease) return <p>Ukládám smlouvu…</p>
@@ -194,7 +195,7 @@ const handleLeaseSave = async (updatedLease?: LeaseFromAPI) => {
       )}
 
       {/* LeaseForm musí volat handleLeaseSave při submitu */}
-     <LeaseForm existingLease={lease} onSaved={handleLeaseSave} />
+      <LeaseForm existingLease={lease} onSaved={handleLeaseSave} />
 
       <div>
         <h2 className="text-lg font-bold mb-2">Měsíční povinnosti</h2>
@@ -212,4 +213,3 @@ const handleLeaseSave = async (updatedLease?: LeaseFromAPI) => {
     </div>
   )
 }
-
