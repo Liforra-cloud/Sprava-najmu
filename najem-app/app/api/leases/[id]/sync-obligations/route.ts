@@ -36,7 +36,10 @@ export async function POST(
     })
 
     // Vypočítej požadované měsíce dle lease start/end
-    const months = monthsInPeriod(lease.start_date, lease.end_date)
+    const months = monthsInPeriod(
+  lease.start_date instanceof Date ? lease.start_date.toISOString().slice(0, 10) : lease.start_date,
+  lease.end_date ? (lease.end_date instanceof Date ? lease.end_date.toISOString().slice(0, 10) : lease.end_date) : undefined
+)
     const wanted = new Set(months.map(m => `${m.year}-${m.month}`))
     const existingSet = new Set(existing.map(m => `${m.year}-${m.month}`))
 
