@@ -106,7 +106,6 @@ export default function LeaseForm({
   const [isProcessing, setIsProcessing] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({})
   const [dateChanged, setDateChanged] = useState(false)
-  const [lastSavedLease, setLastSavedLease] = useState<LeaseFromAPI | null>(existingLease ?? null)
   const errorRef = useRef<HTMLDivElement>(null)
 
   // sticky error/status message
@@ -224,7 +223,6 @@ export default function LeaseForm({
     if (res.ok) {
       const data: LeaseFromAPI = await res.json()
       setSuccess(true)
-      setLastSavedLease(data)
       onSaved?.(data)
       return data
     } else {
