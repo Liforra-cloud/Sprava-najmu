@@ -190,7 +190,7 @@ export default function EditLeasePage() {
       )}
 
       {/* LeaseForm musí volat handleLeaseSave při submitu */}
-      <LeaseForm existingLease={lease} onSaved={handleLeaseSave} />
+     <LeaseForm existingLease={lease} onSaved={handleLeaseSave} />
 
       <div>
         <h2 className="text-lg font-bold mb-2">Měsíční povinnosti</h2>
