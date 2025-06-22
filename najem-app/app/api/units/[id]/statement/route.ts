@@ -3,6 +3,43 @@
 import { NextResponse } from "next/server";
 import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 
+// --- Typy zkopírované přímo sem ---
+type CustomCharge = {
+  name: string;
+  amount: number;
+  billable?: boolean;
+  enabled?: boolean;
+};
+
+type MonthlyObligation = {
+  id: string;
+  lease_id: string;
+  year: number;
+  month: number;
+  rent: number;
+  water: number;
+  gas: number;
+  electricity: number;
+  services: number;
+  repair_fund: number;
+  total_due: number;
+  paid_amount: number;
+  debt: number;
+  note?: string;
+  custom_charges?: CustomCharge[] | string;
+  charge_flags?: Record<string, boolean>;
+};
+
+type Lease = {
+  id: string;
+  tenant_id: string;
+  unit_id: string;
+  start_date: string;
+  end_date: string | null;
+  monthly_obligations: MonthlyObligation[];
+};
+
+// Parametry z URL (/api/units/[id]/statement?from=2024-01&to=2024-12)
 type Params = { id: string };
 
 export async function GET(request: Request, { params }: { params: Params }) {
@@ -78,4 +115,3 @@ export async function GET(request: Request, { params }: { params: Params }) {
 
   return NextResponse.json(obligationsWithLease);
 }
-
