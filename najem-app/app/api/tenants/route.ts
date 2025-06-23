@@ -2,12 +2,21 @@
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth' // nebo tvoje metoda
 
-export async function GET() {
+export async function GET(req: Request) {
+  // 1) Zjistit aktuálního uživatele
+  const session = await getServerSession() // uprav podle svého auth systému
+  const userId = session?.user?.id
+  if (!userId) {
+    return NextResponse.json({ error: 'Nejste přihlášeni.' }, { status: 401 })
+  }
+
   const now = new Date()
 
-  // Načteme všechny nájemníky spolu s právě běžícími smlouvami
+  // 2) Filtruj pouze nájemníky daného uživatele
   const tenants = await prisma.tenant.findMany({
+    where: { user_id: userId }, // <-- klíčová změna!
     include: {
       leases: {
         where: {
@@ -22,7 +31,6 @@ export async function GET() {
     orderBy: { full_name: 'asc' },
   })
 
-  // Připravíme výstup s počtem aktivních smluv
   const result = tenants.map(t => ({
     id: t.id,
     full_name: t.full_name,
@@ -40,3 +48,4 @@ export async function GET() {
 
   return NextResponse.json(result)
 }
+
