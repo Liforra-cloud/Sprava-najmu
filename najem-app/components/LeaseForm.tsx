@@ -338,13 +338,7 @@ useEffect(() => {
     // následně přepočítej částky v obligations (future/all)
     await updateObligations(mode, leaseToUpdate.id)
 
-    // success – obnov stránku po krátké prodlevě
-    setSuccess(true)
-    setTimeout(() => {
-      window.location.reload()
-    }, 1000)
-  }
-
+  
   // render financial row
   function renderField(
     label: string,
@@ -377,7 +371,7 @@ useEffect(() => {
   return (
     <form className="space-y-6" onSubmit={e => e.preventDefault()}>
       {/* sticky banner */}
-      <div ref={errorRef} className="sticky top-16 z-20">
+      <div ref={errorRef} className="sticky top-0 z-20">
         {error && (
           <p className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4">
             {error}
