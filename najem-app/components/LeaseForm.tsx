@@ -164,27 +164,31 @@ export default function LeaseForm({
   }, [error])
 
   // load selects
-  useEffect(() => {
-    async function load() {
-      const [uRes, pRes, tRes] = await Promise.all([
-        fetch('/api/units'),
-        fetch('/api/properties'),
-        fetch('/api/tenants'),
-      ])
-      const unitsList = (await uRes.json()) as Unit[]
-      const propsList = (await pRes.json()) as Property[]
-      const tenantsList = (await tRes.json()) as Tenant[]
-      setUnits(unitsList)
-      setProperties(propsList)
-      setTenants(tenantsList)
+useEffect(() => {
+  async function load() {
+    const [uRes, pRes, tRes] = await Promise.all([
+      fetch('/api/units'),
+      fetch('/api/properties'),
+      fetch('/api/tenants'),
+    ])
+    const unitsList = (await uRes.json()) as Unit[]
+    const propsList = (await pRes.json()) as Property[]
+    const tenantsList = (await tRes.json()) as Tenant[]
+    setUnits(unitsList)
+    setProperties(propsList)
+    setTenants(tenantsList)
 
-      if (existingLease) {
-        const unit = unitsList.find(u => u.id === existingLease.unit_id)
-        if (unit) setSelectedPropertyId(unit.property_id)
-      }
+    // --- TADY --- pokud není tenantId vybraný, nastav podle prop/query:
+    if (!tenantId) {
+      if (existingLease?.tenant_id) setTenantId(existingLease.tenant_id)
+      else if (initialTenantId) setTenantId(initialTenantId)
+      else if (searchParams.get('tenant_id')) setTenantId(searchParams.get('tenant_id')!)
     }
-    load()
-  }, [existingLease])
+  }
+  load()
+  // POZOR na závislosti: pokud budeš mít tenantId v dependency array, vznikne cyklus! Takže ne.
+  // Stačí [existingLease]
+}, [existingLease])
 
   useEffect(() => {
   if (!unitId || !units.length) return
@@ -398,22 +402,27 @@ export default function LeaseForm({
         </legend>
 
         <label className="flex flex-col">
-          Nájemník*:
-          <select
-            value={tenantId}
-            onChange={e => setTenantId(e.target.value)}
-            className={`w-full border p-2 rounded ${
-              fieldErrors.tenantId ? 'border-red-500' : ''
-            }`}
-          >
-            <option value="">-- Vyber nájemníka --</option>
-            {tenants.map(t => (
-              <option key={t.id} value={t.id}>
-                {t.full_name}
-              </option>
-            ))}
-          </select>
-        </label>
+ Nájemník*:
+  <select
+    value={tenantId}
+    onChange={e => setTenantId(e.target.value)}
+    className={`w-full border p-2 rounded ${fieldErrors.tenantId ? 'border-red-500' : ''}`}
+    disabled={tenants.length === 0}
+  >
+    {tenants.length === 0 ? (
+      <option>Načítám...</option>
+    ) : (
+      <>
+        <option value="">-- Vyber nájemníka --</option>
+        {tenants.map(t => (
+          <option key={t.id} value={t.id}>
+            {t.full_name}
+          </option>
+        ))}
+      </>
+    )}
+  </select>
+</label>
 
         <label className="flex flex-col">
           Název smlouvy*:
