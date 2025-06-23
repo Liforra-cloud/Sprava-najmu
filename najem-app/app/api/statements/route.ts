@@ -1,43 +1,38 @@
 // app/api/statement/route.ts
 
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-
-  const unitId = searchParams.get('unitId');
-  const from = searchParams.get('from'); // 'YYYY-MM'
-  const to = searchParams.get('to');     // 'YYYY-MM'
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const unitId = searchParams.get('unitId')
+  const from = searchParams.get('from') // formát YYYY-MM
+  const to = searchParams.get('to')     // formát YYYY-MM
 
   if (!unitId || !from || !to) {
-    return NextResponse.json({ error: 'unitId, from a to jsou povinné parametry.' }, { status: 400 });
+    return NextResponse.json({ error: 'unitId, from a to jsou povinné.' }, { status: 400 })
   }
 
-  // Rozparsuj roky a měsíce
-  const [fromYear, fromMonth] = from.split('-').map(Number);
-  const [toYear, toMonth] = to.split('-').map(Number);
+  // Parsování období
+  const [fromYear, fromMonth] = from.split('-').map(Number)
+  const [toYear, toMonth] = to.split('-').map(Number)
 
-  // Načti všechny monthly_obligations pro danou jednotku a období
+  // Dotaz přes lease na unit_id
   const obligations = await prisma.monthlyObligation.findMany({
     where: {
-      unit_id: unitId,
+      lease: { unit_id: unitId },
       OR: [
-        {
-          year: fromYear,
-          month: { gte: fromMonth },
-        },
-        {
-          year: toYear,
-          month: { lte: toMonth },
-        },
-        {
-          year: { gt: fromYear, lt: toYear },
-        }
-      ]
+        { year: fromYear, month: { gte: fromMonth, lte: 12 } },
+        { year: toYear, month: { lte: toMonth, gte: 1 } },
+      ],
     },
-    orderBy: [{ year: 'asc' }, { month: 'asc' }]
-  });
+    include: { lease: true },
+    orderBy: [
+      { year: 'asc' },
+      { month: 'asc' },
+    ],
+  })
 
-  return NextResponse.json(obligations);
+  return NextResponse.json(obligations)
 }
+
