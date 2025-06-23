@@ -221,8 +221,6 @@ function NewStatementPageInner() {
             unitId={unitId}
             from={from}
             to={to}
-            items={tableData}
-            // další props dle své implementace
           />
           <div className="flex gap-4 mt-6">
             <button
