@@ -8,11 +8,18 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   const supabase = supabaseRouteClient()
   const tenantId = params.id
 
-  // 1) Načteme nájemníka
+  // Zjistíme aktuálního uživatele
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Nejste přihlášeni.' }, { status: 401 })
+  }
+
+  // 1) Načteme nájemníka pouze pokud patří tomuto uživateli
   const { data: tenant, error: tenantError } = await supabase
     .from('tenants')
     .select('*')
     .eq('id', tenantId)
+    .eq('user_id', user.id)
     .single()
   if (tenantError || !tenant) {
     return NextResponse.json({ error: tenantError?.message ?? 'Nenalezeno' }, { status: 404 })
@@ -39,8 +46,6 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   }
 
   // 3) Shrnutí plateb (volitelné; ukázka skeletonu)
-  // Tady byste volali supabase.from('monthly_obligations') nebo payments,
-  // sečtli totalDue, paidThisMonth, totalPaid, apod.
   const summary = {
     totalDue: 0,
     paidThisMonth: 0,
