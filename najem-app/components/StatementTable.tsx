@@ -57,6 +57,7 @@ interface StatementTableProps {
   unitId: string;
   from: string; // YYYY-MM
   to: string;   // YYYY-MM
+  onChange?: (newItems: StatementItem[]) => void; // ← přidat toto
 }
 
 export default function StatementTable({ unitId, from, to }: StatementTableProps) {
