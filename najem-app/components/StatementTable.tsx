@@ -31,7 +31,7 @@ type MonthlyObligation = {
   charge_flags?: Record<string, boolean>;
 };
 
-type StatementItem = {
+export type StatementItem = {
   id: string;
   name: string;
   totalAdvance: number;         // součet záloh
