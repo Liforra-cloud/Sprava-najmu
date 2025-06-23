@@ -1,63 +1,109 @@
 // app/api/statements/[id]/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { NextResponse } from "next/server";
+import { supabaseRouteClient } from "@/lib/supabaseRouteClient";
 
-type StatementItem = {
-  name: string;
-  item_type?: string;
-  totalAdvance: number;
-  consumption: number | '';
-  unit: string;
-  totalCost: number | '';
-  diff: number;
+// Převzaté typy, můžeš použít své
+
+type CustomCharge = { name: string; amount: number; billable?: boolean; enabled?: boolean };
+type MonthlyObligation = {
+  id: string;
+  lease_id: string;
+  year: number;
+  month: number;
+  rent: number;
+  water: number;
+  gas: number;
+  electricity: number;
+  services: number;
+  repair_fund: number;
+  total_due: number;
+  paid_amount: number;
+  debt: number;
   note?: string;
+  custom_charges?: CustomCharge[] | string;
+  charge_flags?: Record<string, boolean>;
 };
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params
-  const { data: statement, error } = await supabase
-    .from('statements')
-    .select('*, statement_items(*)')
-    .eq('id', id)
-    .single()
-  if (error || !statement) return NextResponse.json({ error: error?.message }, { status: 404 })
-  return NextResponse.json(statement)
-}
+type Lease = {
+  id: string;
+  tenant_id: string;
+  unit_id: string;
+  start_date: string;
+  end_date: string | null;
+  monthly_obligations: MonthlyObligation[];
+};
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params
-  const body = await request.json()
-  const { status, items } = body
+export async function GET(request: Request) {
+  const supabase = supabaseRouteClient();
 
-  const { error } = await supabase
-    .from('statements')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // query params: unit_id, from, to
+  const { searchParams } = new URL(request.url);
+  const unitId = searchParams.get("unit_id");
+  const from = searchParams.get("from");
+  const to = searchParams.get("to");
 
-  if (Array.isArray(items)) {
-    await supabase.from('statement_items').delete().eq('statement_id', id)
-    const itemsToInsert = (items as StatementItem[]).map((it, idx) => ({
-      statement_id: id,
-      name: it.name,
-      item_type: it.item_type ?? '',
-      total_advance: it.totalAdvance ?? 0,
-      consumption: it.consumption ?? null,
-      unit: it.unit ?? '',
-      total_cost: it.totalCost ?? 0,
-      diff: it.diff ?? 0,
-      note: it.note ?? '',
-      order_index: idx,
-    }))
-    if (itemsToInsert.length) {
-      await supabase.from('statement_items').insert(itemsToInsert)
-    }
+  if (!unitId || !from || !to) {
+    return NextResponse.json({ error: "Chybí parametry unit_id, from, to" }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true })
+  // Parsuj year/month
+  const [fromYear, fromMonth] = from.split("-").map(Number);
+  const [toYear, toMonth] = to.split("-").map(Number);
+
+  // SELECT leases/unit + navázané obligations
+  const { data, error } = await supabase
+    .from("leases")
+    .select(
+      `
+        id,
+        tenant_id,
+        unit_id,
+        start_date,
+        end_date,
+        monthly_obligations (
+          id,
+          lease_id,
+          year,
+          month,
+          rent,
+          water,
+          gas,
+          electricity,
+          services,
+          repair_fund,
+          total_due,
+          paid_amount,
+          debt,
+          note,
+          custom_charges,
+          charge_flags
+        )
+      `
+    )
+    .eq("unit_id", unitId);
+
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message || "Data not found" }, { status: 404 });
+  }
+
+  // Vracíme obligations z leases, které spadají do období from-to
+  const obligationsWithLease = (data as Lease[]).flatMap((lease) =>
+    (lease.monthly_obligations ?? [])
+      .filter((ob) => {
+        const obDate = ob.year * 100 + ob.month; // YYYYMM
+        const fromDate = fromYear * 100 + fromMonth;
+        const toDate = toYear * 100 + toMonth;
+        return obDate >= fromDate && obDate <= toDate;
+      })
+      .map((ob) => ({
+        ...ob,
+        lease_start: lease.start_date,
+        lease_end: lease.end_date,
+        lease_id: lease.id,
+        tenant_id: lease.tenant_id,
+      }))
+  );
+
+  return NextResponse.json(obligationsWithLease);
 }
