@@ -2,21 +2,22 @@
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth' // nebo tvoje metoda
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
-export async function GET(req: Request) {
-  // 1) Zjistit aktuálního uživatele
-  const session = await getServerSession() // uprav podle svého auth systému
-  const userId = session?.user?.id
-  if (!userId) {
+export async function GET() {
+  // 1) Zjistit aktuálního přihlášeného uživatele
+  const supabase = createRouteHandlerClient({ cookies })
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
     return NextResponse.json({ error: 'Nejste přihlášeni.' }, { status: 401 })
   }
 
   const now = new Date()
 
-  // 2) Filtruj pouze nájemníky daného uživatele
+  // 2) Filtrovat pouze nájemníky daného uživatele
   const tenants = await prisma.tenant.findMany({
-    where: { user_id: userId }, // <-- klíčová změna!
+    where: { user_id: user.id }, // <- tenant musí mít sloupec user_id!
     include: {
       leases: {
         where: {
@@ -31,6 +32,7 @@ export async function GET(req: Request) {
     orderBy: { full_name: 'asc' },
   })
 
+  // 3) Výstup jako dříve
   const result = tenants.map(t => ({
     id: t.id,
     full_name: t.full_name,
@@ -48,4 +50,3 @@ export async function GET(req: Request) {
 
   return NextResponse.json(result)
 }
-
