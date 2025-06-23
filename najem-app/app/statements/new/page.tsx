@@ -5,6 +5,7 @@
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import StatementTable from '@/components/StatementTable'
+import Link from 'next/link'
 
 type Property = { id: string; name: string }
 type Unit = { id: string; identifier: string; property_id: string }
@@ -71,10 +72,10 @@ export default function NewStatementPage() {
         if (!res.ok) throw new Error('Nepodařilo se načíst smlouvy')
         const leases = await res.json() as Lease[]
         setLeases(leases)
-   } catch (e) {
-  if (e instanceof Error) setError(e.message)
-  else setError('Neznámá chyba')
-}
+      } catch (e) {
+        if (e instanceof Error) setError(e.message)
+        else setError('Neznámá chyba')
+      }
       setLoading(false)
     }
     fetchLeases()
@@ -89,12 +90,12 @@ export default function NewStatementPage() {
     try {
       const res = await fetch(`/api/units/${unitId}/statement?from=${from}&to=${to}`)
       if (!res.ok) throw new Error('Nepodařilo se načíst data pro vyúčtování')
-      await res.json()
-      // Zde si případně vygeneruj StatementItems (nechávám prázdné, pokud používáš StatementTable)
-      setTableData([]) // nebo rovnou zpracuj, pokud chceš preview
+      await res.json() // Nepoužíváš obligations, tak jen počkej na výsledek
+      setTableData([]) // Zde můžeš předat zpracované položky
       setStep('preview')
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      if (e instanceof Error) setError(e.message)
+      else setError('Neznámá chyba')
     }
     setLoading(false)
   }
@@ -104,7 +105,6 @@ export default function NewStatementPage() {
     setLoading(true)
     setError(null)
     try {
-      // Uprav dle potřeby! Zde je jen příklad pro POST na /api/statements
       const res = await fetch('/api/statements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -117,8 +117,9 @@ export default function NewStatementPage() {
       })
       if (!res.ok) throw new Error('Chyba při ukládání vyúčtování')
       setStep('saved')
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e) {
+      if (e instanceof Error) setError(e.message)
+      else setError('Neznámá chyba')
     }
     setLoading(false)
   }
@@ -217,12 +218,11 @@ export default function NewStatementPage() {
       {step === 'preview' && (
         <>
           <h2 className="text-xl font-bold">Náhled vyúčtování</h2>
-          {/* Zde zobrazíš StatementTable, uprav props dle své implementace */}
           <StatementTable
             unitId={unitId}
             from={from}
             to={to}
-            // můžeš přidat další props (např. onChange pro úpravu položek)
+            // přidej další props dle své implementace
           />
           <div className="flex gap-4 mt-6">
             <button
@@ -244,12 +244,9 @@ export default function NewStatementPage() {
 
       {step === 'saved' && (
         <div className="bg-green-100 text-green-800 px-3 py-2 rounded">
-          Vyúčtování bylo uloženo! import Link from 'next/link'
-// ...
-<Link href="/statements" className="underline text-blue-700 ml-2">Zpět na seznam</Link>
+          Vyúčtování bylo uloženo! <Link href="/statements" className="underline text-blue-700 ml-2">Zpět na seznam</Link>
         </div>
       )}
     </div>
   )
 }
-
