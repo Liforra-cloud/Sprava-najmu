@@ -53,19 +53,26 @@ export async function GET(req: NextRequest) {
   })
 
   // Udělej tabulku pouze účtovaných poplatků (kde je něco účtováno)
-  const chargedObligations = obligations.flatMap(ob => {
-    return CHARGE_TYPES
-      .filter(ct => ob[ct.key] && ob[ct.key] > 0)
-      .map(ct => ({
+const chargedObligations = obligations.flatMap(ob => {
+  return CHARGE_TYPES
+    .filter(ct => {
+      const value = (ob as any)[ct.key];
+      return value && value > 0;
+    })
+    .map(ct => {
+      const value = (ob as any)[ct.key];
+      return {
         id: ob.id + '-' + ct.key,
         month: `${ob.year}-${ob.month.toString().padStart(2, '0')}`,
         type: ct.key,
         label: ct.name,
-        amount: ob[ct.key],
+        amount: value,
         obligationId: ob.id,
         leaseId: ob.lease_id,
-      }))
-  })
+      };
+    });
+});
+
 
   // Tabulka všech poplatků, i těch nezaúčtovaných (aby šly přidat)
   const allCharges: CustomCharge[] = [];
