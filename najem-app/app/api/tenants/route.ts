@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       },
     })
     return NextResponse.json(newTenant)
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
