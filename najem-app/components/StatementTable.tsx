@@ -57,10 +57,10 @@ interface StatementTableProps {
   unitId: string;
   from: string; // YYYY-MM
   to: string;   // YYYY-MM
-  onChange?: (newItems: StatementItem[]) => void;
+
 }
 
-export default function StatementTable({ unitId, from, to, onChange }: StatementTableProps) {
+export default function StatementTable({ unitId, from, to }: StatementTableProps) {
   const [items, setItems] = useState<StatementItem[]>([]);
   const [allItems, setAllItems] = useState<StatementItem[]>([]);
   const [loading, setLoading] = useState(true);
