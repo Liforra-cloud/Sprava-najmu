@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
   })
 
   // Tabulka všech poplatků, i těch nezaúčtovaných (aby šly přidat)
-  let allCharges: any[] = []
+  const allCharges: CustomCharge[] = [];
   for (const ob of obligations) {
     for (const ct of CHARGE_TYPES) {
       allCharges.push({
