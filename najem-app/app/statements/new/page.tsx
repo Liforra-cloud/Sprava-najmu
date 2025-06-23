@@ -2,74 +2,251 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import StatementTable from '@/components/StatementTable'
 
+type Property = { id: string; name: string }
+type Unit = { id: string; identifier: string; property_id: string }
+type Lease = { id: string; name?: string; start_date: string; end_date?: string | null }
 type StatementItem = {
-  name: string;
-  item_type?: string;
-  totalAdvance: number;
-  consumption: number | '';
-  unit: string;
-  totalCost: number | '';
-  diff: number;
-  note?: string;
-};
+  id?: string
+  name: string
+  totalAdvance: number
+  consumption: number | ''
+  unit: string
+  totalCost: number | ''
+  diff: number
+  note?: string
+}
 
 export default function NewStatementPage() {
-  const [unitId, setUnitId] = useState('')
-  const [leaseId, setLeaseId] = useState('')
-  const [from, setFrom] = useState('2024-01')
-  const [to, setTo] = useState('2024-12')
-  const [statementItems, setStatementItems] = useState<StatementItem[]>([])
-  const [saving, setSaving] = useState(false)
-  const [success, setSuccess] = useState(false)
+  const searchParams = useSearchParams()
+  const unitIdFromQuery = searchParams.get('unit_id') ?? ''
 
-  function handleTableChange(items: StatementItem[]) {
-    setStatementItems(items)
+  const now = new Date()
+  const thisYear = now.getFullYear()
+  const [from, setFrom] = useState(`${thisYear}-01`)
+  const [to, setTo] = useState(`${thisYear}-12`)
+
+  const [properties, setProperties] = useState<Property[]>([])
+  const [units, setUnits] = useState<Unit[]>([])
+  const [selectedPropertyId, setSelectedPropertyId] = useState('')
+  const [unitId, setUnitId] = useState(unitIdFromQuery)
+  const [leases, setLeases] = useState<Lease[]>([])
+
+  const [tableData, setTableData] = useState<StatementItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [step, setStep] = useState<'form' | 'preview' | 'saved'>('form')
+  const [error, setError] = useState<string | null>(null)
+
+  // 1. Načti properties a units
+  useEffect(() => {
+    async function load() {
+      const [pRes, uRes] = await Promise.all([
+        fetch('/api/properties'),
+        fetch('/api/units')
+      ])
+      const properties = await pRes.json() as Property[]
+      const units = await uRes.json() as Unit[]
+      setProperties(properties)
+      setUnits(units)
+      // Pokud máme unitId z query, nastav propertyId
+      if (unitIdFromQuery && units.length > 0) {
+        const found = units.find(u => u.id === unitIdFromQuery)
+        if (found) setSelectedPropertyId(found.property_id)
+      }
+    }
+    load()
+  }, [unitIdFromQuery])
+
+  // 2. Po výběru jednotky načti leases
+  useEffect(() => {
+    if (!unitId) return
+    async function fetchLeases() {
+      setLoading(true)
+      setError(null)
+      try {
+        const res = await fetch(`/api/leases?unit_id=${unitId}`)
+        if (!res.ok) throw new Error('Nepodařilo se načíst smlouvy')
+        const leases = await res.json() as Lease[]
+        setLeases(leases)
+      } catch (e: any) {
+        setError(e.message)
+      }
+      setLoading(false)
+    }
+    fetchLeases()
+  }, [unitId])
+
+  // 3. Po kliknutí na "Náhled vyúčtování" načti obligations a zobraz tabulku
+  async function handlePreview(e: React.FormEvent) {
+    e.preventDefault()
+    if (!unitId) return setError('Vyberte jednotku')
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/units/${unitId}/statement?from=${from}&to=${to}`)
+      if (!res.ok) throw new Error('Nepodařilo se načíst data pro vyúčtování')
+      const obligations = await res.json()
+      // Zde si případně vygeneruj StatementItems (nechávám prázdné, pokud používáš StatementTable)
+      setTableData([]) // nebo rovnou zpracuj, pokud chceš preview
+      setStep('preview')
+    } catch (e: any) {
+      setError(e.message)
+    }
+    setLoading(false)
   }
 
+  // Vložení nového vyúčtování (příklad – přizpůsob si API endpoint)
   async function handleSave() {
-    setSaving(true)
-    const res = await fetch('/api/statements', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        unit_id: unitId,
-        lease_id: leaseId,
-        from_month: `${from}-01`,
-        to_month: `${to}-01`,
-        items: statementItems,
-      }),
-    })
-    setSaving(false)
-    if (res.ok) setSuccess(true)
-    else alert('Chyba při ukládání.')
+    setLoading(true)
+    setError(null)
+    try {
+      // Uprav dle potřeby! Zde je jen příklad pro POST na /api/statements
+      const res = await fetch('/api/statements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unit_id: unitId,
+          from_month: from,
+          to_month: to,
+          items: tableData,
+        }),
+      })
+      if (!res.ok) throw new Error('Chyba při ukládání vyúčtování')
+      setStep('saved')
+    } catch (e: any) {
+      setError(e.message)
+    }
+    setLoading(false)
   }
+
+  // Vyfiltruj jednotky podle nemovitosti
+  const filteredUnits = selectedPropertyId
+    ? units.filter(u => u.property_id === selectedPropertyId)
+    : units
 
   return (
     <div className="max-w-4xl mx-auto mt-10 p-6 bg-white shadow rounded space-y-8">
       <h1 className="text-2xl font-bold mb-4">Nové vyúčtování</h1>
-      <div className="flex gap-2">
-        <input value={unitId} onChange={e => setUnitId(e.target.value)} placeholder="Unit ID" className="border p-2 rounded"/>
-        <input value={leaseId} onChange={e => setLeaseId(e.target.value)} placeholder="Lease ID" className="border p-2 rounded"/>
-        <input type="month" value={from} onChange={e => setFrom(e.target.value)} className="border p-2 rounded"/>
-        <input type="month" value={to} onChange={e => setTo(e.target.value)} className="border p-2 rounded"/>
-      </div>
-      <StatementTable
-        unitId={unitId}
-        from={from}
-        to={to}
-        onChange={handleTableChange}
-      />
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="bg-green-700 text-white px-4 py-2 rounded"
-      >
-        {saving ? 'Ukládám...' : 'Uložit draft vyúčtování'}
-      </button>
-      {success && <div className="text-green-700">Uloženo!</div>}
+
+      {error && <div className="bg-red-100 text-red-700 border px-3 py-2 rounded">{error}</div>}
+
+      {step === 'form' && (
+        <form className="space-y-4" onSubmit={handlePreview}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label>
+              Nemovitost:
+              <select
+                className="border rounded p-2 w-full"
+                value={selectedPropertyId}
+                onChange={e => setSelectedPropertyId(e.target.value)}
+              >
+                <option value="">-- Vyber nemovitost --</option>
+                {properties.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Jednotka:
+              <select
+                className="border rounded p-2 w-full"
+                value={unitId}
+                onChange={e => setUnitId(e.target.value)}
+                disabled={filteredUnits.length === 0}
+              >
+                <option value="">-- Vyber jednotku --</option>
+                {filteredUnits.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.identifier}
+                    {unitIdFromQuery && u.id === unitIdFromQuery ? ' (z výběru)' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Smlouvy v období:
+              <select className="border rounded p-2 w-full" disabled>
+                {leases.length === 0
+                  ? <option value="">Nejsou aktivní smlouvy</option>
+                  : leases.map(l => (
+                    <option key={l.id} value={l.id}>
+                      {l.name || `Smlouva ${l.id}`}: {l.start_date} – {l.end_date || 'neurčito'}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          </div>
+          <div className="flex gap-4 mt-4">
+            <label>
+              Období od:
+              <input
+                type="month"
+                value={from}
+                max={to}
+                onChange={e => setFrom(e.target.value)}
+                className="border rounded px-2 py-1"
+              />
+            </label>
+            <label>
+              do:
+              <input
+                type="month"
+                value={to}
+                min={from}
+                onChange={e => setTo(e.target.value)}
+                className="border rounded px-2 py-1"
+              />
+            </label>
+          </div>
+          <div className="mt-6">
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-blue-700 text-white px-4 py-2 rounded"
+            >
+              {loading ? 'Načítám...' : 'Náhled vyúčtování'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {step === 'preview' && (
+        <>
+          <h2 className="text-xl font-bold">Náhled vyúčtování</h2>
+          {/* Zde zobrazíš StatementTable, uprav props dle své implementace */}
+          <StatementTable
+            unitId={unitId}
+            from={from}
+            to={to}
+            // můžeš přidat další props (např. onChange pro úpravu položek)
+          />
+          <div className="flex gap-4 mt-6">
+            <button
+              onClick={() => setStep('form')}
+              className="bg-gray-400 text-white px-4 py-2 rounded"
+            >
+              Zpět
+            </button>
+            <button
+              onClick={handleSave}
+              className="bg-green-700 text-white px-4 py-2 rounded"
+              disabled={loading}
+            >
+              {loading ? 'Ukládám...' : 'Uložit vyúčtování'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 'saved' && (
+        <div className="bg-green-100 text-green-800 px-3 py-2 rounded">
+          Vyúčtování bylo uloženo! <a href="/statements" className="underline text-blue-700 ml-2">Zpět na seznam</a>
+        </div>
+      )}
     </div>
   )
 }
+
