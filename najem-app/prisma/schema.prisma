@@ -69,6 +69,7 @@ model Tenant {
   date_registered DateTime  @default(now()) @map("date_registered")
   note            String?
   leases          Lease[]
+  user_id        String
 
   @@map("tenants")
 }
