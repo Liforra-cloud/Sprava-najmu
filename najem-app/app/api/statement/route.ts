@@ -1,6 +1,5 @@
 // app/api/statement/route.ts
 
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -14,6 +13,17 @@ const CHARGE_TYPES = [
   { key: 'repair_fund', name: 'Fond oprav' },
   // Přidej vlastní custom_charges, pokud máš v DB
 ]
+
+// Typ pro jednu položku ve výstupu
+type CustomCharge = {
+  id: string
+  month: string
+  type: string
+  label: string
+  amount: number
+  obligationId: string
+  leaseId: string
+}
 
 export async function GET(req: NextRequest) {
   const unitId = req.nextUrl.searchParams.get('unitId')
@@ -53,37 +63,33 @@ export async function GET(req: NextRequest) {
   })
 
   // Udělej tabulku pouze účtovaných poplatků (kde je něco účtováno)
-const chargedObligations = obligations.flatMap(ob => {
-  return CHARGE_TYPES
-    .filter(ct => {
-      const value = (ob as any)[ct.key];
-      return value && value > 0;
-    })
-    .map(ct => {
-      const value = (ob as any)[ct.key];
-      return {
+  const chargedObligations = obligations.flatMap((ob) => {
+    // TS fix: ob je typ Record<string, unknown>
+    const record = ob as Record<string, unknown>;
+    return CHARGE_TYPES
+      .filter(ct => typeof record[ct.key] === 'number' && (record[ct.key] as number) > 0)
+      .map(ct => ({
         id: ob.id + '-' + ct.key,
         month: `${ob.year}-${ob.month.toString().padStart(2, '0')}`,
         type: ct.key,
         label: ct.name,
-        amount: value,
+        amount: record[ct.key] as number,
         obligationId: ob.id,
         leaseId: ob.lease_id,
-      };
-    });
-});
-
+      }))
+  })
 
   // Tabulka všech poplatků, i těch nezaúčtovaných (aby šly přidat)
   const allCharges: CustomCharge[] = [];
   for (const ob of obligations) {
+    const record = ob as Record<string, unknown>;
     for (const ct of CHARGE_TYPES) {
       allCharges.push({
         id: ob.id + '-' + ct.key,
         month: `${ob.year}-${ob.month.toString().padStart(2, '0')}`,
         type: ct.key,
         label: ct.name,
-        amount: ob[ct.key] || 0,
+        amount: typeof record[ct.key] === 'number' ? (record[ct.key] as number) : 0,
         obligationId: ob.id,
         leaseId: ob.lease_id,
       })
