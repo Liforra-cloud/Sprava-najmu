@@ -1,11 +1,12 @@
 // app/api/tenants/route.ts
 
+
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 
-// GET - všechny nájemníky uživatele
+// GET - načte všechny nájemníky pro daného uživatele
 export async function GET() {
   const supabase = createRouteHandlerClient({ cookies })
   const { data: { user } } = await supabase.auth.getUser()
@@ -49,7 +50,7 @@ export async function GET() {
   return NextResponse.json(result)
 }
 
-// POST - přidání nového nájemníka
+// POST - vytvoří nového nájemníka
 export async function POST(req: Request) {
   const supabase = createRouteHandlerClient({ cookies })
   const { data: { user } } = await supabase.auth.getUser()
@@ -78,12 +79,15 @@ export async function POST(req: Request) {
         address,
         employer,
         note,
-        user_id: user.id, // správné párování na uživatele
+        user_id: user.id,
       },
     })
     return NextResponse.json(newTenant)
   } catch (error: unknown) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    let message = 'Chyba při ukládání'
+    if (error instanceof Error) {
+      message = error.message
+    }
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
-
