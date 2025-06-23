@@ -337,7 +337,10 @@ useEffect(() => {
     }
     // následně přepočítej částky v obligations (future/all)
     await updateObligations(mode, leaseToUpdate.id)
-
+    setIsProcessing(false)
+    setSuccess(true)
+    // window.location.reload() nebo router.push(), pokud chceš po uložení redirect
+  }
   
   // render financial row
   function renderField(
