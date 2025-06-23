@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from 'react';
 
-// --- Typy z API ---
 type CustomCharge = {
   name: string;
   amount: number;
@@ -34,14 +33,15 @@ type MonthlyObligation = {
 type StatementItem = {
   id: string;
   name: string;
-  totalAdvance: number;         // součet záloh
-  consumption: number | '';     // spotřeba za období
+  totalAdvance: number;
+  consumption: number | '';
   unit: string;
-  totalCost: number | '';       // skutečné náklady celkem
-  diff: number;                 // přeplatek/nedoplatek
-  chargeableMonths?: number[];  // čísla měsíců kdy byla položka účtovaná
+  totalCost: number | '';
+  diff: number;
+  chargeableMonths?: number[];
   note?: string;
   manual?: boolean;
+  billableLabel?: string; // pro příznak (neúčtováno)
 };
 
 const PREDEFINED_ITEMS = [
@@ -53,17 +53,24 @@ const PREDEFINED_ITEMS = [
   { id: 'repair_fund', name: 'Fond oprav', unit: 'Kč' },
 ];
 
-// --- PROPS ---
 interface StatementTableProps {
   unitId: string;
   from: string; // YYYY-MM
   to: string;   // YYYY-MM
 }
 
-// --- KOMPONENTA ---
+// pomocná funkce na počet měsíců v období
+function getMonthCount(from: string, to: string) {
+  const [fromY, fromM] = from.split('-').map(Number);
+  const [toY, toM] = to.split('-').map(Number);
+  return (toY - fromY) * 12 + (toM - fromM) + 1;
+}
+
 export default function StatementTable({ unitId, from, to }: StatementTableProps) {
   const [items, setItems] = useState<StatementItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const totalMonths = getMonthCount(from, to);
 
   // --- Načti data z API ---
   useEffect(() => {
@@ -71,7 +78,6 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     fetch(`/api/units/${unitId}/statement?from=${from}&to=${to}`)
       .then((res) => res.json())
       .then((data: MonthlyObligation[]) => {
-        // --- Transformace: každý typ položky spočítej sumu záloh napříč měsíci ---
         const agg: Record<string, StatementItem> = {};
 
         for (const obligation of data) {
@@ -79,6 +85,12 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
           for (const key of ['rent', 'electricity', 'water', 'gas', 'services', 'repair_fund']) {
             if (typeof obligation[key as keyof MonthlyObligation] === 'number') {
               const value = obligation[key as keyof MonthlyObligation] as number;
+              // --- Účtováno? ---
+              const billable =
+                obligation.charge_flags && obligation.charge_flags[getFlagKey(key)] !== undefined
+                  ? obligation.charge_flags[getFlagKey(key)]
+                  : true;
+
               if (!agg[key]) {
                 const predefined = PREDEFINED_ITEMS.find((i) => i.id === key);
                 agg[key] = {
@@ -90,10 +102,16 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
                   totalCost: '',
                   diff: 0,
                   chargeableMonths: [],
+                  billableLabel: '',
                 };
               }
-              agg[key].totalAdvance += value;
-              agg[key].chargeableMonths?.push(obligation.month);
+              if (billable) {
+                agg[key].totalAdvance += value;
+                agg[key].chargeableMonths?.push(obligation.month);
+              } else {
+                // Pokud existuje neúčtovaný měsíc, nastav příznak
+                agg[key].billableLabel = ' (neúčtováno v některých měsících)';
+              }
             }
           }
           // --- Custom Charges (účtovatelné) ---
@@ -107,33 +125,54 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
               customCharges = obligation.custom_charges;
             }
             for (const charge of customCharges) {
-              if (!charge || (!charge.billable && !charge.enabled)) continue;
+              if (!charge) continue;
+              const billable = charge.billable ?? charge.enabled;
               const key = `custom_${charge.name}`;
               if (!agg[key]) {
                 agg[key] = {
                   id: key,
                   name: charge.name,
-                  unit: '', // můžeš rozšířit o jednotku, pokud máš
+                  unit: '',
                   totalAdvance: 0,
                   consumption: '',
                   totalCost: '',
                   diff: 0,
                   chargeableMonths: [],
+                  billableLabel: '',
                 };
               }
-              agg[key].totalAdvance += Number(charge.amount || 0);
-              agg[key].chargeableMonths?.push(obligation.month);
+              if (billable) {
+                agg[key].totalAdvance += Number(charge.amount || 0);
+                agg[key].chargeableMonths?.push(obligation.month);
+              } else {
+                agg[key].billableLabel = ' (neúčtováno v některých měsících)';
+              }
             }
           }
         }
-        // Výsledek jako pole
         setItems(Object.values(agg));
         setLoading(false);
       });
   }, [unitId, from, to]);
 
   // --- Ostatní logika (ruční přidávání, editace, atd.) ---
-  const unusedItems = PREDEFINED_ITEMS.filter(i => !items.some(row => row.id === i.id));
+  // Najdi PREDEFINED položky, které nejsou plně účtované (nebo vůbec)
+  const unusedItems = PREDEFINED_ITEMS
+    .map(predef => {
+      const existing = items.find(row => row.id === predef.id);
+      if (!existing) return predef;
+      // Pokud existuje a je účtována ve všech měsících, není unused
+      if (
+        existing.chargeableMonths &&
+        existing.chargeableMonths.length >= totalMonths
+      ) {
+        return null;
+      }
+      // Pokud existuje, ale je účtována jen v některých měsících, nabídni ji s příznakem
+      return { ...predef, name: predef.name + ' (neúčtováno)' };
+    })
+    .filter(Boolean);
+
   function generateId() {
     return Math.random().toString(36).substr(2, 9);
   }
@@ -142,7 +181,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
       id: generateId(), name: '', totalAdvance: 0, consumption: '', unit: '', totalCost: '', diff: 0, chargeableMonths: [], manual: true
     };
     if (itemId) {
-      const found = PREDEFINED_ITEMS.find(i => i.id === itemId);
+      const found = PREDEFINED_ITEMS.find(i => i.id === itemId.replace(' (neúčtováno)', ''));
       if (found) base = { ...base, id: found.id, name: found.name, unit: found.unit, manual: false };
     }
     setItems(arr => [...arr, base]);
@@ -185,6 +224,18 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     );
   };
 
+  function getFlagKey(key: string) {
+    switch (key) {
+      case 'rent': return 'rent_amount';
+      case 'water': return 'monthly_water';
+      case 'gas': return 'monthly_gas';
+      case 'electricity': return 'monthly_electricity';
+      case 'services': return 'monthly_services';
+      case 'repair_fund': return 'repair_fund';
+      default: return key;
+    }
+  }
+
   if (loading) return <div>Načítám...</div>;
 
   return (
@@ -209,8 +260,8 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
             <tr key={item.id}>
               <td className="border p-1">
                 <input
-                  value={item.name}
-                  onChange={e => updateItem(item.id, 'name', e.target.value)}
+                  value={item.name + (item.billableLabel || '')}
+                  onChange={e => updateItem(item.id, 'name', e.target.value.replace(/ \(neúčtováno.*\)$/, ''))}
                   className="w-full border rounded px-1"
                 />
               </td>
@@ -264,7 +315,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
               </td>
               <td className="border text-center text-xs">
                 {item.chargeableMonths && item.chargeableMonths.length
-                  ? `${item.chargeableMonths.length} / 12`
+                  ? `${item.chargeableMonths.length} / ${totalMonths}`
                   : ''}
                 {item.note && <span title={item.note} className="ml-1 text-gray-500">🛈</span>}
               </td>
@@ -323,4 +374,3 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     </div>
   );
 }
-
