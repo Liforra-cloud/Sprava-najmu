@@ -71,9 +71,10 @@ export default function NewStatementPage() {
         if (!res.ok) throw new Error('Nepodařilo se načíst smlouvy')
         const leases = await res.json() as Lease[]
         setLeases(leases)
-      } catch (e: any) {
-        setError(e.message)
-      }
+   } catch (e) {
+  if (e instanceof Error) setError(e.message)
+  else setError('Neznámá chyba')
+}
       setLoading(false)
     }
     fetchLeases()
@@ -88,7 +89,7 @@ export default function NewStatementPage() {
     try {
       const res = await fetch(`/api/units/${unitId}/statement?from=${from}&to=${to}`)
       if (!res.ok) throw new Error('Nepodařilo se načíst data pro vyúčtování')
-      const obligations = await res.json()
+      await res.json()
       // Zde si případně vygeneruj StatementItems (nechávám prázdné, pokud používáš StatementTable)
       setTableData([]) // nebo rovnou zpracuj, pokud chceš preview
       setStep('preview')
@@ -243,7 +244,9 @@ export default function NewStatementPage() {
 
       {step === 'saved' && (
         <div className="bg-green-100 text-green-800 px-3 py-2 rounded">
-          Vyúčtování bylo uloženo! <a href="/statements" className="underline text-blue-700 ml-2">Zpět na seznam</a>
+          Vyúčtování bylo uloženo! import Link from 'next/link'
+// ...
+<Link href="/statements" className="underline text-blue-700 ml-2">Zpět na seznam</Link>
         </div>
       )}
     </div>
