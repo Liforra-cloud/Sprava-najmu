@@ -78,7 +78,6 @@ export default function StatementDetailPage({ params }: { params: { id: string }
         unitId={statement.unit_id}
         from={statement.from_month.slice(0,7)}
         to={statement.to_month.slice(0,7)}
-        initialItems={items}
         onChange={handleTableChange}
       />
       <button
