@@ -5,10 +5,21 @@
 import { useEffect, useState } from 'react'
 import StatementTable from '@/components/StatementTable'
 
+type StatementItem = {
+  name: string;
+  item_type?: string;
+  totalAdvance: number;
+  consumption: number | '';
+  unit: string;
+  totalCost: number | '';
+  diff: number;
+  note?: string;
+};
+
 export default function StatementDetailPage({ params }: { params: { id: string } }) {
   const { id } = params
   const [statement, setStatement] = useState<any>(null)
-  const [items, setItems] = useState<any[]>([])
+  const [items, setItems] = useState<StatementItem[]>([])
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
 
@@ -21,7 +32,7 @@ export default function StatementDetailPage({ params }: { params: { id: string }
       })
   }, [id])
 
-  function handleTableChange(newItems: any[]) {
+  function handleTableChange(newItems: StatementItem[]) {
     setItems(newItems)
   }
 
