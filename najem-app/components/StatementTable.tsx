@@ -57,6 +57,7 @@ interface StatementTableProps {
   unitId: string;
   from: string; // YYYY-MM
   to: string;   // YYYY-MM
+    onChange?: (newItems: StatementItem[]) => void; // ← Přidej toto!
 }
 
 // pomocná funkce na počet měsíců v období
