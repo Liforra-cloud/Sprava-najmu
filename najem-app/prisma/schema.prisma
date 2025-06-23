@@ -61,7 +61,7 @@ model Unit {
 model Tenant {
   id              String   @id @default(uuid())
   full_name       String
-  email           String   @unique
+  email           String
   phone           String?
   personal_id     String?
   address         String?
