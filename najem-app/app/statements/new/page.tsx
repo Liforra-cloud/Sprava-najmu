@@ -1,11 +1,12 @@
 // app/statements/new/page.tsx
 
+// app/statements/new/page.tsx
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import StatementTable from '@/components/StatementTable'
+import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
+import StatementTable from '@/components/StatementTable'
 
 type Property = { id: string; name: string }
 type Unit = { id: string; identifier: string; property_id: string }
@@ -21,7 +22,7 @@ type StatementItem = {
   note?: string
 }
 
-export default function NewStatementPage() {
+function NewStatementPageInner() {
   const searchParams = useSearchParams()
   const unitIdFromQuery = searchParams.get('unit_id') ?? ''
 
@@ -35,13 +36,12 @@ export default function NewStatementPage() {
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [unitId, setUnitId] = useState(unitIdFromQuery)
   const [leases, setLeases] = useState<Lease[]>([])
-
   const [tableData, setTableData] = useState<StatementItem[]>([])
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'form' | 'preview' | 'saved'>('form')
   const [error, setError] = useState<string | null>(null)
 
-  // 1. Načti properties a units
+  // Načti properties a units
   useEffect(() => {
     async function load() {
       const [pRes, uRes] = await Promise.all([
@@ -61,9 +61,12 @@ export default function NewStatementPage() {
     load()
   }, [unitIdFromQuery])
 
-  // 2. Po výběru jednotky načti leases
+  // Po výběru jednotky načti leases
   useEffect(() => {
-    if (!unitId) return
+    if (!unitId) {
+      setLeases([])
+      return
+    }
     async function fetchLeases() {
       setLoading(true)
       setError(null)
@@ -73,15 +76,14 @@ export default function NewStatementPage() {
         const leases = await res.json() as Lease[]
         setLeases(leases)
       } catch (e) {
-        if (e instanceof Error) setError(e.message)
-        else setError('Neznámá chyba')
+        setError(e instanceof Error ? e.message : 'Neznámá chyba')
       }
       setLoading(false)
     }
     fetchLeases()
   }, [unitId])
 
-  // 3. Po kliknutí na "Náhled vyúčtování" načti obligations a zobraz tabulku
+  // Náhled vyúčtování (volá endpoint na vyčíslení, data pro tabulku)
   async function handlePreview(e: React.FormEvent) {
     e.preventDefault()
     if (!unitId) return setError('Vyberte jednotku')
@@ -90,17 +92,15 @@ export default function NewStatementPage() {
     try {
       const res = await fetch(`/api/units/${unitId}/statement?from=${from}&to=${to}`)
       if (!res.ok) throw new Error('Nepodařilo se načíst data pro vyúčtování')
-      await res.json() // Nepoužíváš obligations, tak jen počkej na výsledek
-      setTableData([]) // Zde můžeš předat zpracované položky
+      const items = await res.json()
+      setTableData(items as StatementItem[])
       setStep('preview')
     } catch (e) {
-      if (e instanceof Error) setError(e.message)
-      else setError('Neznámá chyba')
+      setError(e instanceof Error ? e.message : 'Neznámá chyba')
     }
     setLoading(false)
   }
 
-  // Vložení nového vyúčtování (příklad – přizpůsob si API endpoint)
   async function handleSave() {
     setLoading(true)
     setError(null)
@@ -118,13 +118,12 @@ export default function NewStatementPage() {
       if (!res.ok) throw new Error('Chyba při ukládání vyúčtování')
       setStep('saved')
     } catch (e) {
-      if (e instanceof Error) setError(e.message)
-      else setError('Neznámá chyba')
+      setError(e instanceof Error ? e.message : 'Neznámá chyba')
     }
     setLoading(false)
   }
 
-  // Vyfiltruj jednotky podle nemovitosti
+  // Filtrování jednotek podle nemovitosti
   const filteredUnits = selectedPropertyId
     ? units.filter(u => u.property_id === selectedPropertyId)
     : units
@@ -222,7 +221,8 @@ export default function NewStatementPage() {
             unitId={unitId}
             from={from}
             to={to}
-            // přidej další props dle své implementace
+            items={tableData}
+            // další props dle své implementace
           />
           <div className="flex gap-4 mt-6">
             <button
@@ -244,9 +244,21 @@ export default function NewStatementPage() {
 
       {step === 'saved' && (
         <div className="bg-green-100 text-green-800 px-3 py-2 rounded">
-          Vyúčtování bylo uloženo! <Link href="/statements" className="underline text-blue-700 ml-2">Zpět na seznam</Link>
+          Vyúčtování bylo uloženo!
+          <Link href="/statements" className="underline text-blue-700 ml-2">
+            Zpět na seznam
+          </Link>
         </div>
       )}
     </div>
+  )
+}
+
+// Suspense pro SSR build, aby Next.js nehlásil chybu (řeší problém s useSearchParams)
+export default function NewStatementPage() {
+  return (
+    <Suspense>
+      <NewStatementPageInner />
+    </Suspense>
   )
 }
