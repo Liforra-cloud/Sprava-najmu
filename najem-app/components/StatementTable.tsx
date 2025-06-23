@@ -157,21 +157,23 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
 
   // --- Ostatní logika (ruční přidávání, editace, atd.) ---
   // Najdi PREDEFINED položky, které nejsou plně účtované (nebo vůbec)
-  const unusedItems = PREDEFINED_ITEMS
-    .map(predef => {
-      const existing = items.find(row => row.id === predef.id);
-      if (!existing) return predef;
-      // Pokud existuje a je účtována ve všech měsících, není unused
-      if (
-        existing.chargeableMonths &&
-        existing.chargeableMonths.length >= totalMonths
-      ) {
-        return null;
-      }
-      // Pokud existuje, ale je účtována jen v některých měsících, nabídni ji s příznakem
-      return { ...predef, name: predef.name + ' (neúčtováno)' };
-    })
-    .filter(Boolean);
+const unusedItems = PREDEFINED_ITEMS
+  .map(predef => {
+    const existing = items.find(row => row.id === predef.id);
+    if (!existing) return predef;
+    if (
+      existing.chargeableMonths &&
+      existing.chargeableMonths.length >= totalMonths
+    ) {
+      return null;
+    }
+    return { ...predef, name: predef.name + ' (neúčtováno)' };
+  })
+  .filter((item): item is { id: string; name: string; unit: string } => !!item);
+
+
+
+  
 
   function generateId() {
     return Math.random().toString(36).substr(2, 9);
