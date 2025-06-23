@@ -461,12 +461,12 @@ export default function UnitDetailPage({ params }: { params: { id: string } }) {
             ))}
           </div>
           <div className="mt-3">
-            <Link
-              href={`/units/${id}/statement/new`}
-              className="inline-block bg-green-100 text-green-800 rounded px-3 py-1 hover:bg-green-200"
-            >
-              + Nové vyúčtování
-            </Link>
+<Link
+  href={`/statements/new?unit_id=${id}`}
+  className="inline-block bg-green-100 text-green-800 rounded px-3 py-1 hover:bg-green-200"
+>
+  + Nové vyúčtování
+</Link>
           </div>
         </div>
       )}
