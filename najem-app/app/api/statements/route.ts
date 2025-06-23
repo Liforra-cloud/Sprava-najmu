@@ -1,65 +1,43 @@
-// app/api/statements/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+// app/api/statement/route.ts
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
-type StatementItem = {
-  name: string;
-  item_type?: string;
-  totalAdvance: number;
-  consumption: number | '';
-  unit: string;
-  totalCost: number | '';
-  diff: number;
-  note?: string;
-};
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const unit_id = searchParams.get('unit_id')
-  let query = supabase.from('statements').select('*').order('created_at', { ascending: false })
-  if (unit_id) query = query.eq('unit_id', unit_id)
-  const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
-}
+  const unitId = searchParams.get('unitId');
+  const from = searchParams.get('from'); // 'YYYY-MM'
+  const to = searchParams.get('to');     // 'YYYY-MM'
 
-export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { unit_id, lease_id, from_month, to_month, items } = body
-
-  const { data: statement, error } = await supabase
-    .from('statements')
-    .insert([
-      { unit_id, lease_id, from_month, to_month }
-    ])
-    .select()
-    .single()
-
-  if (error || !statement) return NextResponse.json({ error: error?.message }, { status: 500 })
-
-  if (Array.isArray(items) && items.length > 0) {
-    const itemsToInsert = (items as StatementItem[]).map((it, idx) => ({
-      statement_id: statement.id,
-      name: it.name,
-      item_type: it.item_type ?? '',
-      total_advance: it.totalAdvance ?? 0,
-      consumption: it.consumption ?? null,
-      unit: it.unit ?? '',
-      total_cost: it.totalCost ?? 0,
-      diff: it.diff ?? 0,
-      note: it.note ?? '',
-      order_index: idx,
-    }))
-    const { error: itemErr } = await supabase
-      .from('statement_items')
-      .insert(itemsToInsert)
-    if (itemErr) return NextResponse.json({ error: itemErr.message }, { status: 500 })
+  if (!unitId || !from || !to) {
+    return NextResponse.json({ error: 'unitId, from a to jsou povinné parametry.' }, { status: 400 });
   }
 
-  return NextResponse.json(statement, { status: 201 })
+  // Rozparsuj roky a měsíce
+  const [fromYear, fromMonth] = from.split('-').map(Number);
+  const [toYear, toMonth] = to.split('-').map(Number);
+
+  // Načti všechny monthly_obligations pro danou jednotku a období
+  const obligations = await prisma.monthlyObligation.findMany({
+    where: {
+      unit_id: unitId,
+      OR: [
+        {
+          year: fromYear,
+          month: { gte: fromMonth },
+        },
+        {
+          year: toYear,
+          month: { lte: toMonth },
+        },
+        {
+          year: { gt: fromYear, lt: toYear },
+        }
+      ]
+    },
+    orderBy: [{ year: 'asc' }, { month: 'asc' }]
+  });
+
+  return NextResponse.json(obligations);
 }
