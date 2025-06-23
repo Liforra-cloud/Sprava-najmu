@@ -75,7 +75,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
   // --- Načti data z API ---
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/statements/statement-for-unit?unit_id=${unitId}&from=${from}&to=${to}`)
+    fetch(`/api/statements/${unitId}?from=${from}&to=${to}`)
       .then((res) => res.json())
       .then((data: MonthlyObligation[]) => {
         const agg: Record<string, StatementItem> = {};
