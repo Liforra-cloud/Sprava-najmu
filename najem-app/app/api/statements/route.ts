@@ -1,5 +1,4 @@
 // app/api/statements/route.ts
-
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -7,6 +6,17 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
+
+type StatementItem = {
+  name: string;
+  item_type?: string;
+  totalAdvance: number;
+  consumption: number | '';
+  unit: string;
+  totalCost: number | '';
+  diff: number;
+  note?: string;
+};
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -33,7 +43,7 @@ export async function POST(request: NextRequest) {
   if (error || !statement) return NextResponse.json({ error: error?.message }, { status: 500 })
 
   if (Array.isArray(items) && items.length > 0) {
-    const itemsToInsert = items.map((it: any, idx: number) => ({
+    const itemsToInsert = (items as StatementItem[]).map((it, idx) => ({
       statement_id: statement.id,
       name: it.name,
       item_type: it.item_type ?? '',
