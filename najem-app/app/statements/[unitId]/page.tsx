@@ -46,7 +46,7 @@ export default function StatementUnitPage({ params }: { params: { unitId: string
   return (
     <div className="max-w-3xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">Účtování poplatků – jednotka</h1>
-      <StatementTable items={items} allCharges={allCharges} onAddCharge={handleAddCharge} />
+      <StatementTable unitId={unitId} from={from} to={to} />
     </div>
   )
 }
