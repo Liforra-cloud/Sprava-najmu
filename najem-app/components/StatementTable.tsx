@@ -108,13 +108,18 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
       .finally(() => setLoading(false));
   }, [unitId, from, to]);
 
+  // Pivot plateb podle poznámky
   const paymentLabels = Array.from(new Set(payments.map(p => p.note ?? 'Platba')));
   const paymentRows = paymentLabels.map(label => {
     const values = months.map(({ month, year }) => {
       const p = payments.find(x => (x.note ?? 'Platba') === label && x.month === month && x.year === year);
       return p ? p.paid_amount : '';
     });
-    const total = values.reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0);
+    // explicitní generický typ pro reduce, aby sum bylo number
+    const total = values.reduce<number>(
+      (sum, v) => sum + (typeof v === 'number' ? v : 0),
+      0
+    );
     return { label, values, total };
   });
 
