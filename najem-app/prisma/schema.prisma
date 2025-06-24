@@ -152,3 +152,18 @@ model MonthlyObligation {
 
   @@map("monthly_obligations")
 }
+
+model StatementEntry {
+  id            String   @id @default(uuid())
+  lease_id      String
+  year          Int
+  month         Int
+  charge_id     String   // např. "rent", "electricity", nebo custom
+  override_val  Int?     // přepsaná částka
+  note          String?  // poznámka pro daný měsíc
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@index([lease_id, year, month])
+}
+
