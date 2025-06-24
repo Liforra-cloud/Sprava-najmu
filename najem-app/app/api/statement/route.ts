@@ -48,51 +48,48 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // Povolené klíče pro sumBy
-  type AllowedKey = 'rent' | 'electricity' | 'water' | 'gas' | 'services' | 'repair_fund';
-
-  const sumBy = (key: AllowedKey) =>
-    obligations.reduce((sum, o) => sum + ((o[key] as number) || 0), 0);
-
-  // Výstupní data pro StatementTable
-  const advanceItems = [
-  {
-    id: 'rent',
-    name: 'Nájem',
-    totalAdvance: sumBy('rent'),
-    paid: obligations.reduce((sum, o) => {
-      const flags = o.charge_flags as Record<string, boolean> | null;
-      return sum + ((flags && flags.rent_amount ? o.paid_amount : 0) || 0);
-    }, 0),
-    unit: 'Kč',
-    chargeableMonths: obligations
+  // Funkce na součet zaplacených záloh (paid_amount) pouze za měsíce s aktivním flagem (název flagu např. 'rent_amount')
+  const sumPaid = (flag: string) =>
+    obligations
       .filter(o => {
         const flags = o.charge_flags as Record<string, boolean> | null;
-        return flags && flags.rent_amount;
+        return flags && flags[flag];
       })
-      .map(o => o.month),
-  },
+      .reduce((sum, o) => sum + (o.paid_amount || 0), 0);
+
+  // Funkce na pole měsíců, kdy byl daný flag aktivní
+  const monthsWithFlag = (flag: string) =>
+    obligations
+      .filter(o => {
+        const flags = o.charge_flags as Record<string, boolean> | null;
+        return flags && flags[flag];
+      })
+      .map(o => o.month);
+
+  // Sestav položky pro StatementTable
+  const advanceItems = [
+    {
+      id: 'rent',
+      name: 'Nájem',
+      totalAdvance: sumPaid('rent_amount'),
+      unit: 'Kč',
+      chargeableMonths: monthsWithFlag('rent_amount'),
+    },
     {
       id: 'electricity',
       name: 'Elektřina',
-      totalAdvance: sumBy('electricity'),
-      paid: obligations.reduce((sum, o) => {
-        const flags = o.charge_flags as Record<string, boolean> | null;
-        return sum + ((flags && flags.monthly_electricity ? o.paid_amount : 0) || 0);
-      }, 0),
-      unit: 'Kč'
+      totalAdvance: sumPaid('monthly_electricity'),
+      unit: 'Kč',
+      chargeableMonths: monthsWithFlag('monthly_electricity'),
     },
     {
       id: 'water',
       name: 'Voda',
-      totalAdvance: sumBy('water'),
-      paid: obligations.reduce((sum, o) => {
-        const flags = o.charge_flags as Record<string, boolean> | null;
-        return sum + ((flags && flags.monthly_water ? o.paid_amount : 0) || 0);
-      }, 0),
-      unit: 'Kč'
+      totalAdvance: sumPaid('monthly_water'),
+      unit: 'Kč',
+      chargeableMonths: monthsWithFlag('monthly_water'),
     },
-    // ... další položky dle potřeby
+    // ... případně další položky
   ]
 
   return NextResponse.json({
