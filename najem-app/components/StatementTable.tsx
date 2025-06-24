@@ -32,6 +32,17 @@ type MonthlyObligation = {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type _MonthlyObligationEslintFix = MonthlyObligation;
 
+type Payment = {
+  month: number;
+  year: number;
+  paid_amount: number;
+  total_due: number;
+  note?: string | null;
+  custom_charges?: CustomCharge[] | string;
+  charge_flags?: Record<string, boolean>;
+};
+
+
 export type StatementItem = {
   id: string;
   name: string;
