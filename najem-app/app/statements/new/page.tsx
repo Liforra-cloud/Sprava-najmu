@@ -59,7 +59,7 @@ export default function NewStatementPage() {
       </div>
 
       {/* Tabulka se zobrazí jen pokud je vybraná jednotka */}
-      {unitId && <StatementTable unitId={unitId} from={from} to={to} />}
+      <StatementTable unitId={unitId} from={from} to={to} />
 
       {/* Tlačítko Uložit/export případně zde */}
     </div>
