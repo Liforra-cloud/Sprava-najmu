@@ -49,13 +49,7 @@ export async function GET(req: NextRequest) {
   })
 
   // Sečti zálohy podle zaplacených částek (paid_amount)
-  const totalPaid = obligations.reduce((sum, o) => sum + (o.paid_amount || 0), 0)
-
-  // Můžeš udělat výstup pro StatementTable, např. po položkách:
-  // (Nájem, Elektřina, Voda, Plyn, Služby, Fond oprav, ... případně custom)
-  const items = [
-    { id: 'advance_paid', name: 'Celkem zaplacené zálohy', totalAdvance: totalPaid, unit: 'Kč', totalCost: '', diff: 0 }
-  ]
+  // const totalPaid = obligations.reduce((sum, o) => sum + (o.paid_amount || 0), 0)
 
   // Pokud chceš rozpad podle typu záloh:
   const sumBy = (key: string) => obligations.reduce((sum, o) => sum + (o[key] || 0), 0)
