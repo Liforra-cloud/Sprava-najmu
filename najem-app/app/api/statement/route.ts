@@ -1,11 +1,20 @@
-// app/api/statement/route.ts
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 function parseYm(ym: string) {
   const [year, month] = ym.split('-').map(Number)
   return { year, month }
+}
+
+function getMonthsInRange(fromObj: {year: number, month: number}, toObj: {year: number, month: number}) {
+  const months = [];
+  let y = fromObj.year, m = fromObj.month;
+  while (y < toObj.year || (y === toObj.year && m <= toObj.month)) {
+    months.push({ month: m, year: y });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return months;
 }
 
 export async function GET(req: NextRequest) {
@@ -45,62 +54,64 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  const sumPaid = (flag: string) =>
-    obligations
-      .filter(o => {
-        const flags = o.charge_flags as Record<string, boolean> | null;
-        return flags && flags[flag];
-      })
-      .reduce((sum, o) => sum + (o.paid_amount || 0), 0);
+  // --- platby jako pivot tabulka ---
+  const months = getMonthsInRange(fromObj, toObj);
 
-  const monthsWithFlag = (flag: string) =>
-    obligations
-      .filter(o => {
-        const flags = o.charge_flags as Record<string, boolean> | null;
-        return flags && flags[flag];
-      })
-      .map(o => o.month);
+  const chargeKeys = [
+    { id: 'rent', label: 'Nájem', flag: 'rent_amount' },
+    { id: 'electricity', label: 'Elektřina', flag: 'monthly_electricity' },
+    { id: 'water', label: 'Voda', flag: 'monthly_water' },
+    { id: 'gas', label: 'Plyn', flag: 'monthly_gas' },
+    { id: 'services', label: 'Služby', flag: 'monthly_services' },
+    { id: 'repair_fund', label: 'Fond oprav', flag: 'repair_fund' }
+  ];
 
-  const advanceItems = [
-    {
-      id: 'rent',
-      name: 'Nájem',
-      totalAdvance: sumPaid('rent_amount'),
-      unit: 'Kč',
-      chargeableMonths: monthsWithFlag('rent_amount'),
-    },
-    {
-      id: 'electricity',
-      name: 'Elektřina',
-      totalAdvance: sumPaid('monthly_electricity'),
-      unit: 'Kč',
-      chargeableMonths: monthsWithFlag('monthly_electricity'),
-    },
-    {
-      id: 'water',
-      name: 'Voda',
-      totalAdvance: sumPaid('monthly_water'),
-      unit: 'Kč',
-      chargeableMonths: monthsWithFlag('monthly_water'),
-    },
-    // ... další položky
-  ]
+  // 1) Standardní poplatky
+  const matrixData = chargeKeys.map(key => {
+    const values = months.map(({ month, year }) => {
+      const o = obligations.find(x => x.month === month && x.year === year);
+      const flags = o?.charge_flags as Record<string, boolean> | null;
+      return (o && flags && flags[key.flag]) ? o.paid_amount : '';
+    });
+    const total = values.reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
+    return {
+      id: key.id,
+      name: key.label,
+      values,
+      total
+    };
+  });
 
-  // Výpis všech plateb v období (přehled všech monthly_obligation)
-  const payments = obligations.map(o => ({
-    month: o.month,
-    year: o.year,
-    paid_amount: o.paid_amount,
-    total_due: o.total_due,
-    note: o.note,
-    // pro případný detail
-    custom_charges: o.custom_charges,
-    charge_flags: o.charge_flags
-  }));
+  // 2) Custom poplatky
+  // projdi všechny obligations, najdi custom_charges a pro každý název vytvoř řádek
+  const customNames = Array.from(
+    new Set(obligations.flatMap(o => {
+      const arr = Array.isArray(o.custom_charges) ? o.custom_charges : [];
+      return arr.filter(c => c.enabled).map(c => c.name);
+    }))
+  );
+
+  const customMatrix = customNames.map(name => {
+    const values = months.map(({ month, year }) => {
+      const o = obligations.find(x => x.month === month && x.year === year);
+      if (!o) return '';
+      const arr = Array.isArray(o.custom_charges) ? o.custom_charges : [];
+      const found = arr.find(c => c.name === name && c.enabled);
+      return found ? found.amount : '';
+    });
+    const total = values.reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
+    return {
+      id: name,
+      name,
+      values,
+      total
+    };
+  });
 
   return NextResponse.json({
-    items: advanceItems,
-    allCharges: advanceItems,
-    payments,
-  })
+    paymentsMatrix: {
+      months,
+      data: [...matrixData, ...customMatrix]
+    }
+  });
 }
