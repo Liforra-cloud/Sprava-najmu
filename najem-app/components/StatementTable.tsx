@@ -3,7 +3,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 
-// --- Typy z API ---
+// --- Typy z API a pro pivotní matici ---
 type CustomCharge = {
   name: string;
   amount: number;
@@ -34,6 +34,18 @@ export type StatementItem = {
   manual?: boolean;
 };
 
+// Pivotní matice od API
+type MatrixRow = {
+  id: string;
+  name: string;
+  values: (number | '')[];
+  total: number;
+};
+type PaymentsMatrix = {
+  months: { month: number; year: number }[];
+  data: MatrixRow[];
+};
+
 const PREDEFINED_ITEMS = [
   { id: 'rent', name: 'Nájem', unit: 'Kč' },
   { id: 'electricity', name: 'Elektřina', unit: 'kWh' },
@@ -56,7 +68,6 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
   const [months, setMonths] = useState<{ month: number; year: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Načtení dat z API
   useEffect(() => {
     if (!unitId) {
       setItems([]);
@@ -70,13 +81,13 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
 
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => res.json())
-      .then(data => {
+      .then((data: { paymentsMatrix: PaymentsMatrix; payments?: Payment[] }) => {
         // pivotní matice
-        const matrix = data.paymentsMatrix;
+        const matrix: PaymentsMatrix = data.paymentsMatrix;
         setMonths(matrix.months);
 
         // sestavím všechny StatementItem
-        const all: StatementItem[] = matrix.data.map(r => {
+        const all: StatementItem[] = matrix.data.map((r: MatrixRow) => {
           const unit = PREDEFINED_ITEMS.find(i => i.id === r.id)?.unit || 'Kč';
           const chargeableMonths = r.values
             .map((v, idx) => (typeof v === 'number' ? idx + 1 : null))
@@ -102,7 +113,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
       .finally(() => setLoading(false));
   }, [unitId, from, to]);
 
-  // Výpočty pro tabulku plateb
+  // Preparace dat pro pivot plateb
   const paymentLabels = Array.from(
     new Set(payments.map(p => p.note ?? 'Platba'))
   );
@@ -120,7 +131,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     return { label, values, total };
   });
 
-  // --- Logika pro úpravu položek ---
+  // --- Logika pro editaci položek ---
   const unusedItems = PREDEFINED_ITEMS.filter(i => !items.some(r => r.id === i.id));
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -264,7 +275,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
               </td>
               <td className="border text-center text-xs">
                 {item.chargeableMonths.length
-                  ? `${item.chargeableMonths.length} / 12`
+                  ? `${item.chargeableMonths.length} / ${months.length}`
                   : ''}
               </td>
               <td className="border text-center">
@@ -281,7 +292,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
         </tbody>
       </table>
 
-      {/* Nově: Pivot tabulka plateb */}
+      {/* Pivot tabulka plateb podle typu */}
       {payments.length > 0 && (
         <div className="mt-8">
           <h2 className="font-semibold mb-2">Soupis plateb podle typu</h2>
@@ -306,9 +317,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
                       {v !== '' ? v : ''}
                     </td>
                   ))}
-                  <td className="border p-1 text-center font-bold">
-                    {row.total}
-                  </td>
+                  <td className="border p-1 text-center font-bold">{row.total}</td>
                 </tr>
               ))}
             </tbody>
@@ -316,7 +325,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
         </div>
       )}
 
-      {/* Pod tabulkami – ovládací prvky a souhrn */}
+      {/* Ovládací prvky a souhrny */}
       <div className="mt-6">
         <h2 className="font-semibold mb-2">Možné položky k přidání</h2>
         <div className="flex gap-2 flex-wrap">
