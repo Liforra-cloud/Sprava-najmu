@@ -56,16 +56,22 @@ export async function GET(req: NextRequest) {
 
   // Výstupní data pro StatementTable
   const advanceItems = [
-    {
-      id: 'rent',
-      name: 'Nájem',
-      totalAdvance: sumBy('rent'),
-      paid: obligations.reduce((sum, o) => {
+  {
+    id: 'rent',
+    name: 'Nájem',
+    totalAdvance: sumBy('rent'),
+    paid: obligations.reduce((sum, o) => {
+      const flags = o.charge_flags as Record<string, boolean> | null;
+      return sum + ((flags && flags.rent_amount ? o.paid_amount : 0) || 0);
+    }, 0),
+    unit: 'Kč',
+    chargeableMonths: obligations
+      .filter(o => {
         const flags = o.charge_flags as Record<string, boolean> | null;
-        return sum + ((flags && flags.rent_amount ? o.paid_amount : 0) || 0);
-      }, 0),
-      unit: 'Kč'
-    },
+        return flags && flags.rent_amount;
+      })
+      .map(o => o.month),
+  },
     {
       id: 'electricity',
       name: 'Elektřina',
