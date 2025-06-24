@@ -48,8 +48,11 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // Pomocná funkce na součet položek
-  const sumBy = (key: string) => obligations.reduce((sum, o) => sum + (o[key] || 0), 0)
+  // Povolené klíče pro sumBy
+  type AllowedKey = 'rent' | 'electricity' | 'water' | 'gas' | 'services' | 'repair_fund';
+
+  const sumBy = (key: AllowedKey) =>
+    obligations.reduce((sum, o) => sum + ((o[key] as number) || 0), 0);
 
   // Výstupní data pro StatementTable
   const advanceItems = [
@@ -79,7 +82,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     items: advanceItems,
-    allCharges: advanceItems, // Pokud máš rozšířené položky
+    allCharges: advanceItems,
   })
 }
-
