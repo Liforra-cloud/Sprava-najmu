@@ -267,7 +267,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
               </tr>
             </thead>
             <tbody>
-              {months.map((m, mi) => {
+           {months.map(m => {
                 const monthKey = `${m.year}-${m.month}` as `${number}-${number}`;
                 return (
                   <tr key={monthKey}>
