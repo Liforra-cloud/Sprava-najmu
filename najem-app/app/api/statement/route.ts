@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const leaseIds = leases.map(l => l.id)
 
   // Najdi všechny monthly_obligations pro dané leases a období
-  const obligations = await prisma.monthlyObligations.findMany({
+  const obligations = await prisma.monthlyObligation.findMany({
     where: {
       lease_id: { in: leaseIds },
       OR: [
