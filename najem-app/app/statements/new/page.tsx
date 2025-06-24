@@ -10,11 +10,12 @@ export default function NewStatementPage() {
   const [from, setFrom] = useState(`${new Date().getFullYear()}-01`);
   const [to, setTo] = useState(`${new Date().getFullYear()}-12`);
 
-  // Pro jednoduchost zde můžeš načíst jednotky z API (nebo props).
-  // Tady ukázka jak na to - potřebuješ API endpoint na jednotky:
   const [units, setUnits] = useState<{ id: string; identifier: string }[]>([]);
   useEffect(() => {
-    fetch('/api/units').then(r => r.json()).then(setUnits);
+    fetch('/api/units')
+      .then(r => r.json())
+      .then(setUnits)
+      .catch(console.error);
   }, []);
 
   return (
@@ -57,10 +58,10 @@ export default function NewStatementPage() {
         </label>
       </div>
 
-      {/* StatementTable render only if unit is selected */}
+      {/* Tabulka se zobrazí jen pokud je vybraná jednotka */}
       {unitId && <StatementTable unitId={unitId} from={from} to={to} />}
 
-      {/* Tlačítko Uložit/export */}
+      {/* Tlačítko Uložit/export případně zde */}
     </div>
   );
 }
