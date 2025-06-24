@@ -9,13 +9,16 @@ type CustomCharge = {
   amount: number
   enabled: boolean
 }
-function isCustomCharge(x: any): x is CustomCharge {
+function isCustomCharge(x: unknown): x is CustomCharge {
   return (
-    x !== null &&
     typeof x === 'object' &&
-    typeof x.name === 'string' &&
-    typeof x.amount === 'number' &&
-    typeof x.enabled === 'boolean'
+    x !== null &&
+    'name' in x &&
+    typeof (x as Record<string, unknown>).name === 'string' &&
+    'amount' in x &&
+    typeof (x as Record<string, unknown>).amount === 'number' &&
+    'enabled' in x &&
+    typeof (x as Record<string, unknown>).enabled === 'boolean'
   )
 }
 
@@ -91,13 +94,11 @@ export async function GET(req: NextRequest) {
 
   // 5) Pivot pro standardní poplatky
   const matrixData = chargeKeys.map(key => {
-    // pro každý měsíc buď částka, nebo prázdný string
     const values = months.map(({ month, year }) => {
       const o = obligations.find(x => x.month === month && x.year === year)
       const flags = o?.charge_flags as Record<string, boolean> | null
       return o && flags && flags[key.flag] ? o.paid_amount : ''
     })
-    // součet jen čísel
     const total = values.reduce<number>(
       (acc, val) => acc + (typeof val === 'number' ? val : 0),
       0
@@ -113,7 +114,6 @@ export async function GET(req: NextRequest) {
   // 6) Vypiš všechny názvy custom poplatků, které jsou enabled
   const allCustomNames = obligations.flatMap(o => {
     const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
-    // nejdřív zúžit jen na CustomCharge s enabled=true
     return arr
       .filter(isCustomCharge)
       .filter(c => c.enabled)
@@ -127,7 +127,6 @@ export async function GET(req: NextRequest) {
       const o = obligations.find(x => x.month === month && x.year === year)
       if (!o) return ''
       const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
-      // najdi charge s daným názvem a enabled
       const found = arr
         .filter(isCustomCharge)
         .find(c => c.name === name && c.enabled)
