@@ -92,20 +92,50 @@ export async function GET(req: NextRequest) {
     { id: 'repair_fund', label: 'Fond oprav', flag: 'repair_fund' }
   ]
 
-  // 5) Pivot pro standardní poplatky — teď bereme přímo o[key.id]
+  // 5) Pivot pro standardní poplatky — bereme přímo hodnotu příslušného pole
   const matrixData = chargeKeys.map(key => {
     const values = months.map(({ month, year }) => {
       const o = obligations.find(x => x.month === month && x.year === year)
       const flags = o?.charge_flags as Record<string, boolean> | null
       if (!o || !flags || !flags[key.flag]) return ''
-      const val = (o as any)[key.id]
-      return typeof val === 'number' ? val : ''
+
+      let val: number
+      switch (key.id) {
+        case 'rent':
+          val = o.rent
+          break
+        case 'electricity':
+          val = o.electricity
+          break
+        case 'water':
+          val = o.water
+          break
+        case 'gas':
+          val = o.gas
+          break
+        case 'services':
+          val = o.services
+          break
+        case 'repair_fund':
+          val = o.repair_fund
+          break
+        default:
+          val = 0
+      }
+      return val
     })
+
     const total = values.reduce<number>(
       (sum, v) => sum + (typeof v === 'number' ? v : 0),
       0
     )
-    return { id: key.id, name: key.label, values, total }
+
+    return {
+      id: key.id,
+      name: key.label,
+      values,
+      total
+    }
   })
 
   // 6) Pivot pro custom poplatky
@@ -123,14 +153,21 @@ export async function GET(req: NextRequest) {
       const found = arr.filter(isCustomCharge).find(c => c.name === name && c.enabled)
       return found ? found.amount : ''
     })
+
     const total = values.reduce<number>(
       (sum, v) => sum + (typeof v === 'number' ? v : 0),
       0
     )
-    return { id: name, name, values, total }
+
+    return {
+      id: name,
+      name,
+      values,
+      total
+    }
   })
 
-  // 7) Odpověď pro frontend
+  // 7) Vrať JSON pro frontend
   return NextResponse.json({
     paymentsMatrix: {
       months,
