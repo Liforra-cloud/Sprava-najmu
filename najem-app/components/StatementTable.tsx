@@ -63,7 +63,7 @@ interface StatementTableProps {
 export default function StatementTable({ unitId, from, to }: StatementTableProps) {
   const [items, setItems] = useState<StatementItem[]>([]);
   const [allItems, setAllItems] = useState<StatementItem[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
 
   // --- Načti data z API ---
