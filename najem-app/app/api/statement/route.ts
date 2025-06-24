@@ -60,21 +60,30 @@ export async function GET(req: NextRequest) {
       id: 'rent',
       name: 'Nájem',
       totalAdvance: sumBy('rent'),
-      paid: obligations.reduce((sum, o) => sum + ((o.charge_flags?.rent_amount ? o.paid_amount : 0) || 0), 0),
+      paid: obligations.reduce((sum, o) => {
+        const flags = o.charge_flags as Record<string, boolean> | null;
+        return sum + ((flags && flags.rent_amount ? o.paid_amount : 0) || 0);
+      }, 0),
       unit: 'Kč'
     },
     {
       id: 'electricity',
       name: 'Elektřina',
       totalAdvance: sumBy('electricity'),
-      paid: obligations.reduce((sum, o) => sum + ((o.charge_flags?.monthly_electricity ? o.paid_amount : 0) || 0), 0),
+      paid: obligations.reduce((sum, o) => {
+        const flags = o.charge_flags as Record<string, boolean> | null;
+        return sum + ((flags && flags.monthly_electricity ? o.paid_amount : 0) || 0);
+      }, 0),
       unit: 'Kč'
     },
     {
       id: 'water',
       name: 'Voda',
       totalAdvance: sumBy('water'),
-      paid: obligations.reduce((sum, o) => sum + ((o.charge_flags?.monthly_water ? o.paid_amount : 0) || 0), 0),
+      paid: obligations.reduce((sum, o) => {
+        const flags = o.charge_flags as Record<string, boolean> | null;
+        return sum + ((flags && flags.monthly_water ? o.paid_amount : 0) || 0);
+      }, 0),
       unit: 'Kč'
     },
     // ... další položky dle potřeby
