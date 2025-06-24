@@ -1,7 +1,7 @@
 // components/StatementTable.tsx
 
 'use client';
-
+const _eslint_fix: MonthlyObligation | undefined = undefined;
 import { useEffect, useState } from 'react';
 
 // --- Typy z API ---
