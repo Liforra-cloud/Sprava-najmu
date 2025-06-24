@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   })
   const leaseIds = leases.map(l => l.id)
 
-  // Najdi všechny monthly_obligations pro dané leases a období
+  // Najdi všechny monthly_obligation pro dané leases a období
   const obligations = await prisma.monthlyObligation.findMany({
     where: {
       lease_id: { in: leaseIds },
@@ -48,11 +48,10 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // Sečti zálohy podle zaplacených částek (paid_amount)
-  // const totalPaid = obligations.reduce((sum, o) => sum + (o.paid_amount || 0), 0)
-
-  // Pokud chceš rozpad podle typu záloh:
+  // Pomocná funkce na součet položek
   const sumBy = (key: string) => obligations.reduce((sum, o) => sum + (o[key] || 0), 0)
+
+  // Výstupní data pro StatementTable
   const advanceItems = [
     {
       id: 'rent',
@@ -75,15 +74,12 @@ export async function GET(req: NextRequest) {
       paid: obligations.reduce((sum, o) => sum + ((o.charge_flags?.monthly_water ? o.paid_amount : 0) || 0), 0),
       unit: 'Kč'
     },
-    // ... další položky
+    // ... další položky dle potřeby
   ]
 
-  // Skutečné náklady za období (můžeš přidat podle dat - záleží jak je eviduješ)
-  // Pokud máš třeba ve fakturách nebo custom_charges, doplň zde!
-
-  // Vrať data ve formátu pro StatementTable
   return NextResponse.json({
     items: advanceItems,
     allCharges: advanceItems, // Pokud máš rozšířené položky
   })
 }
+
