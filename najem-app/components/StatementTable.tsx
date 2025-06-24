@@ -90,14 +90,16 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => res.json())
       .then(data => {
-  if (data.allCharges) {
-       // Všechy položky, které mají chargeableMonths (tedy "zaškrtnuto účtovat")
-       const preselected = data.allCharges.filter(
-         charge => Array.isArray(charge.chargeableMonths) && charge.chargeableMonths.length > 0);
+     if (data.allCharges) {
+       // Předvyber jen StatementItem, které mají chargeableMonths (tj. účtovat)
+       const all: StatementItem[] = data.allCharges;
+       const preselected = all.filter((charge: StatementItem) =>
+         Array.isArray(charge.chargeableMonths) && charge.chargeableMonths.length > 0
+       );
        setItems(preselected);
-          setAllItems(data.allCharges);
-          setPayments(data.payments || []);
-        }
+       setAllItems(all);
+       setPayments(data.payments || []);
+     }
         // Pokud API vrací jen pole obligations, použij svůj původní transform:
         else if (Array.isArray(data)) {
           // ...tvá původní transformace (přes agg, allAgg)
