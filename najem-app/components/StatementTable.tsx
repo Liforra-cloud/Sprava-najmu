@@ -90,8 +90,11 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => res.json())
       .then(data => {
-        if (data.items && data.allCharges) {
-          setItems(data.items);
+  if (data.allCharges) {
+       // Všechy položky, které mají chargeableMonths (tedy "zaškrtnuto účtovat")
+       const preselected = data.allCharges.filter(
+         charge => Array.isArray(charge.chargeableMonths) && charge.chargeableMonths.length > 0);
+       setItems(preselected);
           setAllItems(data.allCharges);
           setPayments(data.payments || []);
         }
