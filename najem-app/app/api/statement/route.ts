@@ -48,8 +48,8 @@ function getMonthsInRange(
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const unitId = url.searchParams.get('unitId')
-  const from = url.searchParams.get('from') // '2024-01'
-  const to = url.searchParams.get('to')     // '2024-12'
+  const from = url.searchParams.get('from')
+  const to = url.searchParams.get('to')
 
   if (!unitId || !from || !to) {
     return NextResponse.json(
@@ -61,13 +61,9 @@ export async function GET(req: NextRequest) {
   const fromObj = parseYm(from)
   const toObj = parseYm(to)
 
-  // 1) Načti všechny lease pro danou jednotku
-  const leases = await prisma.lease.findMany({
-    where: { unit_id: unitId }
-  })
+  const leases = await prisma.lease.findMany({ where: { unit_id: unitId } })
   const leaseIds = leases.map(l => l.id)
 
-  // 2) Načti všechny monthlyObligation v daném období
   const obligations = await prisma.monthlyObligation.findMany({
     where: {
       lease_id: { in: leaseIds },
@@ -79,20 +75,18 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // 3) Vygeneruj seznam měsíců
   const months = getMonthsInRange(fromObj, toObj)
 
-  // 4) Definice standardních poplatků
   const chargeKeys = [
-    { id: 'rent',         label: 'Nájem',       flag: 'rent_amount' },
-    { id: 'electricity',  label: 'Elektřina',   flag: 'monthly_electricity' },
-    { id: 'water',        label: 'Voda',        flag: 'monthly_water' },
-    { id: 'gas',          label: 'Plyn',        flag: 'monthly_gas' },
-    { id: 'services',     label: 'Služby',      flag: 'monthly_services' },
-    { id: 'repair_fund',  label: 'Fond oprav',  flag: 'repair_fund' }
+    { id: 'rent',        label: 'Nájem',      flag: 'rent_amount' },
+    { id: 'electricity', label: 'Elektřina',  flag: 'monthly_electricity' },
+    { id: 'water',       label: 'Voda',       flag: 'monthly_water' },
+    { id: 'gas',         label: 'Plyn',       flag: 'monthly_gas' },
+    { id: 'services',    label: 'Služby',     flag: 'monthly_services' },
+    { id: 'repair_fund', label: 'Fond oprav', flag: 'repair_fund' }
   ]
 
-  // 5) Pivot pro standardní poplatky
+  // Standardní poplatky pivot
   const matrixData = chargeKeys.map(key => {
     const values = months.map(({ month, year }) => {
       const o = obligations.find(x => x.month === month && x.year === year)
@@ -100,51 +94,34 @@ export async function GET(req: NextRequest) {
       return o && flags && flags[key.flag] ? o.paid_amount : ''
     })
     const total = values.reduce<number>(
-      (acc, val) => acc + (typeof val === 'number' ? val : 0),
+      (a, b) => a + (typeof b === 'number' ? b : 0),
       0
     )
-    return {
-      id: key.id,
-      name: key.label,
-      values,
-      total
-    }
+    return { id: key.id, name: key.label, values, total }
   })
 
-  // 6) Vypiš všechny názvy custom poplatků, které jsou enabled
+  // Custom poplatky pivot
   const allCustomNames = obligations.flatMap(o => {
     const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
-    return arr
-      .filter(isCustomCharge)
-      .filter(c => c.enabled)
-      .map(c => c.name)
+    return arr.filter(isCustomCharge).filter(c => c.enabled).map(c => c.name)
   })
   const customNames = Array.from(new Set(allCustomNames))
 
-  // 7) Pivot pro custom poplatky
   const customMatrix = customNames.map(name => {
     const values = months.map(({ month, year }) => {
       const o = obligations.find(x => x.month === month && x.year === year)
       if (!o) return ''
       const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
-      const found = arr
-        .filter(isCustomCharge)
-        .find(c => c.name === name && c.enabled)
+      const found = arr.filter(isCustomCharge).find(c => c.name === name && c.enabled)
       return found ? found.amount : ''
     })
     const total = values.reduce<number>(
-      (acc, val) => acc + (typeof val === 'number' ? val : 0),
+      (a, b) => a + (typeof b === 'number' ? b : 0),
       0
     )
-    return {
-      id: name,
-      name,
-      values,
-      total
-    }
+    return { id: name, name, values, total }
   })
 
-  // 8) Vrať JSON pro frontend
   return NextResponse.json({
     paymentsMatrix: {
       months,
