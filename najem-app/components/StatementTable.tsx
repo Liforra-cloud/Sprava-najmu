@@ -63,6 +63,7 @@ interface StatementTableProps {
 export default function StatementTable({ unitId, from, to }: StatementTableProps) {
   const [items, setItems] = useState<StatementItem[]>([]);
   const [allItems, setAllItems] = useState<StatementItem[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // --- Načti data z API ---
@@ -70,6 +71,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     if (!unitId) {
       setItems([]);
       setAllItems([]);
+      setPayments([]);
       setLoading(false);
       return;
     }
@@ -77,15 +79,14 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => res.json())
       .then(data => {
-        // Pokud API vrací { items, allCharges }, použij takto:
         if (data.items && data.allCharges) {
           setItems(data.items);
           setAllItems(data.allCharges);
+          setPayments(data.payments || []);
         }
         // Pokud API vrací jen pole obligations, použij svůj původní transform:
         else if (Array.isArray(data)) {
           // ...tvá původní transformace (přes agg, allAgg)
-          // sem můžeš dát starý kód pokud potřebuješ zpětnou kompatibilitu
         }
         setLoading(false);
       });
@@ -143,7 +144,6 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
       )
     );
   };
-
 
   if (loading) return <div>Načítám...</div>;
 
@@ -299,6 +299,33 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
         </div>
       </div>
 
+      {/* Výpis všech plateb za období */}
+      {payments.length > 0 && (
+        <div className="mt-8">
+          <h2 className="font-semibold mb-2">Všechny platby v období</h2>
+          <table className="min-w-full border text-sm">
+            <thead>
+              <tr>
+                <th className="p-2 border">Měsíc/Rok</th>
+                <th className="p-2 border">Zaplaceno (Kč)</th>
+                <th className="p-2 border">Předpis (Kč)</th>
+                <th className="p-2 border">Poznámka</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((row, i) => (
+                <tr key={i}>
+                  <td className="border p-1">{`${row.month}.${row.year}`}</td>
+                  <td className="border p-1">{row.paid_amount}</td>
+                  <td className="border p-1">{row.total_due}</td>
+                  <td className="border p-1">{row.note ?? ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <div className="mt-4 text-sm text-gray-500">
         <strong>Poznámka:</strong> Zálohy jsou součtem všech plateb za sledované období. Pokud má nájemník dluh, můžeš ho vyznačit přepsáním záloh nebo doplnit zvláštní položku.<br />
         Pokud položka nebyla účtovaná v některých měsících, je to vyznačeno ikonou 🛈.
@@ -306,4 +333,3 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     </div>
   );
 }
-
