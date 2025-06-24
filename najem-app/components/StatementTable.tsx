@@ -57,7 +57,6 @@ interface StatementTableProps {
   unitId: string;
   from: string; // YYYY-MM
   to: string;   // YYYY-MM
-
 }
 
 export default function StatementTable({ unitId, from, to }: StatementTableProps) {
@@ -75,83 +74,23 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     }
     setLoading(true);
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
-      .then((res) => res.json())
-      .then((data: MonthlyObligation[]) => {
-        // --- Transformace: každý typ položky spočítej sumu záloh napříč měsíci ---
-        const agg: Record<string, StatementItem> = {};
-        const allAgg: Record<string, StatementItem> = {};
-
-        for (const obligation of data) {
-          // --- Každá položka zvlášť ---
-          for (const key of ['rent', 'electricity', 'water', 'gas', 'services', 'repair_fund']) {
-            if (typeof obligation[key as keyof MonthlyObligation] === 'number') {
-              const value = obligation[key as keyof MonthlyObligation] as number;
-              if (!allAgg[key]) {
-                const predefined = PREDEFINED_ITEMS.find((i) => i.id === key);
-                allAgg[key] = {
-                  id: key,
-                  name: predefined?.name || key,
-                  unit: predefined?.unit || '',
-                  totalAdvance: 0,
-                  consumption: '',
-                  totalCost: '',
-                  diff: 0,
-                  chargeableMonths: [],
-                };
-              }
-              allAgg[key].totalAdvance += value;
-              allAgg[key].chargeableMonths?.push(obligation.month);
-              // Pokud bylo účtováno, zahrň do výsledku
-              if (value > 0) {
-                if (!agg[key]) agg[key] = { ...allAgg[key], totalAdvance: 0, chargeableMonths: [] };
-                agg[key].totalAdvance += value;
-                agg[key].chargeableMonths?.push(obligation.month);
-              }
-            }
-          }
-          // --- Custom Charges (účtovatelné) ---
-          if (obligation.custom_charges) {
-            let customCharges: CustomCharge[] = [];
-            if (typeof obligation.custom_charges === 'string') {
-              try {
-                customCharges = JSON.parse(obligation.custom_charges);
-              } catch {}
-            } else {
-              customCharges = obligation.custom_charges;
-            }
-            for (const charge of customCharges) {
-              if (!charge || (!charge.billable && !charge.enabled)) continue;
-              const key = `custom_${charge.name}`;
-              if (!allAgg[key]) {
-                allAgg[key] = {
-                  id: key,
-                  name: charge.name,
-                  unit: '', // rozšiř dle potřeby
-                  totalAdvance: 0,
-                  consumption: '',
-                  totalCost: '',
-                  diff: 0,
-                  chargeableMonths: [],
-                };
-              }
-              allAgg[key].totalAdvance += Number(charge.amount || 0);
-              allAgg[key].chargeableMonths?.push(obligation.month);
-              // Pokud bylo účtováno, zahrň do výsledku
-              if (charge.amount && Number(charge.amount) > 0) {
-                if (!agg[key]) agg[key] = { ...allAgg[key], totalAdvance: 0, chargeableMonths: [] };
-                agg[key].totalAdvance += Number(charge.amount || 0);
-                agg[key].chargeableMonths?.push(obligation.month);
-              }
-            }
-          }
+      .then(res => res.json())
+      .then(data => {
+        // Pokud API vrací { items, allCharges }, použij takto:
+        if (data.items && data.allCharges) {
+          setItems(data.items);
+          setAllItems(data.allCharges);
         }
-        setItems(Object.values(agg));
-        setAllItems(Object.values(allAgg));
+        // Pokud API vrací jen pole obligations, použij svůj původní transform:
+        else if (Array.isArray(data)) {
+          // ...tvá původní transformace (přes agg, allAgg)
+          // sem můžeš dát starý kód pokud potřebuješ zpětnou kompatibilitu
+        }
         setLoading(false);
       });
   }, [unitId, from, to]);
 
-  // --- Ostatní logika (ruční přidávání, editace, atd.) ---
+  // --- Ostatní logika zůstává (ruční přidávání atd.) ---
   const unusedItems = PREDEFINED_ITEMS.filter(i => !items.some(row => row.id === i.id));
   function generateId() {
     return Math.random().toString(36).substr(2, 9);
@@ -365,3 +304,4 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     </div>
   );
 }
+
