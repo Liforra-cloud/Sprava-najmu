@@ -3,6 +3,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// --- Lokální typ pro custom poplatek + type guard ---
+type CustomCharge = {
+  name: string
+  amount: number
+  enabled: boolean
+}
+function isCustomCharge(x: any): x is CustomCharge {
+  return (
+    x !== null &&
+    typeof x === 'object' &&
+    typeof x.name === 'string' &&
+    typeof x.amount === 'number' &&
+    typeof x.enabled === 'boolean'
+  )
+}
+
 function parseYm(ym: string) {
   const [year, month] = ym.split('-').map(Number)
   return { year, month }
@@ -42,13 +58,13 @@ export async function GET(req: NextRequest) {
   const fromObj = parseYm(from)
   const toObj = parseYm(to)
 
-  // najdi všechny lease pro danou jednotku
+  // 1) Načti všechny lease pro danou jednotku
   const leases = await prisma.lease.findMany({
     where: { unit_id: unitId }
   })
   const leaseIds = leases.map(l => l.id)
 
-  // načti obligations v rozmezí
+  // 2) Načti všechny monthlyObligation v daném období
   const obligations = await prisma.monthlyObligation.findMany({
     where: {
       lease_id: { in: leaseIds },
@@ -60,9 +76,10 @@ export async function GET(req: NextRequest) {
     }
   })
 
+  // 3) Vygeneruj seznam měsíců
   const months = getMonthsInRange(fromObj, toObj)
 
-  // definice standardních poplatků
+  // 4) Definice standardních poplatků
   const chargeKeys = [
     { id: 'rent',         label: 'Nájem',       flag: 'rent_amount' },
     { id: 'electricity',  label: 'Elektřina',   flag: 'monthly_electricity' },
@@ -72,13 +89,15 @@ export async function GET(req: NextRequest) {
     { id: 'repair_fund',  label: 'Fond oprav',  flag: 'repair_fund' }
   ]
 
-  // 1) Standardní poplatky – pivot tabulka
+  // 5) Pivot pro standardní poplatky
   const matrixData = chargeKeys.map(key => {
+    // pro každý měsíc buď částka, nebo prázdný string
     const values = months.map(({ month, year }) => {
       const o = obligations.find(x => x.month === month && x.year === year)
       const flags = o?.charge_flags as Record<string, boolean> | null
       return o && flags && flags[key.flag] ? o.paid_amount : ''
     })
+    // součet jen čísel
     const total = values.reduce<number>(
       (acc, val) => acc + (typeof val === 'number' ? val : 0),
       0
@@ -91,22 +110,27 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // 2) Custom poplatky – všechny unikátní názvy
-  const customNames = Array.from(
-    new Set(
-      obligations.flatMap(o => {
-        const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
-        return arr.filter(c => c.enabled).map(c => c.name)
-      })
-    )
-  )
+  // 6) Vypiš všechny názvy custom poplatků, které jsou enabled
+  const allCustomNames = obligations.flatMap(o => {
+    const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
+    // nejdřív zúžit jen na CustomCharge s enabled=true
+    return arr
+      .filter(isCustomCharge)
+      .filter(c => c.enabled)
+      .map(c => c.name)
+  })
+  const customNames = Array.from(new Set(allCustomNames))
 
+  // 7) Pivot pro custom poplatky
   const customMatrix = customNames.map(name => {
     const values = months.map(({ month, year }) => {
       const o = obligations.find(x => x.month === month && x.year === year)
       if (!o) return ''
       const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
-      const found = arr.find(c => c.name === name && c.enabled)
+      // najdi charge s daným názvem a enabled
+      const found = arr
+        .filter(isCustomCharge)
+        .find(c => c.name === name && c.enabled)
       return found ? found.amount : ''
     })
     const total = values.reduce<number>(
@@ -121,6 +145,7 @@ export async function GET(req: NextRequest) {
     }
   })
 
+  // 8) Vrať JSON pro frontend
   return NextResponse.json({
     paymentsMatrix: {
       months,
