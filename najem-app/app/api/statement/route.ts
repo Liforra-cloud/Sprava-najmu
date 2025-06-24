@@ -3,115 +3,93 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Všechny typy poplatků, které můžeš účtovat (podle modelu)
-const CHARGE_TYPES = [
-  { key: 'rent', name: 'Nájemné' },
-  { key: 'water', name: 'Voda' },
-  { key: 'gas', name: 'Plyn' },
-  { key: 'electricity', name: 'Elektřina' },
-  { key: 'services', name: 'Služby' },
-  { key: 'repair_fund', name: 'Fond oprav' },
-  // Přidej vlastní custom_charges, pokud máš v DB
-]
-
-// Typ pro jednu položku ve výstupu
-type CustomCharge = {
-  id: string
-  month: string
-  type: string
-  label: string
-  amount: number
-  obligationId: string
-  leaseId: string
+// Pomocná funkce na převod YYYY-MM na {rok, měsíc}
+function parseYm(ym: string) {
+  const [year, month] = ym.split('-').map(Number)
+  return { year, month }
 }
 
 export async function GET(req: NextRequest) {
-  const unitId = req.nextUrl.searchParams.get('unitId')
-  const from = req.nextUrl.searchParams.get('from') // '2025-01'
-  const to = req.nextUrl.searchParams.get('to')
+  const url = new URL(req.url)
+  const unitId = url.searchParams.get('unitId')
+  const from = url.searchParams.get('from')    // '2024-01'
+  const to = url.searchParams.get('to')        // '2024-12'
 
   if (!unitId || !from || !to) {
-    return NextResponse.json({ error: 'Chybí parametr' }, { status: 400 })
+    return NextResponse.json({ error: 'unitId, from, to jsou povinné parametry' }, { status: 400 })
   }
 
-  // Najdi všechny lease pro jednotku (unit)
+  const fromObj = parseYm(from)
+  const toObj = parseYm(to)
+
+  // Najdi všechny leases pro jednotku v daném období
   const leases = await prisma.lease.findMany({
-    where: { unit_id: unitId },
-    select: { id: true }
+    where: { unit_id: unitId }
   })
-
   const leaseIds = leases.map(l => l.id)
-  if (!leaseIds.length) {
-    return NextResponse.json({ items: [], allCharges: [] })
-  }
 
-  // Parsování měsíců
-  const [fromYear, fromMonth] = from.split('-').map(Number)
-  const [toYear, toMonth] = to.split('-').map(Number)
-
-  // Všechny obligations pro lease + období
-  const obligations = await prisma.monthlyObligation.findMany({
+  // Najdi všechny monthly_obligations pro dané leases a období
+  const obligations = await prisma.monthlyObligations.findMany({
     where: {
       lease_id: { in: leaseIds },
       OR: [
-        { year: fromYear, month: { gte: fromMonth } },
-        { year: toYear, month: { lte: toMonth } },
-        { year: { gt: fromYear, lt: toYear } },
+        {
+          year: fromObj.year,
+          month: { gte: fromObj.month }
+        },
+        {
+          year: toObj.year,
+          month: { lte: toObj.month }
+        },
+        {
+          year: { gt: fromObj.year, lt: toObj.year }
+        }
       ]
-    },
-    orderBy: [{ year: 'asc' }, { month: 'asc' }]
-  })
-
-  // Udělej tabulku pouze účtovaných poplatků (kde je něco účtováno)
-  const chargedObligations = obligations.flatMap((ob) => {
-    // TS fix: ob je typ Record<string, unknown>
-    const record = ob as Record<string, unknown>;
-    return CHARGE_TYPES
-      .filter(ct => typeof record[ct.key] === 'number' && (record[ct.key] as number) > 0)
-      .map(ct => ({
-        id: ob.id + '-' + ct.key,
-        month: `${ob.year}-${ob.month.toString().padStart(2, '0')}`,
-        type: ct.key,
-        label: ct.name,
-        amount: record[ct.key] as number,
-        obligationId: ob.id,
-        leaseId: ob.lease_id,
-      }))
-  })
-
-  // Tabulka všech poplatků, i těch nezaúčtovaných (aby šly přidat)
-  const allCharges: CustomCharge[] = [];
-  for (const ob of obligations) {
-    const record = ob as Record<string, unknown>;
-    for (const ct of CHARGE_TYPES) {
-      allCharges.push({
-        id: ob.id + '-' + ct.key,
-        month: `${ob.year}-${ob.month.toString().padStart(2, '0')}`,
-        type: ct.key,
-        label: ct.name,
-        amount: typeof record[ct.key] === 'number' ? (record[ct.key] as number) : 0,
-        obligationId: ob.id,
-        leaseId: ob.lease_id,
-      })
     }
-  }
-
-  return NextResponse.json({ items: chargedObligations, allCharges })
-}
-
-export async function POST(req: NextRequest) {
-  const body = await req.json()
-  // Očekává: { obligationId, type, amount }
-  const { obligationId, type, amount } = body
-  if (!obligationId || !type) {
-    return NextResponse.json({ error: 'Neplatná data' }, { status: 400 })
-  }
-
-  // Update MonthlyObligation: např. { rent: 10000 }
-  const updated = await prisma.monthlyObligation.update({
-    where: { id: obligationId },
-    data: { [type]: amount }
   })
 
-  return NextResponse.json({ ok: true, updated })
+  // Sečti zálohy podle zaplacených částek (paid_amount)
+  const totalPaid = obligations.reduce((sum, o) => sum + (o.paid_amount || 0), 0)
+
+  // Můžeš udělat výstup pro StatementTable, např. po položkách:
+  // (Nájem, Elektřina, Voda, Plyn, Služby, Fond oprav, ... případně custom)
+  const items = [
+    { id: 'advance_paid', name: 'Celkem zaplacené zálohy', totalAdvance: totalPaid, unit: 'Kč', totalCost: '', diff: 0 }
+  ]
+
+  // Pokud chceš rozpad podle typu záloh:
+  const sumBy = (key: string) => obligations.reduce((sum, o) => sum + (o[key] || 0), 0)
+  const advanceItems = [
+    {
+      id: 'rent',
+      name: 'Nájem',
+      totalAdvance: sumBy('rent'),
+      paid: obligations.reduce((sum, o) => sum + ((o.charge_flags?.rent_amount ? o.paid_amount : 0) || 0), 0),
+      unit: 'Kč'
+    },
+    {
+      id: 'electricity',
+      name: 'Elektřina',
+      totalAdvance: sumBy('electricity'),
+      paid: obligations.reduce((sum, o) => sum + ((o.charge_flags?.monthly_electricity ? o.paid_amount : 0) || 0), 0),
+      unit: 'Kč'
+    },
+    {
+      id: 'water',
+      name: 'Voda',
+      totalAdvance: sumBy('water'),
+      paid: obligations.reduce((sum, o) => sum + ((o.charge_flags?.monthly_water ? o.paid_amount : 0) || 0), 0),
+      unit: 'Kč'
+    },
+    // ... další položky
+  ]
+
+  // Skutečné náklady za období (můžeš přidat podle dat - záleží jak je eviduješ)
+  // Pokud máš třeba ve fakturách nebo custom_charges, doplň zde!
+
+  // Vrať data ve formátu pro StatementTable
+  return NextResponse.json({
+    items: advanceItems,
+    allCharges: advanceItems, // Pokud máš rozšířené položky
+  })
 }
