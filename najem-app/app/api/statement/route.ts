@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// --- Lokální typ pro custom poplatek + type guard ---
+// --- Typ pro custom poplatek + type guard ---
 type CustomCharge = {
   name: string
   amount: number
@@ -61,9 +61,13 @@ export async function GET(req: NextRequest) {
   const fromObj = parseYm(from)
   const toObj = parseYm(to)
 
-  const leases = await prisma.lease.findMany({ where: { unit_id: unitId } })
+  // 1) Načti všechny lease pro danou jednotku
+  const leases = await prisma.lease.findMany({
+    where: { unit_id: unitId }
+  })
   const leaseIds = leases.map(l => l.id)
 
+  // 2) Načti všechny monthly_obligations v zadaném období
   const obligations = await prisma.monthlyObligation.findMany({
     where: {
       lease_id: { in: leaseIds },
@@ -75,8 +79,10 @@ export async function GET(req: NextRequest) {
     }
   })
 
+  // 3) Vygeneruj seznam měsíců od–do
   const months = getMonthsInRange(fromObj, toObj)
 
+  // 4) Definice přednastavených poplatků
   const chargeKeys = [
     { id: 'rent',        label: 'Nájem',      flag: 'rent_amount' },
     { id: 'electricity', label: 'Elektřina',  flag: 'monthly_electricity' },
@@ -86,21 +92,23 @@ export async function GET(req: NextRequest) {
     { id: 'repair_fund', label: 'Fond oprav', flag: 'repair_fund' }
   ]
 
-  // Standardní poplatky pivot
+  // 5) Pivot pro standardní poplatky — teď bereme přímo o[key.id]
   const matrixData = chargeKeys.map(key => {
     const values = months.map(({ month, year }) => {
       const o = obligations.find(x => x.month === month && x.year === year)
       const flags = o?.charge_flags as Record<string, boolean> | null
-      return o && flags && flags[key.flag] ? o.paid_amount : ''
+      if (!o || !flags || !flags[key.flag]) return ''
+      const val = (o as any)[key.id]
+      return typeof val === 'number' ? val : ''
     })
     const total = values.reduce<number>(
-      (a, b) => a + (typeof b === 'number' ? b : 0),
+      (sum, v) => sum + (typeof v === 'number' ? v : 0),
       0
     )
     return { id: key.id, name: key.label, values, total }
   })
 
-  // Custom poplatky pivot
+  // 6) Pivot pro custom poplatky
   const allCustomNames = obligations.flatMap(o => {
     const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
     return arr.filter(isCustomCharge).filter(c => c.enabled).map(c => c.name)
@@ -116,12 +124,13 @@ export async function GET(req: NextRequest) {
       return found ? found.amount : ''
     })
     const total = values.reduce<number>(
-      (a, b) => a + (typeof b === 'number' ? b : 0),
+      (sum, v) => sum + (typeof v === 'number' ? v : 0),
       0
     )
     return { id: name, name, values, total }
   })
 
+  // 7) Odpověď pro frontend
   return NextResponse.json({
     paymentsMatrix: {
       months,
