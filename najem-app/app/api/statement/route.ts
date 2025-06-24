@@ -3,7 +3,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Pomocná funkce na převod YYYY-MM na {rok, měsíc}
 function parseYm(ym: string) {
   const [year, month] = ym.split('-').map(Number)
   return { year, month }
@@ -22,13 +21,11 @@ export async function GET(req: NextRequest) {
   const fromObj = parseYm(from)
   const toObj = parseYm(to)
 
-  // Najdi všechny leases pro jednotku v daném období
   const leases = await prisma.lease.findMany({
     where: { unit_id: unitId }
   })
   const leaseIds = leases.map(l => l.id)
 
-  // Najdi všechny monthly_obligation pro dané leases a období
   const obligations = await prisma.monthlyObligation.findMany({
     where: {
       lease_id: { in: leaseIds },
@@ -48,7 +45,6 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // Funkce na součet zaplacených záloh (paid_amount) pouze za měsíce s aktivním flagem (název flagu např. 'rent_amount')
   const sumPaid = (flag: string) =>
     obligations
       .filter(o => {
@@ -57,7 +53,6 @@ export async function GET(req: NextRequest) {
       })
       .reduce((sum, o) => sum + (o.paid_amount || 0), 0);
 
-  // Funkce na pole měsíců, kdy byl daný flag aktivní
   const monthsWithFlag = (flag: string) =>
     obligations
       .filter(o => {
@@ -66,7 +61,6 @@ export async function GET(req: NextRequest) {
       })
       .map(o => o.month);
 
-  // Sestav položky pro StatementTable
   const advanceItems = [
     {
       id: 'rent',
@@ -89,11 +83,24 @@ export async function GET(req: NextRequest) {
       unit: 'Kč',
       chargeableMonths: monthsWithFlag('monthly_water'),
     },
-    // ... případně další položky
+    // ... další položky
   ]
+
+  // Výpis všech plateb v období (přehled všech monthly_obligation)
+  const payments = obligations.map(o => ({
+    month: o.month,
+    year: o.year,
+    paid_amount: o.paid_amount,
+    total_due: o.total_due,
+    note: o.note,
+    // pro případný detail
+    custom_charges: o.custom_charges,
+    charge_flags: o.charge_flags
+  }));
 
   return NextResponse.json({
     items: advanceItems,
     allCharges: advanceItems,
+    payments,
   })
 }
