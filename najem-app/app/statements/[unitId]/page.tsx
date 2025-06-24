@@ -10,7 +10,7 @@ export default function StatementUnitPage({ params }: { params: { unitId: string
   const { unitId } = params
   const searchParams = useSearchParams()
 
-  // Default období: tento rok
+  // Výchozí období: aktuální rok
   const now = new Date()
   const defaultFrom = `${now.getFullYear()}-01`
   const defaultTo = `${now.getFullYear()}-12`
@@ -24,4 +24,3 @@ export default function StatementUnitPage({ params }: { params: { unitId: string
     </div>
   )
 }
-
