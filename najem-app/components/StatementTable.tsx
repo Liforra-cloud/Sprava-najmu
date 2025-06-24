@@ -12,25 +12,6 @@ type CustomCharge = {
   enabled?: boolean;
 };
 
-type MonthlyObligation = {
-  id: string;
-  lease_id: string;
-  year: number;
-  month: number;
-  rent: number;
-  water: number;
-  gas: number;
-  electricity: number;
-  services: number;
-  repair_fund: number;
-  total_due: number;
-  paid_amount: number;
-  debt: number;
-  note?: string;
-  custom_charges?: CustomCharge[] | string;
-  charge_flags?: Record<string, boolean>;
-};
-
 type Payment = {
   month: number;
   year: number;
@@ -88,16 +69,11 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => res.json())
       .then(data => {
-        // pivotní matice z API
         const matrix = data.paymentsMatrix;
-        const months = matrix.months;        // { month, year }[]
         const rows: { id: string; name: string; values: (number | '')[]; total: number }[] = matrix.data;
 
-        // sestavím StatementItem z pivotu
         const all: StatementItem[] = rows.map(r => {
-          // jednotka podle id, fallback na Kč
           const unit = PREDEFINED_ITEMS.find(i => i.id === r.id)?.unit || 'Kč';
-          // chargeableMonths: indexy měsíců (1-based)
           const chargeableMonths = r.values
             .map((v, idx) => (typeof v === 'number' ? idx + 1 : null))
             .filter((m): m is number => m !== null);
@@ -115,18 +91,17 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
           };
         });
 
-        // vyberu jen ty, co mají nějaké chargeableMonths
         const preselected = all.filter(item => item.chargeableMonths.length > 0);
 
         setItems(preselected);
         setAllItems(all);
-        setPayments([]);  // pokud API vrátí payments, použijte data.payments
-        setLoading(false);
+        setPayments([]);  // nebo: setPayments(data.payments || [])
       })
-      .catch(() => setLoading(false));
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, [unitId, from, to]);
 
-  // --- zbytek logiky (přidávání, mazání, přepočet) beze změny ---
+  // --- Přidávání, mazání, recalc, update ---
   const unusedItems = PREDEFINED_ITEMS.filter(i => !items.some(row => row.id === i.id));
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -190,6 +165,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-8">
       <h1 className="text-2xl font-bold mb-2">Vyúčtování za období</h1>
 
+      {/* Tabulka účtovaných položek */}
       <table className="min-w-full border">
         <thead>
           <tr className="bg-gray-100">
@@ -287,16 +263,14 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
         </tbody>
       </table>
 
+      {/* Možné položky k přidání */}
       <div className="mt-6">
-        <h2 className="font-semibold mb-2">Možné položky k přidání</h2>
         <div className="flex gap-2 flex-wrap">
           {unusedItems.length > 0 && (
             <div>
               <label>Přidat existující položku: </label>
               <select
-                onChange={e => {
-                  if (e.target.value) addItem(e.target.value);
-                }}
+                onChange={e => e.target.value && addItem(e.target.value)}
                 defaultValue=""
                 className="border rounded p-1"
               >
@@ -309,16 +283,10 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
               </select>
             </div>
           )}
-          <button
-            onClick={() => addItem()}
-            className="bg-blue-600 text-white px-3 py-1 rounded"
-          >
+          <button onClick={() => addItem()} className="bg-blue-600 text-white px-3 py-1 rounded">
             Přidat novou položku
           </button>
-          <button
-            onClick={recalcDiffs}
-            className="bg-green-700 text-white px-3 py-1 rounded"
-          >
+          <button onClick={recalcDiffs} className="bg-green-700 text-white px-3 py-1 rounded">
             Přepočítat přeplatky/nedoplatky
           </button>
         </div>
@@ -327,13 +295,15 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
           <ul className="grid grid-cols-2 gap-x-4 list-disc ml-4">
             {allItems.map(row => (
               <li key={row.id}>
-                {row.name}: <b>{row.totalAdvance}</b> {row.unit} (účtováno v {row.chargeableMonths.length} měsících)
+                {row.name}: <b>{row.totalAdvance}</b> {row.unit} (
+                účtováno v {row.chargeableMonths.length} měsících)
               </li>
             ))}
           </ul>
         </div>
       </div>
 
+      {/* Platby */}
       {payments.length > 0 && (
         <div className="mt-8">
           <h2 className="font-semibold mb-2">Všechny platby v období</h2>
@@ -361,7 +331,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
       )}
 
       <div className="mt-4 text-sm text-gray-500">
-        <strong>Poznámka:</strong> Zálohy jsou součtem všech plateb za sledované období. Pokud má nájemník dluh, můžeš ho vyznačit přepsáním záloh nebo doplnit zvláštní položku.
+        <strong>Poznámka:</strong> Zálohy jsou součtem všech plateb za sledované období. Pokud má nájemník dluh, můžete ho vyznačit přepsáním záloh nebo doplněním položky.
       </div>
     </div>
   );
