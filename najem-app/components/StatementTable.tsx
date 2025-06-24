@@ -29,8 +29,8 @@ type MonthlyObligation = {
   custom_charges?: CustomCharge[] | string;
   charge_flags?: Record<string, boolean>;
 };
-
-void MonthlyObligation; // <<––– jen tohle je potřeba přidat kvůli ESLint
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _MonthlyObligationEslintFix = MonthlyObligation;
 
 export type StatementItem = {
   id: string;
