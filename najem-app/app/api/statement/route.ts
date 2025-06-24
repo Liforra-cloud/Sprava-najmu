@@ -48,8 +48,8 @@ function getMonthsInRange(
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const unitId = url.searchParams.get('unitId')
-  const from = url.searchParams.get('from')
-  const to = url.searchParams.get('to')
+  const from   = url.searchParams.get('from')
+  const to     = url.searchParams.get('to')
 
   if (!unitId || !from || !to) {
     return NextResponse.json(
@@ -59,30 +59,33 @@ export async function GET(req: NextRequest) {
   }
 
   const fromObj = parseYm(from)
-  const toObj = parseYm(to)
+  const toObj   = parseYm(to)
 
-  // 1) Načti všechny lease pro danou jednotku
-  const leases = await prisma.lease.findMany({
-    where: { unit_id: unitId }
-  })
+  // 1) Všechny lease pro dané unit
+  const leases = await prisma.lease.findMany({ where: { unit_id: unitId } })
   const leaseIds = leases.map(l => l.id)
 
-  // 2) Načti všechny monthly_obligations v zadaném období
+  // 2) Všechny monthly_obligation v období
   const obligations = await prisma.monthlyObligation.findMany({
     where: {
       lease_id: { in: leaseIds },
       OR: [
-        { year: fromObj.year, month: { gte: fromObj.month } },
-        { year: toObj.year,   month: { lte: toObj.month } },
+        { year: fromObj.year,               month: { gte: fromObj.month } },
+        { year: toObj.year,                 month: { lte: toObj.month } },
         { year: { gt: fromObj.year, lt: toObj.year } }
       ]
     }
   })
 
-  // 3) Vygeneruj seznam měsíců od–do
+  // 3) Všechny uživatelské přepisy z statementEntry
+  const overrides = await prisma.statementEntry.findMany({
+    where: { lease_id: { in: leaseIds } }
+  })
+
+  // 4) Seznam měsíců
   const months = getMonthsInRange(fromObj, toObj)
 
-  // 4) Definice přednastavených poplatků
+  // 5) Definice standardních poplatků
   const chargeKeys = [
     { id: 'rent',        label: 'Nájem',      flag: 'rent_amount' },
     { id: 'electricity', label: 'Elektřina',  flag: 'monthly_electricity' },
@@ -92,37 +95,33 @@ export async function GET(req: NextRequest) {
     { id: 'repair_fund', label: 'Fond oprav', flag: 'repair_fund' }
   ]
 
-  // 5) Pivot pro standardní poplatky — bereme přímo hodnotu příslušného pole
+  // 6) Pivot pro standardní poplatky s aplikací override
   const matrixData = chargeKeys.map(key => {
-    const values = months.map(({ month, year }) => {
-      const o = obligations.find(x => x.month === month && x.year === year)
+    const values = months.map(({ year, month }) => {
+      // základní hodnota
+      const o = obligations.find(x => x.year === year && x.month === month)
       const flags = o?.charge_flags as Record<string, boolean> | null
-      if (!o || !flags || !flags[key.flag]) return ''
-
-      let val: number
-      switch (key.id) {
-        case 'rent':
-          val = o.rent
-          break
-        case 'electricity':
-          val = o.electricity
-          break
-        case 'water':
-          val = o.water
-          break
-        case 'gas':
-          val = o.gas
-          break
-        case 'services':
-          val = o.services
-          break
-        case 'repair_fund':
-          val = o.repair_fund
-          break
-        default:
-          val = 0
+      let base = ''
+      if (o && flags && flags[key.flag]) {
+        base = (() => {
+          switch (key.id) {
+            case 'rent':        return o.rent
+            case 'electricity': return o.electricity
+            case 'water':       return o.water
+            case 'gas':         return o.gas
+            case 'services':    return o.services
+            case 'repair_fund': return o.repair_fund
+            default:            return 0
+          }
+        })()
       }
-      return val
+      // hledám override
+      const ov = overrides.find(e =>
+        e.charge_id   === key.id &&
+        e.year        === year    &&
+        e.month       === month
+      )
+      return ov?.override_val ?? base
     })
 
     const total = values.reduce<number>(
@@ -130,15 +129,10 @@ export async function GET(req: NextRequest) {
       0
     )
 
-    return {
-      id: key.id,
-      name: key.label,
-      values,
-      total
-    }
+    return { id: key.id, name: key.label, values, total }
   })
 
-  // 6) Pivot pro custom poplatky
+  // 7) Pivot pro custom poplatky s override
   const allCustomNames = obligations.flatMap(o => {
     const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
     return arr.filter(isCustomCharge).filter(c => c.enabled).map(c => c.name)
@@ -146,32 +140,35 @@ export async function GET(req: NextRequest) {
   const customNames = Array.from(new Set(allCustomNames))
 
   const customMatrix = customNames.map(name => {
-    const values = months.map(({ month, year }) => {
-      const o = obligations.find(x => x.month === month && x.year === year)
-      if (!o) return ''
-      const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
-      const found = arr.filter(isCustomCharge).find(c => c.name === name && c.enabled)
-      return found ? found.amount : ''
+    const values = months.map(({ year, month }) => {
+      const o = obligations.find(x => x.year === year && x.month === month)
+      let base = ''
+      if (o) {
+        const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
+        const found = arr.filter(isCustomCharge).find(c => c.name === name && c.enabled)
+        base = found ? found.amount : ''
+      }
+      const ov = overrides.find(e =>
+        e.charge_id === name &&
+        e.year      === year &&
+        e.month     === month
+      )
+      return ov?.override_val ?? base
     })
-
     const total = values.reduce<number>(
       (sum, v) => sum + (typeof v === 'number' ? v : 0),
       0
     )
-
-    return {
-      id: name,
-      name,
-      values,
-      total
-    }
+    return { id: name, name, values, total }
   })
 
-  // 7) Vrať JSON pro frontend
+  // 8) Vracím matici + raw overrides (pro front-end merge/poznámky)
   return NextResponse.json({
     paymentsMatrix: {
       months,
       data: [...matrixData, ...customMatrix]
-    }
+    },
+    overrides
   })
 }
+
