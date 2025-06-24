@@ -37,12 +37,12 @@ type PaymentsMatrix = {
 export type StatementItem = {
   id: string;
   name: string;
-  totalAdvance: number;       // součet záloh
-  consumption: number | '';   // spotřeba za období
+  totalAdvance: number;
+  consumption: number | '';
   unit: string;
-  totalCost: number | '';     // skutečné náklady celkem
-  diff: number;               // přeplatek/nedoplatek
-  chargeableMonths: number[]; // čísla měsíců, kdy byla položka účtovaná
+  totalCost: number | '';
+  diff: number;
+  chargeableMonths: number[];
   note?: string;
   manual?: boolean;
 };
@@ -65,7 +65,6 @@ interface StatementTableProps {
 export default function StatementTable({ unitId, from, to }: StatementTableProps) {
   const [matrix, setMatrix] = useState<PaymentsMatrix | null>(null);
   const [items, setItems] = useState<StatementItem[]>([]);
-  const [allItems, setAllItems] = useState<StatementItem[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [months, setMonths] = useState<{ month: number; year: number }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,13 +79,11 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => res.json())
       .then((data: { paymentsMatrix: PaymentsMatrix; payments?: Payment[] }) => {
-        // Pivotní matice obligations
         const pm = data.paymentsMatrix;
         setMatrix(pm);
         setMonths(pm.months);
 
-        // Vytvořím StatementItem z pivotu
-        const all: StatementItem[] = pm.data.map((r: MatrixRow) => {
+        const all: StatementItem[] = pm.data.map(r => {
           const unit = PREDEFINED_ITEMS.find(i => i.id === r.id)?.unit ?? 'Kč';
           const chargeableMonths = r.values
             .map((v, idx) => (typeof v === 'number' ? idx + 1 : null))
@@ -103,16 +100,14 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
             manual: false,
           };
         });
-        setAllItems(all);
-        setItems(all.filter(i => i.chargeableMonths.length > 0));
 
+        setItems(all.filter(i => i.chargeableMonths.length > 0));
         setPayments(data.payments ?? []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [unitId, from, to]);
 
-  // Pivot plateb podle poznámky
   const paymentLabels = Array.from(new Set(payments.map(p => p.note ?? 'Platba')));
   const paymentRows = paymentLabels.map(label => {
     const values = months.map(({ month, year }) => {
@@ -123,8 +118,6 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     return { label, values, total };
   });
 
-  // Logika přidávání, mazání, úprav
-  const unusedItems = PREDEFINED_ITEMS.filter(i => !items.some(r => r.id === i.id));
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
   const addItem = (itemId?: string) => {
@@ -178,10 +171,8 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
 
   return (
     <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-8">
-
       <h1 className="text-2xl font-bold">Vyúčtování za období</h1>
 
-      {/* --- Přehled položek jako pivot (řádky = poplatky, sloupce = měsíce) */}
       {matrix && (
         <div>
           <h2 className="font-semibold mb-2">Souhrn poplatků</h2>
@@ -198,13 +189,11 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
               </tr>
             </thead>
             <tbody>
-              {matrix.data.map((r: MatrixRow) => (
+              {matrix.data.map(r => (
                 <tr key={r.id}>
                   <td className="border p-1 font-medium">{r.name}</td>
                   {r.values.map((v, i) => (
-                    <td key={i} className="border p-1 text-center">
-                      {v !== '' ? v : ''}
-                    </td>
+                    <td key={i} className="border p-1 text-center">{v !== '' ? v : ''}</td>
                   ))}
                   <td className="border p-1 text-center font-bold">{r.total}</td>
                 </tr>
@@ -214,7 +203,6 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
         </div>
       )}
 
-      {/* --- Stávající tabulka pro dohledávky / editace (items) --- */}
       <table className="min-w-full border text-sm">
         <thead className="bg-gray-100">
           <tr>
@@ -249,7 +237,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
                 onChange={e => updateItem(item.id,'totalCost',e.target.value)}
                 className="w-full border rounded px-1" min={0} /></td>
               <td className="border text-center">
-                <span className={ item.diff>0?'text-green-700 font-bold': item.diff<0?'text-red-700 font-bold':'' }>
+                <span className={item.diff>0?'text-green-700 font-bold': item.diff<0?'text-red-700 font-bold':''}>
                   {item.diff>0?'+':''}{item.diff}
                 </span>
               </td>
@@ -262,8 +250,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
         </tbody>
       </table>
 
-      {/* --- Soupis plateb podle typu --- */}
-      {paymentRows.length>0 && (
+      {paymentRows.length > 0 && (
         <div>
           <h2 className="font-semibold mt-6 mb-2">Soupis plateb</h2>
           <table className="min-w-full border text-sm">
@@ -293,14 +280,9 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
         </div>
       )}
 
-      {/* --- Ovládací prvky a souhrny --- */}
-      <div className="mt-6">
-        <button onClick={() => addItem()} className="bg-blue-600 text-white px-3 py-1 rounded mr-2">
-          Přidat novou položku
-        </button>
-        <button onClick={recalcDiffs} className="bg-green-700 text-white px-3 py-1 rounded">
-          Přepočítat Δ
-        </button>
+      <div className="mt-6 flex gap-2">
+        <button onClick={() => addItem()} className="bg-blue-600 text-white px-3 py-1 rounded">Přidat položku</button>
+        <button onClick={recalcDiffs} className="bg-green-700 text-white px-3 py-1 rounded">Přepočítat Δ</button>
       </div>
     </div>
   );
