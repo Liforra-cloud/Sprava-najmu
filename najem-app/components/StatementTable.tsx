@@ -1,5 +1,6 @@
 // components/StatementTable.tsx
 
+
 'use client';
 import { useEffect, useState } from 'react';
 
@@ -29,8 +30,6 @@ type MonthlyObligation = {
   custom_charges?: CustomCharge[] | string;
   charge_flags?: Record<string, boolean>;
 };
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _MonthlyObligationEslintFix = MonthlyObligation;
 
 type Payment = {
   month: number;
@@ -42,7 +41,6 @@ type Payment = {
   charge_flags?: Record<string, boolean>;
 };
 
-
 export type StatementItem = {
   id: string;
   name: string;
@@ -51,7 +49,7 @@ export type StatementItem = {
   unit: string;
   totalCost: number | '';       // skutečné náklady celkem
   diff: number;                 // přeplatek/nedoplatek
-  chargeableMonths?: number[];  // čísla měsíců kdy byla položka účtovaná
+  chargeableMonths: number[];   // čísla měsíců kdy byla položka účtovaná
   note?: string;
   manual?: boolean;
 };
@@ -77,7 +75,6 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // --- Načti data z API ---
   useEffect(() => {
     if (!unitId) {
       setItems([]);
@@ -87,35 +84,63 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
       return;
     }
     setLoading(true);
+
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => res.json())
       .then(data => {
-     if (data.allCharges) {
-       // Předvyber jen StatementItem, které mají chargeableMonths (tj. účtovat)
-       const all: StatementItem[] = data.allCharges;
-       const preselected = all.filter((charge: StatementItem) =>
-         Array.isArray(charge.chargeableMonths) && charge.chargeableMonths.length > 0
-       );
-       setItems(preselected);
-       setAllItems(all);
-       setPayments(data.payments || []);
-     }
-        // Pokud API vrací jen pole obligations, použij svůj původní transform:
-        else if (Array.isArray(data)) {
-          // ...tvá původní transformace (přes agg, allAgg)
-        }
+        // pivotní matice z API
+        const matrix = data.paymentsMatrix;
+        const months = matrix.months;        // { month, year }[]
+        const rows: { id: string; name: string; values: (number | '')[]; total: number }[] = matrix.data;
+
+        // sestavím StatementItem z pivotu
+        const all: StatementItem[] = rows.map(r => {
+          // jednotka podle id, fallback na Kč
+          const unit = PREDEFINED_ITEMS.find(i => i.id === r.id)?.unit || 'Kč';
+          // chargeableMonths: indexy měsíců (1-based)
+          const chargeableMonths = r.values
+            .map((v, idx) => (typeof v === 'number' ? idx + 1 : null))
+            .filter((m): m is number => m !== null);
+
+          return {
+            id: r.id,
+            name: r.name,
+            totalAdvance: r.total,
+            consumption: '',
+            unit,
+            totalCost: '',
+            diff: 0,
+            chargeableMonths,
+            manual: false,
+          };
+        });
+
+        // vyberu jen ty, co mají nějaké chargeableMonths
+        const preselected = all.filter(item => item.chargeableMonths.length > 0);
+
+        setItems(preselected);
+        setAllItems(all);
+        setPayments([]);  // pokud API vrátí payments, použijte data.payments
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, [unitId, from, to]);
 
-  // --- Ostatní logika zůstává (ruční přidávání atd.) ---
+  // --- zbytek logiky (přidávání, mazání, přepočet) beze změny ---
   const unusedItems = PREDEFINED_ITEMS.filter(i => !items.some(row => row.id === i.id));
-  function generateId() {
-    return Math.random().toString(36).substr(2, 9);
-  }
+  const generateId = () => Math.random().toString(36).substr(2, 9);
+
   const addItem = (itemId?: string) => {
     let base: StatementItem = {
-      id: generateId(), name: '', totalAdvance: 0, consumption: '', unit: '', totalCost: '', diff: 0, chargeableMonths: [], manual: true
+      id: generateId(),
+      name: '',
+      totalAdvance: 0,
+      consumption: '',
+      unit: '',
+      totalCost: '',
+      diff: 0,
+      chargeableMonths: [],
+      manual: true,
     };
     if (itemId) {
       const found = PREDEFINED_ITEMS.find(i => i.id === itemId);
@@ -123,20 +148,21 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     }
     setItems(arr => [...arr, base]);
   };
-  const deleteItem = (id: string) => {
-    setItems(arr => arr.filter(item => item.id !== id));
-  };
+
+  const deleteItem = (id: string) => setItems(arr => arr.filter(item => item.id !== id));
+
   const recalcDiffs = () => {
     setItems(arr =>
       arr.map(item => ({
         ...item,
         diff:
           typeof item.totalCost === 'number' && typeof item.totalAdvance === 'number'
-            ? (item.totalAdvance ?? 0) - (item.totalCost ?? 0)
+            ? item.totalAdvance - item.totalCost
             : 0,
       }))
     );
   };
+
   const updateItem = (id: string, field: keyof StatementItem, value: string | number) => {
     setItems(arr =>
       arr.map(item =>
@@ -147,12 +173,9 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
               ...(field === 'totalCost' || field === 'totalAdvance'
                 ? {
                     diff:
-                      (typeof (field === 'totalCost' ? item.totalAdvance : value) === 'number' &&
-                        typeof (field === 'totalCost' ? value : item.totalCost) === 'number')
-                        ? (field === 'totalCost'
-                            ? (item.totalAdvance as number) - (value as number)
-                            : (value as number) - (item.totalCost as number))
-                        : 0,
+                      field === 'totalCost'
+                        ? (item.totalAdvance as number) - Number(value)
+                        : Number(value) - (item.totalCost as number),
                   }
                 : {}),
             }
@@ -167,7 +190,6 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-8">
       <h1 className="text-2xl font-bold mb-2">Vyúčtování za období</h1>
 
-      {/* Tabulka jen účtovaných položek */}
       <table className="min-w-full border">
         <thead>
           <tr className="bg-gray-100">
@@ -247,10 +269,9 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
                 </span>
               </td>
               <td className="border text-center text-xs">
-                {item.chargeableMonths && item.chargeableMonths.length
+                {item.chargeableMonths.length
                   ? `${item.chargeableMonths.length} / 12`
                   : ''}
-                {item.note && <span title={item.note} className="ml-1 text-gray-500">🛈</span>}
               </td>
               <td className="border text-center">
                 <button
@@ -266,7 +287,6 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
         </tbody>
       </table>
 
-      {/* Pod tabulkou - všechny možné položky, které můžeš přidat */}
       <div className="mt-6">
         <h2 className="font-semibold mb-2">Možné položky k přidání</h2>
         <div className="flex gap-2 flex-wrap">
@@ -281,9 +301,9 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
                 className="border rounded p-1"
               >
                 <option value="">-- vyberte --</option>
-                {unusedItems.map(item => (
-                  <option key={item?.id ?? ''} value={item?.id ?? ''}>
-                    {item?.name ?? ''}
+                {unusedItems.map(i => (
+                  <option key={i.id} value={i.id}>
+                    {i.name}
                   </option>
                 ))}
               </select>
@@ -302,20 +322,18 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
             Přepočítat přeplatky/nedoplatky
           </button>
         </div>
-        {/* Přehled všech (účtovaných i neúčtovaných) pod tabulkou */}
         <div className="mt-4 text-sm">
           <b>Přehled všech poplatků za období:</b>
           <ul className="grid grid-cols-2 gap-x-4 list-disc ml-4">
             {allItems.map(row => (
               <li key={row.id}>
-                {row.name}: <b>{row.totalAdvance}</b> {row.unit} (účtováno v {row.chargeableMonths?.length ?? 0} měsících)
+                {row.name}: <b>{row.totalAdvance}</b> {row.unit} (účtováno v {row.chargeableMonths.length} měsících)
               </li>
             ))}
           </ul>
         </div>
       </div>
 
-      {/* Výpis všech plateb za období */}
       {payments.length > 0 && (
         <div className="mt-8">
           <h2 className="font-semibold mb-2">Všechny platby v období</h2>
@@ -343,8 +361,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
       )}
 
       <div className="mt-4 text-sm text-gray-500">
-        <strong>Poznámka:</strong> Zálohy jsou součtem všech plateb za sledované období. Pokud má nájemník dluh, můžeš ho vyznačit přepsáním záloh nebo doplnit zvláštní položku.<br />
-        Pokud položka nebyla účtovaná v některých měsících, je to vyznačeno ikonou 🛈.
+        <strong>Poznámka:</strong> Zálohy jsou součtem všech plateb za sledované období. Pokud má nájemník dluh, můžeš ho vyznačit přepsáním záloh nebo doplnit zvláštní položku.
       </div>
     </div>
   );
