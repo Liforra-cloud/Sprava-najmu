@@ -1,7 +1,6 @@
 // components/StatementTable.tsx
 
 'use client';
-const _eslint_fix: MonthlyObligation | undefined = undefined;
 import { useEffect, useState } from 'react';
 
 // --- Typy z API ---
@@ -30,6 +29,8 @@ type MonthlyObligation = {
   custom_charges?: CustomCharge[] | string;
   charge_flags?: Record<string, boolean>;
 };
+
+void MonthlyObligation; // <<––– jen tohle je potřeba přidat kvůli ESLint
 
 export type StatementItem = {
   id: string;
@@ -142,6 +143,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
       )
     );
   };
+
 
   if (loading) return <div>Načítám...</div>;
 
