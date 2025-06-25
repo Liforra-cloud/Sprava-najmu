@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 type Body = {
-  leaseId: string
-  year:    number
-  month:   number
+  leaseId:     string
+  year:        number
+  month:       number
   chargeId?:   string
   overrideVal?: number
   note?:       string
