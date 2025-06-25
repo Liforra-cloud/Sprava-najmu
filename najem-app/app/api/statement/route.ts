@@ -3,42 +3,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// --- Typ pro custom poplatek + type guard ---
-type CustomCharge = {
-  name:    string
-  amount:  number
-  enabled: boolean
-}
-function isCustomCharge(x: unknown): x is CustomCharge {
-  return (
-    typeof x === 'object' &&
-    x !== null &&
-    'name' in x &&
-    typeof (x as Record<string, unknown>).name === 'string' &&
-    'amount' in x &&
-    typeof (x as Record<string, unknown>).amount === 'number' &&
-    'enabled' in x &&
-    typeof (x as Record<string, unknown>).enabled === 'boolean'
-  )
-}
-
-// --- Typ pro uživatelské přepisy ---
 type Override = {
   leaseId:     string
   year:        number
   month:       number
-  chargeId:    string
+  chargeId:    string    // id poplatku, nebo '' pro poznámku
   overrideVal?: number
   note?:       string
 }
 
-// --- Parsování YYYY-MM ---
 function parseYm(ym: string) {
   const [year, month] = ym.split('-').map(Number)
   return { year, month }
 }
 
-// --- Generování seznamu měsíců v období ---
 function getMonthsInRange(
   fromObj: { year: number; month: number },
   toObj:   { year: number; month: number }
@@ -70,11 +48,11 @@ export async function GET(req: NextRequest) {
     const fromObj = parseYm(from)
     const toObj   = parseYm(to)
 
-    // 1) Načti lease pro unit
+    // 1) Find leases
     const leases   = await prisma.lease.findMany({ where: { unit_id: unitId } })
     const leaseIds = leases.map(l => l.id)
 
-    // 2) Načti monthlyObligation
+    // 2) Find obligations
     const obligations = await prisma.monthlyObligation.findMany({
       where: {
         lease_id: { in: leaseIds },
@@ -86,15 +64,24 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    // 3) Načti uživatelské přepisy (camelCase!: leaseId, chargeId, overrideVal)
-    const overrides = await prisma.statementEntry.findMany({
-      where: { leaseId: { in: leaseIds } }
-    }) as Override[]
+    // 3) Find raw overrides (snake_case fields)
+    const rawOverrides = await prisma.statementEntry.findMany({
+      where: { lease_id: { in: leaseIds } }
+    })
+    // 4) Map to camelCase `Override[]`
+    const overrides: Override[] = rawOverrides.map(o => ({
+      leaseId:     o.lease_id,
+      year:        o.year,
+      month:       o.month,
+      chargeId:    o.charge_id,
+      overrideVal: o.override_val ?? undefined,
+      note:        o.note       ?? undefined,
+    }))
 
-    // 4) Sestav seznam měsíců
+    // 5) Months list
     const months = getMonthsInRange(fromObj, toObj)
 
-    // 5) Definice standardních poplatků
+    // 6) Pivot standardních poplatků + override
     const chargeKeys = [
       { id: 'rent',         label: 'Nájem',      flag: 'rent_amount' },
       { id: 'electricity',  label: 'Elektřina',  flag: 'monthly_electricity' },
@@ -104,7 +91,6 @@ export async function GET(req: NextRequest) {
       { id: 'repair_fund',  label: 'Fond oprav', flag: 'repair_fund' }
     ]
 
-    // 6) Pivot standardních poplatků + override
     const matrixData = chargeKeys.map(key => {
       const values = months.map(({ year, month }) => {
         const o     = obligations.find(x => x.year === year && x.month === month)
@@ -134,7 +120,7 @@ export async function GET(req: NextRequest) {
       return { id: key.id, name: key.label, values, total }
     })
 
-    // 7) Pivot custom poplatků + override
+    // 7) Pivot custom charges + override, obdobně jako výše...
     const allCustomNames = obligations.flatMap(o => {
       const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
       return arr.filter(isCustomCharge).filter(c => c.enabled).map(c => c.name)
@@ -155,14 +141,16 @@ export async function GET(req: NextRequest) {
         )
         return ov?.overrideVal ?? base
       })
-
       const total = values.reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0)
       return { id: name, name, values, total }
     })
 
-    // 8) Vrať JSON
+    // 8) Return
     return NextResponse.json({
-      paymentsMatrix: { months, data: [...matrixData, ...customMatrix] },
+      paymentsMatrix: {
+        months,
+        data: [...matrixData, ...customMatrix]
+      },
       overrides
     })
   }
