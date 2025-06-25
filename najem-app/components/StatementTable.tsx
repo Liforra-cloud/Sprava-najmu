@@ -18,18 +18,17 @@ type PaymentsMatrix = {
   data: MatrixRow[];
 };
 
-// Override z back-endu
 type Override = {
-  lease_id: string;
-  year: number;
-  month: number;
-  charge_id: string;     // id poplatku nebo '' pro poznámku
-  override_val?: number; // pokud je definováno, přepíše hodnotu
-  note?: string;         // pokud je definováno, je to poznámka měsíce
+  lease_id:    string;
+  year:        number;
+  month:       number;
+  charge_id:   string;      // id poplatku, nebo '' pro poznámku
+  override_val?: number;    // přepsaná částka
+  note?:        string;     // poznámka pro měsíc
 };
 
-type CellKey = `${number}-${number}-${string}`; // "YYYY-MM-id"
-type MonthKey = `${number}-${number}`;          // "YYYY-MM"
+type CellKey  = `${number}-${number}-${string}`; // "YYYY-MM-id"
+type MonthKey = `${number}-${number}`;            // "YYYY-MM"
 
 export type StatementItem = {
   id: string;
@@ -54,8 +53,8 @@ const PREDEFINED_ITEMS = [
 
 interface StatementTableProps {
   unitId: string;
-  from: string; // YYYY-MM
-  to:   string; // YYYY-MM
+  from:   string; // YYYY-MM
+  to:     string; // YYYY-MM
 }
 
 ///////////////////////////
@@ -63,12 +62,10 @@ interface StatementTableProps {
 ///////////////////////////
 
 export default function StatementTable({ unitId, from, to }: StatementTableProps) {
-  const [matrix, setMatrix]       = useState<PaymentsMatrix | null>(null);
-  const [items, setItems]         = useState<StatementItem[]>([]);
-  const [months, setMonths]       = useState<{ month: number; year: number }[]>([]);
-  const [loading, setLoading]     = useState(true);
-
-  // upravené hodnoty a poznámky
+  const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null);
+  const [months,      setMonths]      = useState<PaymentsMatrix['months']>([]);
+  const [items,       setItems]       = useState<StatementItem[]>([]);
+  const [loading,     setLoading]     = useState(true);
   const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({});
   const [monthNotes,  setMonthNotes]  = useState<Record<MonthKey, string>>({});
 
@@ -81,17 +78,14 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
 
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => res.json())
-      .then((data: {
-        paymentsMatrix: PaymentsMatrix;
-        overrides: Override[];
-      }) => {
+      .then((data: { paymentsMatrix: PaymentsMatrix; overrides: Override[] }) => {
         const pm        = data.paymentsMatrix;
         const overrides = data.overrides;
         setMatrix(pm);
         setMonths(pm.months);
 
-        // 2a) Horní tabulka: StatementItems (jen ty s chargeableMonths)
-        const all: StatementItem[] = pm.data.map(r => {
+        // 1) Horní tabulka: StatementItems
+        const allItems: StatementItem[] = pm.data.map(r => {
           const unit = PREDEFINED_ITEMS.find(i => i.id === r.id)?.unit ?? 'Kč';
           const chargeableMonths = r.values
             .map((v, idx) => (typeof v === 'number' ? idx+1 : null))
@@ -108,37 +102,31 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
             manual: false,
           };
         });
-        setItems(all.filter(i => i.chargeableMonths.length > 0));
+        setItems(allItems.filter(i => i.chargeableMonths.length > 0));
 
-        // 2b) Inicializace pivotValues s přepsáním overrides
+        // 2) Inicializace pivotValues (s uplatněním override_val)
         const pv: Record<CellKey, number | ''> = {};
         pm.data.forEach(r => {
           pm.months.forEach(m => {
-            const base = r.values[ pm.months.findIndex(x => x.year===m.year && x.month===m.month) ];
-            const key  = `${m.year}-${m.month}-${r.id}` as CellKey;
-            // hledám override_val
+            const baseIdx = pm.months.findIndex(x => x.year===m.year && x.month===m.month);
+            const base    = r.values[baseIdx];
+            const key     = `${m.year}-${m.month}-${r.id}` as CellKey;
             const ov = overrides.find(o =>
-              o.charge_id === r.id &&
-              o.year      === m.year &&
-              o.month     === m.month
+              o.charge_id===r.id && o.year===m.year && o.month===m.month
             );
             pv[key] = ov?.override_val ?? base;
           });
         });
         setPivotValues(pv);
 
-        // 2c) Inicializace monthNotes z overrides
+        // 3) Inicializace monthNotes z overrides.note
         const mn: Record<MonthKey,string> = {};
         pm.months.forEach(m => {
-          const key = `${m.year}-${m.month}` as MonthKey;
-          // hledám první note override pro ten měsíc
+          const mk = `${m.year}-${m.month}` as MonthKey;
           const ov = overrides.find(o =>
-            o.charge_id === '' &&
-            o.year      === m.year &&
-            o.month     === m.month &&
-            typeof o.note === 'string'
+            o.charge_id==='' && o.year===m.year && o.month===m.month && typeof o.note==='string'
           );
-          mn[key] = ov?.note ?? '';
+          mn[mk] = ov?.note ?? '';
         });
         setMonthNotes(mn);
       })
@@ -147,7 +135,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
   }, [unitId, from, to]);
 
   ///////////////////////////
-  // Handlery pro buňky
+  // 3) Handlery ukládání
   ///////////////////////////
 
   const onPivotChange = (year: number, month: number, id: string, v: string) => {
@@ -157,8 +145,9 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
   const onPivotBlur = (year: number, month: number, id: string) => {
     const key = `${year}-${month}-${id}` as CellKey;
     const val = pivotValues[key] === '' ? 0 : pivotValues[key];
-    fetch('/api/statement/new', { // nebo /api/statement/entry
+    fetch('/api/statement/new', {
       method: 'PATCH',
+      headers: { 'Content-Type':'application/json' },
       body: JSON.stringify({
         leaseId: unitId,
         year, month,
@@ -176,6 +165,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     const key = `${year}-${month}` as MonthKey;
     fetch('/api/statement/new', {
       method: 'PATCH',
+      headers: { 'Content-Type':'application/json' },
       body: JSON.stringify({
         leaseId: unitId,
         year, month,
@@ -186,72 +176,101 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
   };
 
   ///////////////////////////
-  // Zbytek (horní tabulka) — beze změny
+  // 4) Render
   ///////////////////////////
 
-  const generateId = () => Math.random().toString(36).substr(2,9);
-  const addItem    = (itemId?: string) => { /* ... */ };
-  const deleteItem = (id: string) => { /* ... */ };
-  const recalcDiffs= () => { /* ... */ };
-  const updateItem = (i: string, f: keyof StatementItem, v: any) => { /* ... */ };
-
   if (loading) return <div>Načítám…</div>;
+  if (!matrix) return <div>Chyba načtení dat</div>;
 
   return (
     <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-8">
-      {/* … horní tabulka … */}
+      <h1 className="text-2xl font-bold">Vyúčtování za období</h1>
 
-      {/* 2) Dolní tabulka */}
-      {matrix && (
-        <div>
-          <h2 className="font-semibold mt-8 mb-2">Rozpis nákladů po měsících</h2>
-          <table className="min-w-full border text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border">Měsíc/Rok</th>
-                {matrix.data.map(r => (
-                  <th key={r.id} className="p-2 border text-center">{r.name}</th>
-                ))}
-                <th className="p-2 border">Poznámka</th>
+      {/* --- Horní tabulka: agregované položky --- */}
+      <table className="min-w-full border text-sm">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="p-2 border">Název</th>
+            <th className="p-2 border">Zálohy</th>
+            <th className="p-2 border">Spotřeba</th>
+            <th className="p-2 border">Jednotka</th>
+            <th className="p-2 border">Náklady</th>
+            <th className="p-2 border">Δ</th>
+            <th className="p-2 border">Měsíců</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.length === 0
+            ? <tr><td colSpan={7} className="text-center py-2 text-gray-500">Žádné položky</td></tr>
+            : items.map(item => (
+              <tr key={item.id}>
+                <td className="border p-1">{item.name}</td>
+                <td className="border p-1">{item.totalAdvance}</td>
+                <td className="border p-1">{item.consumption}</td>
+                <td className="border p-1">{item.unit}</td>
+                <td className="border p-1">{item.totalCost}</td>
+                <td className="border text-center">
+                  <span className={
+                    item.diff>0?'text-green-700 font-bold':
+                    item.diff<0?'text-red-700 font-bold':''}
+                  >
+                    {item.diff>0?'+':''}{item.diff}
+                  </span>
+                </td>
+                <td className="border text-center">{item.chargeableMonths.length} / {months.length}</td>
               </tr>
-            </thead>
-            <tbody>
-              {months.map(m => {
-                const mk = `${m.year}-${m.month}` as MonthKey;
-                return (
-                  <tr key={mk}>
-                    <td className="border p-1">{`${String(m.month).padStart(2,'0')}/${m.year}`}</td>
-                    {matrix.data.map(r => {
-                      const ck = `${m.year}-${m.month}-${r.id}` as CellKey;
-                      return (
-                        <td key={ck} className="border p-1">
-                          <input
-                            type="number"
-                            value={pivotValues[ck]}
-                            onChange={e => onPivotChange(m.year,m.month,r.id,e.target.value)}
-                            onBlur={()   => onPivotBlur(m.year,m.month,r.id)}
-                            className="w-full text-center"
-                            min={0}
-                          />
-                        </td>
-                      );
-                    })}
-                    <td className="border p-1">
-                      <textarea
-                        value={monthNotes[mk]}
-                        onChange={e => onNoteChange(m.year,m.month,e.target.value)}
-                        onBlur={()   => onNoteBlur(m.year,m.month)}
-                        className="w-full border rounded px-1 py-1"
-                        rows={2}
+            ))
+          }
+        </tbody>
+      </table>
+
+      {/* --- Dolní tabulka: rozpis po měsících --- */}
+      <h2 className="font-semibold mt-6 mb-2">Rozpis nákladů po měsících</h2>
+      <table className="min-w-full border text-sm">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="p-2 border">Měsíc/Rok</th>
+            {matrix.data.map(r => (
+              <th key={r.id} className="p-2 border text-center">{r.name}</th>
+            ))}
+            <th className="p-2 border">Poznámka</th>
+          </tr>
+        </thead>
+        <tbody>
+          {months.map(m => {
+            const mk = `${m.year}-${m.month}` as MonthKey;
+            return (
+              <tr key={mk}>
+                <td className="border p-1">{`${String(m.month).padStart(2,'0')}/${m.year}`}</td>
+                {matrix.data.map(r => {
+                  const ck = `${m.year}-${m.month}-${r.id}` as CellKey;
+                  return (
+                    <td key={ck} className="border p-1">
+                      <input
+                        type="number"
+                        value={pivotValues[ck]}
+                        onChange={e => onPivotChange(m.year,m.month,r.id,e.target.value)}
+                        onBlur={()   => onPivotBlur(m.year,m.month,r.id)}
+                        className="w-full text-center"
+                        min={0}
                       />
                     </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  );
+                })}
+                <td className="border p-1">
+                  <textarea
+                    value={monthNotes[mk]}
+                    onChange={e => onNoteChange(m.year,m.month,e.target.value)}
+                    onBlur={()   => onNoteBlur(m.year,m.month)}
+                    className="w-full border rounded px-1 py-1"
+                    rows={2}
+                  />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
