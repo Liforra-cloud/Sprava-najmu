@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
       // základní hodnota
       const o = obligations.find(x => x.year === year && x.month === month)
       const flags = o?.charge_flags as Record<string, boolean> | null
-      let base = ''
+      let base: number | '' = ''
       if (o && flags && flags[key.flag]) {
         base = (() => {
           switch (key.id) {
@@ -117,9 +117,9 @@ export async function GET(req: NextRequest) {
       }
       // hledám override
       const ov = overrides.find(e =>
-        e.charge_id   === key.id &&
-        e.year        === year    &&
-        e.month       === month
+        e.charge_id === key.id &&
+        e.year      === year    &&
+        e.month     === month
       )
       return ov?.override_val ?? base
     })
@@ -142,7 +142,7 @@ export async function GET(req: NextRequest) {
   const customMatrix = customNames.map(name => {
     const values = months.map(({ year, month }) => {
       const o = obligations.find(x => x.year === year && x.month === month)
-      let base = ''
+      let base: number | '' = ''
       if (o) {
         const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
         const found = arr.filter(isCustomCharge).find(c => c.name === name && c.enabled)
@@ -171,4 +171,3 @@ export async function GET(req: NextRequest) {
     overrides
   })
 }
-
