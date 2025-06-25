@@ -14,21 +14,21 @@ function isCustomCharge(x: unknown): x is CustomCharge {
     typeof x === 'object' &&
     x !== null &&
     'name' in x &&
-    typeof (x as any).name === 'string' &&
+    typeof (x as Record<string, unknown>).name === 'string' &&
     'amount' in x &&
-    typeof (x as any).amount === 'number' &&
+    typeof (x as Record<string, unknown>).amount === 'number' &&
     'enabled' in x &&
-    typeof (x as any).enabled === 'boolean'
+    typeof (x as Record<string, unknown>).enabled === 'boolean'
   )
 }
 
 // --- Typ pro uživatelské přepisy ---
 type Override = {
-  leaseId:     string   // <- camelCase!
+  leaseId:     string
   year:        number
   month:       number
-  chargeId:    string   // <- camelCase!
-  overrideVal?: number   // <- camelCase!
+  chargeId:    string
+  overrideVal?: number
   note?:       string
 }
 
@@ -38,7 +38,7 @@ function parseYm(ym: string) {
   return { year, month }
 }
 
-// --- Generátor seznamu měsíců v rozmezí ---
+// --- Generování seznamu měsíců v období ---
 function getMonthsInRange(
   fromObj: { year: number; month: number },
   toObj:   { year: number; month: number }
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
     const fromObj = parseYm(from)
     const toObj   = parseYm(to)
 
-    // 1) Načti lease
+    // 1) Načti lease pro unit
     const leases   = await prisma.lease.findMany({ where: { unit_id: unitId } })
     const leaseIds = leases.map(l => l.id)
 
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    // 3) Načti uživatelské přepisy — note the camelCase here!
+    // 3) Načti uživatelské přepisy (camelCase!: leaseId, chargeId, overrideVal)
     const overrides = await prisma.statementEntry.findMany({
       where: { leaseId: { in: leaseIds } }
     }) as Override[]
@@ -94,21 +94,22 @@ export async function GET(req: NextRequest) {
     // 4) Sestav seznam měsíců
     const months = getMonthsInRange(fromObj, toObj)
 
-    // 5) Definice přednastavených poplatků
+    // 5) Definice standardních poplatků
     const chargeKeys = [
-      { id: 'rent',         label: 'Nájem',       flag: 'rent_amount' },
-      { id: 'electricity',  label: 'Elektřina',   flag: 'monthly_electricity' },
-      { id: 'water',        label: 'Voda',        flag: 'monthly_water' },
-      { id: 'gas',          label: 'Plyn',        flag: 'monthly_gas' },
-      { id: 'services',     label: 'Služby',      flag: 'monthly_services' },
-      { id: 'repair_fund',  label: 'Fond oprav',  flag: 'repair_fund' }
+      { id: 'rent',         label: 'Nájem',      flag: 'rent_amount' },
+      { id: 'electricity',  label: 'Elektřina',  flag: 'monthly_electricity' },
+      { id: 'water',        label: 'Voda',       flag: 'monthly_water' },
+      { id: 'gas',          label: 'Plyn',       flag: 'monthly_gas' },
+      { id: 'services',     label: 'Služby',     flag: 'monthly_services' },
+      { id: 'repair_fund',  label: 'Fond oprav', flag: 'repair_fund' }
     ]
 
-    // 6) Pivot standardních poplatků + aplikace override
+    // 6) Pivot standardních poplatků + override
     const matrixData = chargeKeys.map(key => {
       const values = months.map(({ year, month }) => {
         const o     = obligations.find(x => x.year === year && x.month === month)
         const flags = o?.charge_flags as Record<string, boolean> | null
+
         let base: number | '' = ''
         if (o && flags && flags[key.flag]) {
           base = (() => {
@@ -122,12 +123,14 @@ export async function GET(req: NextRequest) {
             }
           })()
         }
+
         const ov = overrides.find(e =>
           e.chargeId === key.id && e.year === year && e.month === month
         )
         return ov?.overrideVal ?? base
       })
-      const total = values.reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0)
+
+      const total = values.reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0)
       return { id: key.id, name: key.label, values, total }
     })
 
@@ -152,11 +155,12 @@ export async function GET(req: NextRequest) {
         )
         return ov?.overrideVal ?? base
       })
-      const total = values.reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0)
+
+      const total = values.reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0)
       return { id: name, name, values, total }
     })
 
-    // 8) Pošlu zpátky
+    // 8) Vrať JSON
     return NextResponse.json({
       paymentsMatrix: { months, data: [...matrixData, ...customMatrix] },
       overrides
