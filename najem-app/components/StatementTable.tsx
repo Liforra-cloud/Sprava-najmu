@@ -15,8 +15,8 @@ type PaymentsMatrix = {
   data:   MatrixRow[]
 }
 
-type CellKey  = `${number}-${number}-${string}`  // "2025-03-rent"
-type MonthKey = `${number}-${number}`            // "2025-03"
+type CellKey  = `${number}-${number}-${string}`
+type MonthKey = `${number}-${number}`
 
 export default function StatementTable({
   unitId,
@@ -29,7 +29,6 @@ export default function StatementTable({
 }) {
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
   const [months,      setMonths]      = useState<PaymentsMatrix['months']>([])
-  const [items,       setItems]       = useState<any[]>([])  // upravte podle potřeby
   const [loading,     setLoading]     = useState(true)
   const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
   const [monthNotes,  setMonthNotes]  = useState<Record<MonthKey, string>>({})
@@ -47,25 +46,13 @@ export default function StatementTable({
         setMatrix(pm)
         setMonths(pm.months)
 
-        // horní tabulka – jen příklad, upravte podle skutečného typu
-        setItems(pm.data.map(r => ({
-          id: r.id,
-          name: r.name,
-          totalAdvance: r.total,
-          consumption: '',
-          unit: '',
-          totalCost: '',
-          diff: 0,
-          chargeableMonths: [],
-        })))
-
-        // pivotní hodnoty + overrides
+        // init pivot + overrides
         const pv: Record<CellKey, number | ''> = {}
         pm.data.forEach(r => {
           pm.months.forEach(m => {
             const key = `${m.year}-${m.month}-${r.id}` as CellKey
-            const baseIdx = pm.months.findIndex(x => x.year === m.year && x.month === m.month)
-            const base = r.values[baseIdx]
+            const idx = pm.months.findIndex(x => x.year === m.year && x.month === m.month)
+            const base = r.values[idx]
             const ov = data.overrides.find(o =>
               o.leaseId === unitId &&
               o.chargeId === r.id &&
@@ -77,8 +64,8 @@ export default function StatementTable({
         })
         setPivotValues(pv)
 
-        // poznámky
-        const mn: Record<MonthKey, string> = {}
+        // init notes
+        const mn: Record<MonthKey,string> = {}
         pm.months.forEach(m => {
           const mk = `${m.year}-${m.month}` as MonthKey
           const ov = data.overrides.find(o =>
@@ -98,7 +85,6 @@ export default function StatementTable({
   if (loading) return <div>Načítám…</div>
   if (!matrix) return <div>Chyba načtení dat</div>
 
-  // ukládací handlery
   const saveCell = (year:number, month:number, id:string) => {
     const key = `${year}-${month}-${id}` as CellKey
     const val = pivotValues[key] === '' ? 0 : pivotValues[key]
@@ -120,7 +106,8 @@ export default function StatementTable({
   return (
     <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-8">
       <h1 className="text-2xl font-bold">Vyúčtování za období</h1>
-      {/* Vaše tabulky zde... */}
+
+      <h2 className="font-semibold mt-6 mb-2">Rozpis nákladů po měsících</h2>
       <table className="min-w-full border text-sm">
         <thead className="bg-gray-100">
           <tr>
@@ -160,7 +147,7 @@ export default function StatementTable({
                   <textarea
                     rows={2}
                     value={monthNotes[mk]}
-                    onChange={e => setMonthNotes(mn => ({ ...mn, [mk]: e.target.value }))}
+                    onChange={e => setMonthNotes(n => ({ ...n, [mk]: e.target.value }))}
                     onBlur={() => saveNote(m.year, m.month)}
                     className="w-full border rounded px-1 py-1"
                   />
