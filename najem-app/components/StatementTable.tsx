@@ -34,9 +34,9 @@ export type StatementItem = {
   id:              string
   name:            string
   totalAdvance:    number
-  consumption:     number | string   // ← změna zde
+  consumption:     number | string
   unit:            string
-  totalCost:       number | string   // ← i zde
+  totalCost:       number | string
   diff:            number
   chargeableMonths:number[]
   manual?:         boolean
@@ -96,9 +96,9 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
             id:             r.id,
             name:           r.name,
             totalAdvance:   r.total,
-            consumption:    '',       // ← nyní OK, string i number
+            consumption:    '',
             unit,
-            totalCost:      '',       // ← též
+            totalCost:      '',
             diff:           0,
             chargeableMonths,
             manual:         false
@@ -250,7 +250,9 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
             const mk = `${m.year}-${m.month}` as MonthKey
             return (
               <tr key={mk}>
-                <td className="border p-1">{`${String(m.month).padStart(2,'0')}/${m.year}`}</td>
+                <td className="border p-1">
+                  {`${String(m.month).padStart(2,'0')}/${m.year}`}
+                </td>
                 {matrix.data.map(r => {
                   const ck = `${m.year}-${m.month}-${r.id}` as CellKey
                   return (
@@ -283,4 +285,3 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
     </div>
   )
 }
-
