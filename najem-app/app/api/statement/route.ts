@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// --- Typ pro custom poplatek + type guard ---
+// --- Typy ---
 type CustomCharge = {
   name: string
   amount: number
@@ -20,6 +20,15 @@ function isCustomCharge(x: unknown): x is CustomCharge {
     'enabled' in x &&
     typeof (x as Record<string, unknown>).enabled === 'boolean'
   )
+}
+
+type Override = {
+  lease_id:    string
+  year:        number
+  month:       number
+  charge_id:   string    // id poplatku, nebo '' pro poznámku
+  override_val?: number
+  note?:      string
 }
 
 function parseYm(ym: string) {
@@ -58,36 +67,31 @@ export async function GET(req: NextRequest) {
     const fromObj = parseYm(from)
     const toObj   = parseYm(to)
 
-    // 1) Všechny lease pro dané unit
+    // 1) Načíst lease
     const leases   = await prisma.lease.findMany({ where: { unit_id: unitId } })
     const leaseIds = leases.map(l => l.id)
 
-    // 2) Všechny monthly_obligation v období
+    // 2) Načíst monthly_obligation
     const obligations = await prisma.monthlyObligation.findMany({
       where: {
         lease_id: { in: leaseIds },
         OR: [
-          { year: fromObj.year, month: { gte: fromObj.month } },
-          { year: toObj.year,   month: { lte: toObj.month } },
+          { year: fromObj.year,               month: { gte: fromObj.month } },
+          { year: toObj.year,                 month: { lte: toObj.month } },
           { year: { gt: fromObj.year, lt: toObj.year } }
         ]
       }
     })
 
-    // 3) Všechny uživatelské přepisy (může to padnout, tak ošetříme)
-    let overrides = []
-    try {
-      overrides = await prisma.statementEntry.findMany({
-        where: { lease_id: { in: leaseIds } }
-      })
-    } catch(err) {
-      console.error('Nelze načíst statementEntry:', err)
-    }
+    // 3) Načíst statementEntry jako Override[]
+    const overrides = (await prisma.statementEntry.findMany({
+      where: { lease_id: { in: leaseIds } }
+    })) as Override[]
 
-    // 4) Seznam měsíců
+    // 4) Sestavit seznam měsíců
     const months = getMonthsInRange(fromObj, toObj)
 
-    // 5) Definice standardních poplatků
+    // 5) Definice klíčů
     const chargeKeys = [
       { id: 'rent',        label: 'Nájem',      flag: 'rent_amount' },
       { id: 'electricity', label: 'Elektřina',  flag: 'monthly_electricity' },
@@ -97,7 +101,7 @@ export async function GET(req: NextRequest) {
       { id: 'repair_fund', label: 'Fond oprav', flag: 'repair_fund' }
     ]
 
-    // 6) Pivot pro standardní poplatky s override
+    // 6) Pivot standardních poplatků
     const matrixData = chargeKeys.map(key => {
       const values = months.map(({ year, month }) => {
         const o     = obligations.find(x => x.year === year && x.month === month)
@@ -118,22 +122,20 @@ export async function GET(req: NextRequest) {
           })()
         }
 
-        const ov = overrides.find((e: any) =>
-          e.charge_id === key.id &&
-          e.year      === year    &&
-          e.month     === month
+        const ov = overrides.find(o =>
+          o.charge_id === key.id && o.year === year && o.month === month
         )
         return ov?.override_val ?? base
       })
 
-      const total = values.reduce<number>(
+      const total = values.reduce(
         (sum, v) => sum + (typeof v === 'number' ? v : 0),
         0
       )
       return { id: key.id, name: key.label, values, total }
     })
 
-    // 7) Pivot pro custom poplatky
+    // 7) Pivot custom poplatků
     const allCustomNames = obligations.flatMap(o => {
       const arr = Array.isArray(o.custom_charges) ? o.custom_charges : []
       return arr.filter(isCustomCharge).filter(c => c.enabled).map(c => c.name)
@@ -149,28 +151,26 @@ export async function GET(req: NextRequest) {
           const found = arr.filter(isCustomCharge).find(c => c.name === name && c.enabled)
           base = found ? found.amount : ''
         }
-        const ov = overrides.find((e: any) =>
-          e.charge_id === name &&
-          e.year      === year &&
-          e.month     === month
+        const ov = overrides.find(o =>
+          o.charge_id === name && o.year === year && o.month === month
         )
         return ov?.override_val ?? base
       })
 
-      const total = values.reduce<number>(
+      const total = values.reduce(
         (sum, v) => sum + (typeof v === 'number' ? v : 0),
         0
       )
       return { id: name, name, values, total }
     })
 
-    // 8) Vracím JSON
+    // 8) Vrátit JSON
     return NextResponse.json({
       paymentsMatrix: { months, data: [...matrixData, ...customMatrix] },
       overrides
     })
   }
-  catch(err) {
+  catch (err) {
     console.error('Chyba v /api/statement:', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
