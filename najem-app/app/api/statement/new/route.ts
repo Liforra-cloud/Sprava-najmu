@@ -1,9 +1,11 @@
 // app/api/statements/new/route.ts
+
+// app/api/statements/new/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(req: NextRequest) {
-  const { propertyId, unitId, title, from, to, annualSummary } = await req.json()
+  const { propertyId, unitId, title, from, to } = await req.json()
 
   if (!unitId || !title || !from || !to) {
     return NextResponse.json(
@@ -14,12 +16,13 @@ export async function POST(req: NextRequest) {
 
   const entry = await prisma.statementEntry.create({
     data: {
-      lease_id:    unitId,
-      charge_id:   '',
-      year:        Number(from.split('-')[0]),
-      month:       Number(from.split('-')[1]),
-      note:        JSON.stringify({ propertyId, title, from, to, annualSummary })
+      lease_id:  unitId,
+      charge_id: '',        // značí hlavní záznam
+      year:      Number(from.split('-')[0]),
+      month:     Number(from.split('-')[1]),
+      note:      JSON.stringify({ propertyId, title, from, to })
     }
   })
+
   return NextResponse.json(entry)
 }
