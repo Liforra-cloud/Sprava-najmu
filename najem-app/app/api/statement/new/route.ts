@@ -1,5 +1,4 @@
 // app/api/statement/new/route.ts
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -24,7 +23,6 @@ export async function PATCH(req: NextRequest) {
   }
 
   const { leaseId, year, month, chargeId = '', overrideVal, note } = body
-
   if (!leaseId || typeof year !== 'number' || typeof month !== 'number') {
     return NextResponse.json(
       { error: 'leaseId, year a month jsou povinné' },
