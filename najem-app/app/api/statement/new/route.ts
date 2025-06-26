@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest) {
       }
     })
     return NextResponse.json(entry)
-  } catch (err) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: msg }, { status: 500 })
   }
