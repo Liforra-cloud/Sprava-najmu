@@ -30,19 +30,27 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // konvertujeme YYYY-MM na datum od / do
   const period_from = new Date(`${from}-01`)
-  const [y, m]      = to.split('-').map(Number)
-  const period_to   = new Date(y, m, 0)
+  const [year, month] = to.split('-').map(Number)
+  const period_to   = new Date(year, month, 0)
 
   try {
-    const st = await prisma.statement.create({
+    // místo `prisma.statement` použijeme `prisma.statementEntry`
+    const st = await prisma.statementEntry.create({
       data: {
-        unit_id:        unitId,
-        lease_id:       null,
-        period_from,
-        period_to,
-        title,
-        annual_summary: annualSummary,
+        id:            `${unitId}-${from}-${to}`, // nebo prostě nechat uuid()
+        lease_id:      unitId,                    // či null, jak potřebujete
+        year:          period_from.getFullYear(),
+        month:         period_from.getMonth() + 1,
+        charge_id:     '',                         // prázdné pro metadata
+        override_val:  null,
+        note:          JSON.stringify({           
+                         title,
+                         period_from,
+                         period_to,
+                         annualSummary
+                       }),
       }
     })
     return NextResponse.json(st)
