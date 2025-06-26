@@ -155,7 +155,7 @@ model MonthlyObligation {
 
  model StatementEntry {
   id           String    @id @default(uuid()) @db.Uuid
-   lease_id     String?   @db.Uuid
+   lease_id     String   @db.Uuid
    year         Int
    month        Int
    charge_id    String    @db.Text
