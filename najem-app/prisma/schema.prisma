@@ -153,18 +153,17 @@ model MonthlyObligation {
   @@map("monthly_obligations")
 }
 
-model StatementEntry {
-  id           String    @id @db.Uuid                                 // změňte na String pokud chcete Text
-  lease_id     String?   @db.Uuid
-  year         Int
-  month        Int
-  charge_id    String    @db.Text
-  override_val Float?    @db.Decimal(65,30)
-  note         String?   @db.Text
-  // další sloupce, které už máte ve statements, např. unit_id, period_from, data JSONB, …
-  created_at   DateTime  @db.Timestamptz @default(now())
-  updated_at   DateTime  @db.Timestamptz @default(now())
+ model StatementEntry {
+  id           String    @id @default(uuid()) @db.Uuid
+   lease_id     String?   @db.Uuid
+   year         Int
+   month        Int
+   charge_id    String    @db.Text
+  override_val Decimal?  @db.Decimal(65,30)
+   note         String?   @db.Text
+   created_at   DateTime  @db.Timestamptz @default(now())
+   updated_at   DateTime  @db.Timestamptz @default(now())
 
-  @@map("statements")   // Prisma bude číst/pisovat do téhle jediné tabulky
-  @@index([lease_id], name: "idx_statements_lease_id")
-}
+   @@map("statements")
+   @@index([lease_id], name: "idx_statements_lease_id")
+ }
