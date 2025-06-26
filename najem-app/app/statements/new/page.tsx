@@ -3,7 +3,10 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import StatementTable, { PaymentsMatrix, CellKey } from '@/components/Statement/StatementTable'
+import StatementTable, {
+  PaymentsMatrix,
+  CellKey
+} from '@/components/Statement/StatementTable'
 
 export default function NewStatementPage() {
   const [propertyId, setPropertyId] = useState('')
@@ -16,40 +19,54 @@ export default function NewStatementPage() {
 
   const [matrix,      setMatrix]      = useState<PaymentsMatrix|null>(null)
   const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
+  const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({})
   const [actuals,     setActuals]     = useState<Record<string, number | ''>>({})
 
-  const handleDataChange = useCallback((m:PaymentsMatrix,pv:Record<CellKey,number|''>)=>{
+  // přebíráme i flags a tenant (tenant zůstanou v StatementTable)
+  const handleDataChange = useCallback((
+    m: PaymentsMatrix,
+    pv: Record<CellKey, number | ''>,
+    cf: Record<CellKey, boolean>
+  ) => {
     setMatrix(m)
     setPivotValues(pv)
-  },[])
+    setChargeFlags(cf)
+  }, [])
 
-  useEffect(()=>{
+  useEffect(() => {
     fetch('/api/properties')
-      .then(r=>r.json())
+      .then(r => r.json())
       .then(setProperties)
       .catch(console.error)
-  },[])
+  }, [])
 
-  useEffect(()=>{
-    if(!propertyId){ setUnits([]); setUnitId(''); return }
+  useEffect(() => {
+    if (!propertyId) {
+      setUnits([]); setUnitId('')
+      return
+    }
     fetch(`/api/units?propertyId=${propertyId}`)
-      .then(r=>r.json())
+      .then(r => r.json())
       .then(setUnits)
       .catch(console.error)
-  },[propertyId])
+  }, [propertyId])
 
-  const summary = useMemo(()=> {
-    if(!matrix) return []
-    return matrix.data.map(r=>{
-      const total = matrix.months.reduce((s,m)=>{
-        const key = `${m.year}-${m.month}-${r.id}` as CellKey
-        const v   = pivotValues[key]
-        return s + (typeof v==='number' ? v : 0)
-      },0)
-      const act = typeof actuals[r.id]==='number' ? actuals[r.id] as number : 0
-      return { id:r.id, name:r.name, total, actual:act, diff:act-total }
+  // Souhrn jen z flagovaných řádků
+  const summary = useMemo(() => {
+    if (!matrix) return []
+    return matrix.data.map(row => {
+      const total = matrix.months.reduce((s, m) => {
+        const key = `${m.year}-${m.month}-${row.id}` as CellKey
+        if (!chargeFlags[key]) return s
+        const v = pivotValues[key]
+        return s + (typeof v === 'number' ? v : 0)
+      }, 0)
+      const act = typeof actuals[row.id] === 'number'
+        ? actuals[row.id] as number
+        : 0
+      return { id:row.id, name:row.name, total, actual:act, diff: act - total }
     })
-  },[matrix,pivotValues,actuals])
+  }, [matrix, pivotValues, chargeFlags, actuals])
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -60,25 +77,26 @@ export default function NewStatementPage() {
           Nemovitost:
           <select
             value={propertyId}
-            onChange={e=>setPropertyId(e.target.value)}
+            onChange={e => setPropertyId(e.target.value)}
             className="border rounded w-full px-2 py-1"
           >
             <option value="">-- vyber --</option>
-            {properties.map(p=>(
+            {properties.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
         </label>
+
         <label>
           Jednotka:
           <select
             value={unitId}
-            onChange={e=>setUnitId(e.target.value)}
+            onChange={e => setUnitId(e.target.value)}
             disabled={!propertyId}
             className="border rounded w-full px-2 py-1"
           >
             <option value="">-- vyber --</option>
-            {units.map(u=>(
+            {units.map(u => (
               <option key={u.id} value={u.id}>{u.identifier}</option>
             ))}
           </select>
@@ -91,21 +109,23 @@ export default function NewStatementPage() {
           <input
             type="month"
             value={from}
-            onChange={e=>setFrom(e.target.value)}
+            onChange={e => setFrom(e.target.value)}
             className="border rounded px-2 py-1"
           />
         </label>
+
         <label>
           Do:
           <input
             type="month"
             value={to}
-            onChange={e=>setTo(e.target.value)}
+            onChange={e => setTo(e.target.value)}
             className="border rounded px-2 py-1"
           />
         </label>
       </div>
 
+      {/* Přehled období */}
       {matrix && (
         <div className="bg-gray-50 p-4 rounded border">
           <h2 className="text-xl font-semibold mb-2">Přehled období</h2>
@@ -119,7 +139,7 @@ export default function NewStatementPage() {
               </tr>
             </thead>
             <tbody>
-              {summary.map(r=>(
+              {summary.map(r => (
                 <tr key={r.id}>
                   <td className="border p-1">{r.name}</td>
                   <td className="border p-1 text-right">{r.total}</td>
@@ -127,18 +147,18 @@ export default function NewStatementPage() {
                     <input
                       type="number"
                       value={actuals[r.id] ?? ''}
-                      onChange={e=>{
-                        const v=e.target.value
-                        setActuals(a=>({
+                      onChange={e => {
+                        const v = e.target.value
+                        setActuals(a => ({
                           ...a,
-                          [r.id]: v===''?'':Number(v)
+                          [r.id]: v === '' ? '' : Number(v)
                         }))
                       }}
                       className="w-20 text-right text-xs border rounded px-1 py-0.5"
                       min={0}
                     />
                   </td>
-                  <td className={`border p-1 text-right ${r.diff<0?'text-red-600':''}`}>
+                  <td className={`border p-1 text-right ${r.diff < 0 ? 'text-red-600' : ''}`}>
                     {r.diff}
                   </td>
                 </tr>
@@ -148,6 +168,7 @@ export default function NewStatementPage() {
         </div>
       )}
 
+      {/* Rozpis nákladů po měsících */}
       {unitId && (
         <StatementTable
           unitId={unitId}
