@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import StatementHeader from '@/components/Statement/StatementHeader'
 import SummaryCards, { SummaryData } from '@/components/Statement/SummaryCards'
-import StatementTable, { PaymentsMatrix, CellKey } from '@/components/Statement/StatementTable'
+import StatementTable, { PaymentsMatrix } from '@/components/Statement/StatementTable'
 import AnnualSummary from '@/components/Statement/AnnualSummary'
 import StatementActions from '@/components/Statement/StatementActions'
 
