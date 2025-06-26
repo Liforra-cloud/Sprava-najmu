@@ -1,5 +1,4 @@
 // app/api/statement/route.ts
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -63,7 +62,7 @@ export async function GET(req: NextRequest) {
     const fromObj = parseYm(from)
     const toObj   = parseYm(to)
 
-    const leases  = await prisma.lease.findMany({ where: { unit_id: unitId } })
+    const leases   = await prisma.lease.findMany({ where: { unit_id: unitId } })
     const leaseIds = leases.map(l => l.id)
 
     const obligations = await prisma.monthlyObligation.findMany({
@@ -91,6 +90,7 @@ export async function GET(req: NextRequest) {
 
     const months = getMonthsInRange(fromObj, toObj)
 
+    // Standardní položky pivot:
     const standardKeys = [
       { id: 'rent',        label: 'Nájem',      field: 'rent'         as const, flag: 'rent_amount' },
       { id: 'electricity', label: 'Elektřina',  field: 'electricity' as const, flag: 'monthly_electricity' },
@@ -125,6 +125,7 @@ export async function GET(req: NextRequest) {
       }
     })
 
+    // Custom charges
     const allCustom = obligations.flatMap(o =>
       (Array.isArray(o.custom_charges) ? o.custom_charges : [])
         .filter(isCustomCharge)
