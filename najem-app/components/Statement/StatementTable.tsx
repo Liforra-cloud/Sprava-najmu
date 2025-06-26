@@ -47,6 +47,7 @@ export default function StatementTable({
   const [error,       setError]       = useState<string | null>(null)
   const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
   const [monthNotes,  setMonthNotes]  = useState<Record<MonthKey, string>>({})
+  const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({})
 
   useEffect(() => {
     if (!unitId) {
@@ -64,8 +65,9 @@ export default function StatementTable({
         const pm = data.paymentsMatrix
         setMatrix(pm)
 
-        // init pivot values
+        // init pivot values & flags
         const pv: Record<CellKey, number | ''> = {}
+        const cf: Record<CellKey, boolean>   = {}
         pm.data.forEach(row =>
           pm.months.forEach(({ year, month }, idx) => {
             const ck = `${year}-${month}-${row.id}` as CellKey
@@ -77,9 +79,11 @@ export default function StatementTable({
               o.month     === month
             )
             pv[ck] = ov?.override_val ?? base
+            cf[ck] = true
           })
         )
         setPivotValues(pv)
+        setChargeFlags(cf)
 
         // init month notes
         const mn: Record<MonthKey, string> = {}
@@ -118,12 +122,11 @@ export default function StatementTable({
     const ck  = `${year}-${month}-${id}` as CellKey
     const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
     try {
-      const res = await fetch('/api/statement/new', {
+      await fetch('/api/statement/new', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leaseId: unitId, year, month, chargeId: id, overrideVal: val })
       })
-      if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
     } catch (e) {
       console.error(e)
     }
@@ -132,20 +135,23 @@ export default function StatementTable({
   const saveNote = async (year: number, month: number) => {
     const mk = `${year}-${month}` as MonthKey
     try {
-      const res = await fetch('/api/statement/new', {
+      await fetch('/api/statement/new', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leaseId: unitId, year, month, chargeId: '', note: monthNotes[mk] })
       })
-      if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
     } catch (e) {
       console.error(e)
     }
   }
 
+  const toggleCharge = (ck: CellKey) => {
+    setChargeFlags(cf => ({ ...cf, [ck]: !cf[ck] }))
+  }
+
   const handleAddColumn = () => {
     const name = prompt('Název nového poplatku:')
-    if (!name) return
+    if (!name || !matrix) return
     const id = makeSlug(name)
     const newRow: MatrixRow = {
       id, name,
@@ -157,6 +163,13 @@ export default function StatementTable({
       const copy = { ...pv }
       matrix.months.forEach(({ year, month }) => {
         copy[`${year}-${month}-${id}` as CellKey] = ''
+      })
+      return copy
+    })
+    setChargeFlags(cf => {
+      const copy = { ...cf }
+      matrix.months.forEach(({ year, month }) => {
+        copy[`${year}-${month}-${id}` as CellKey] = true
       })
       return copy
     })
@@ -172,11 +185,17 @@ export default function StatementTable({
       })
       return copy
     })
+    setChargeFlags(cf => {
+      const copy = { ...cf }
+      matrix.months.forEach(({ year, month }) => {
+        delete copy[`${year}-${month}-${colId}` as CellKey]
+      })
+      return copy
+    })
   }
 
   return (
     <div className="max-w-4xl mx-auto mt-4 p-4 bg-white shadow rounded space-y-4">
-      {/* Table header */}
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">Rozpis nákladů po měsících</h2>
         <button
@@ -187,7 +206,6 @@ export default function StatementTable({
         </button>
       </div>
 
-      {/* Table */}
       <table className="min-w-full border text-sm">
         <thead className="bg-gray-100">
           <tr>
@@ -217,20 +235,33 @@ export default function StatementTable({
                 </td>
                 {matrix.data.map(r => {
                   const ck = `${m.year}-${m.month}-${r.id}` as CellKey
+                  const charged = chargeFlags[ck]
                   return (
                     <td key={ck} className="border p-1">
-                      <input
-                        type="number"
-                        value={pivotValues[ck]}
-                        onChange={e => {
-                          const v = e.target.value
-                          const num = v === '' ? '' : Number(v)
-                          setPivotValues(pv => ({ ...pv, [ck]: num }))
-                        }}
-                        onBlur={() => saveCell(m.year, m.month, r.id)}
-                        className="w-full text-center text-xs"
-                        min={0}
-                      />
+                      <div className="flex flex-col items-center space-y-1">
+                        <label className="inline-flex items-center space-x-1">
+                          <input
+                            type="checkbox"
+                            checked={charged}
+                            onChange={() => toggleCharge(ck)}
+                            className="h-4 w-4"
+                          />
+                          <span className="text-xs">Účtovat</span>
+                        </label>
+                        <input
+                          type="number"
+                          value={pivotValues[ck]}
+                          disabled={!charged}
+                          onChange={e => {
+                            const v = e.target.value
+                            const num = v === '' ? '' : Number(v)
+                            setPivotValues(pv => ({ ...pv, [ck]: num }))
+                          }}
+                          onBlur={() => charged && saveCell(m.year, m.month, r.id)}
+                          className={`w-full text-center text-xs ${!charged ? 'opacity-50' : ''}`}
+                          min={0}
+                        />
+                      </div>
                     </td>
                   )
                 })}
