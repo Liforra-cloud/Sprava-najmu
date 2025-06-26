@@ -9,12 +9,15 @@ export type MatrixRow = {
   values: (number | '')[]
   total: number
 }
+
 export type PaymentsMatrix = {
   months: { year: number; month: number }[]
   data:   MatrixRow[]
 }
 
-/** Override záznam */
+// tady chybějící export CellKey
+export type CellKey = `${number}-${number}-${string}`
+
 type OverrideEntry = {
   lease_id:     string
   year:         number
@@ -46,12 +49,11 @@ export default function StatementTable({
   const [pivotValues, setPivotValues] = useState<Record<string, number | ''>>({})
   const [chargeFlags, setChargeFlags] = useState<Record<string, boolean>>({})
 
-  // Standardní poplatky ID
+  // Standardní poplatky (tyto se nesmažou)
   const standardIds = new Set([
     'rent','electricity','water','gas','services','repair_fund'
   ])
 
-  // Načtení při změně unitId/from/to
   useEffect(() => {
     if (!unitId) {
       setMatrix(null)
@@ -72,7 +74,6 @@ export default function StatementTable({
         const pm = data.paymentsMatrix
         setMatrix(pm)
 
-        // init pivot + flags
         const pv: Record<string, number | ''> = {}
         const cf: Record<string, boolean>     = {}
 
@@ -103,7 +104,6 @@ export default function StatementTable({
   if (error)   return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix) return <div>Vyberte nemovitost, jednotku a období.</div>
 
-  // Přidání nového sloupce
   const addColumn = () => {
     const name = window.prompt('Název nového poplatku:')
     if (!name) return
@@ -118,7 +118,6 @@ export default function StatementTable({
       values: matrix.months.map(() => 0),
       total: 0
     }
-    // update matrix, pivotValues, chargeFlags
     setMatrix(prev => {
       const next = prev
         ? { months: prev.months, data: [...prev.data, newRow] }
@@ -142,7 +141,6 @@ export default function StatementTable({
     })
   }
 
-  // Odebrání sloupce
   const removeColumn = (id: string) => {
     if (!window.confirm(`Opravdu smazat sloupec "${id}"?`)) return
     setMatrix(prev => {
@@ -155,24 +153,19 @@ export default function StatementTable({
     setPivotValues(old => {
       const next = { ...old }
       Object.keys(next).forEach(k => {
-        if (k.endsWith(`-${id}`)) {
-          delete next[k]
-        }
+        if (k.endsWith(`-${id}`)) delete next[k]
       })
       return next
     })
     setChargeFlags(old => {
       const next = { ...old }
       Object.keys(next).forEach(k => {
-        if (k.endsWith(`-${id}`)) {
-          delete next[k]
-        }
+        if (k.endsWith(`-${id}`)) delete next[k]
       })
       return next
     })
   }
 
-  // Toggle flagu a ukládání
   const toggleCharge = (ck: string) => {
     setChargeFlags(old => {
       const next = { ...old, [ck]: !old[ck] }
@@ -183,19 +176,16 @@ export default function StatementTable({
       const val   = next[ck]
         ? (pivotValues[ck] === '' ? 0 : pivotValues[ck])
         : null
-
       fetch('/api/statement/new', {
         method:'PATCH',
         headers:{ 'Content-Type':'application/json' },
         body: JSON.stringify({ leaseId:unitId, year, month, chargeId:id, overrideVal:val })
       })
-
       onDataChange?.(matrix, pivotValues, next)
       return next
     })
   }
 
-  // Uložení buňky
   const saveCell = (year: number, month: number, id: string) => {
     const ck = `${year}-${month}-${id}`
     if (!chargeFlags[ck]) return
@@ -210,14 +200,12 @@ export default function StatementTable({
 
   return (
     <div className="max-w-4xl mx-auto mt-4">
-      <div className="flex gap-2 mb-2">
-        <button
-          onClick={addColumn}
-          className="px-2 py-1 bg-blue-600 text-white rounded"
-        >
-          Přidat sloupec
-        </button>
-      </div>
+      <button
+        onClick={addColumn}
+        className="mb-2 px-2 py-1 bg-blue-600 text-white rounded"
+      >
+        Přidat sloupec
+      </button>
       <table className="min-w-full border text-sm">
         <thead className="bg-gray-100">
           <tr>
@@ -231,10 +219,8 @@ export default function StatementTable({
                       onClick={() => removeColumn(r.id)}
                       className="text-red-500 hover:text-red-700"
                       title="Odebrat sloupec"
-                      style={{ lineHeight: 1 }}
-                    >
-                      &times;
-                    </button>
+                      style={{ lineHeight:1 }}
+                    >&times;</button>
                   )}
                 </div>
               </th>
@@ -277,16 +263,14 @@ export default function StatementTable({
                           if (on) saveCell(year, month, r.id)
                         }}
                         onBlur={() => saveCell(year, month, r.id)}
-                        className={`w-full text-center text-xs ${!on ? 'opacity-50' : ''}`}
+                        className={`w-full text-center text-xs ${!on?'opacity-50':''}`}
                         min={0}
                       />
                     </div>
                   </td>
                 )
               })}
-              <td className="border p-1">
-                {/* poznámky k měsíci */}
-              </td>
+              <td className="border p-1">{/* poznámky */}</td>
             </tr>
           ))}
         </tbody>
@@ -294,4 +278,3 @@ export default function StatementTable({
     </div>
   )
 }
-
