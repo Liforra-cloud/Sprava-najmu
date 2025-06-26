@@ -20,36 +20,39 @@ export default function StatementPage({ params }: { params: { unitId: string } }
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
   const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
   const [actuals,     setActuals]     = useState<Record<string, number>>({})
-  const [summary,     setSummary]     = useState<SummaryData>({
-    totalCosts: 0,
-    totalPaid:  0,
-    balance:    0
-  })
+  const [summary,     setSummary]     = useState<SummaryData>({ totalCosts: 0, totalPaid: 0, balance: 0 })
 
   useEffect(() => {
     if (!matrix) return
-    const totalCosts = Object.values(pivotValues).reduce((s, v) =>
-      s + (typeof v === 'number' ? v : 0), 0)
-    const totalPaid  = totalCosts * 0.9  // replace real fetch
-    const balance    = totalCosts - totalPaid
+
+    // korektní reduce s typovou anotací
+    const totalCosts = Object
+      .values(pivotValues)
+      .reduce((s: number, v): number => {
+        const num = typeof v === 'number' ? v : 0
+        return s + num
+      }, 0)
+
+    const totalPaid = totalCosts * 0.9  // sem reálně fetch záloh
+    const balance   = totalCosts - totalPaid
+
     setSummary({ totalCosts, totalPaid, balance })
   }, [matrix, pivotValues])
 
   const handleActualChange = (id: string, v: number) =>
     setActuals(a => ({ ...a, [id]: v }))
 
-  const handleSave       = () => alert('TODO: uložit vyúčtování')
-  const handleExportPDF  = () => alert('TODO: export PDF')
-  const handleExportExcel= () => alert('TODO: export Excel')
+  const handleSave        = () => alert('TODO: uložit vyúčtování')
+  const handleExportPDF   = () => alert('TODO: export PDF')
+  const handleExportExcel = () => alert('TODO: export Excel')
 
   return (
     <div className="max-w-6xl mx-auto py-8 space-y-8">
       <StatementHeader
-        unitId={unitId}
         from={from}
         to={to}
-        onChangePeriod={(f,t) => router.push(`/statements/${unitId}?from=${f}&to=${t}`)}
         titleLabel="Vyúčtování 2025"
+        onChangePeriod={(f, t) => router.push(`/statements/${unitId}?from=${f}&to=${t}`)}
       />
 
       <SummaryCards data={summary} />
@@ -58,7 +61,7 @@ export default function StatementPage({ params }: { params: { unitId: string } }
         unitId={unitId}
         from={from}
         to={to}
-        onDataChange={(m,pv) => { setMatrix(m); setPivotValues(pv) }}
+        onDataChange={(m, pv) => { setMatrix(m); setPivotValues(pv) }}
       />
 
       {matrix && (
@@ -76,6 +79,6 @@ export default function StatementPage({ params }: { params: { unitId: string } }
         onExportExcel={handleExportExcel}
       />
     </div>
-)
+  )
 }
 
