@@ -50,8 +50,12 @@ export default function StatementTable({
   const [monthNotes,  setMonthNotes]  = useState<Record<MonthKey, string>>({})
 
   useEffect(() => {
-    if (!unitId) { setMatrix(null); return }
-    setLoading(true); setError(null)
+    if (!unitId) {
+      setMatrix(null)
+      return
+    }
+    setLoading(true)
+    setError(null)
 
     ;(async () => {
       try {
@@ -62,6 +66,7 @@ export default function StatementTable({
         const pm = data.paymentsMatrix
         setMatrix(pm)
 
+        // init pivotValues
         const pv: Record<CellKey, number | ''> = {}
         pm.data.forEach(row =>
           pm.months.forEach(({ year, month }, idx) => {
@@ -78,6 +83,7 @@ export default function StatementTable({
         )
         setPivotValues(pv)
 
+        // init monthNotes
         const mn: Record<MonthKey, string> = {}
         pm.months.forEach(({ year, month }) => {
           const mk = `${year}-${month}` as MonthKey
@@ -98,19 +104,22 @@ export default function StatementTable({
         setLoading(false)
       }
     })()
-  }, [unitId, from, to, onDataChange])  // ← přidáno onDataChange
+  }, [unitId, from, to, onDataChange])
 
   useEffect(() => {
     if (matrix) onDataChange?.(matrix, pivotValues)
-  }, [matrix, pivotValues, onDataChange])  // ← přidáno onDataChange
+  }, [matrix, pivotValues, onDataChange])
 
-  if (loading) return <div>Načítám…</div>
-  if (error)   return <div className="text-red-600">Chyba: {error}</div>
-  if (!matrix) return <div>Chyba načtení dat</div>
+  // pokud jsme ještě nikdy nedostali matrix
+  if (!matrix) {
+    if (loading) return <div>Načítám…</div>
+    if (error)   return <div className="text-red-600">Chyba: {error}</div>
+    return <div>Chyba načtení dat</div>
+  }
 
-  const saveCell = async (year:number, month:number, id:string) => {
+  const saveCell = async (year: number, month: number, id: string) => {
     const ck  = `${year}-${month}-${id}` as CellKey
-    const val = pivotValues[ck]==='' ? 0 : pivotValues[ck]
+    const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
     try {
       const res = await fetch('/api/statement/new', {
         method:'PATCH',
@@ -118,12 +127,12 @@ export default function StatementTable({
         body:JSON.stringify({ leaseId: unitId, year, month, chargeId: id, overrideVal: val })
       })
       if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
-    } catch(e) {
+    } catch (e) {
       console.error('Chyba při ukládání:', e)
     }
   }
 
-  const saveNote = async (year:number, month:number) => {
+  const saveNote = async (year: number, month: number) => {
     const mk = `${year}-${month}` as MonthKey
     try {
       const res = await fetch('/api/statement/new', {
@@ -132,7 +141,7 @@ export default function StatementTable({
         body:JSON.stringify({ leaseId: unitId, year, month, chargeId: '', note: monthNotes[mk] })
       })
       if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
-    } catch(e) {
+    } catch (e) {
       console.error('Chyba při ukládání poznámky:', e)
     }
   }
@@ -141,20 +150,20 @@ export default function StatementTable({
     const name = prompt('Název nového poplatku:')
     if (!name) return
     const id = makeSlug(name)
-    const newRow: MatrixRow = { id, name, values: matrix.months.map(()=>''), total:0 }
-    setMatrix(m => m ? { ...m, data:[...m.data,newRow] } : m)
+    const newRow: MatrixRow = { id, name, values: matrix.months.map(() => ''), total: 0 }
+    setMatrix(m => m ? { ...m, data: [...m.data, newRow] } : m)
     const newPv = { ...pivotValues }
-    matrix.months.forEach(({year,month})=>{
+    matrix.months.forEach(({ year, month }) => {
       newPv[`${year}-${month}-${id}` as CellKey] = ''
     })
     setPivotValues(newPv)
   }
 
-  const handleRemoveColumn = (colId:string) => {
+  const handleRemoveColumn = (colId: string) => {
     if (!confirm('Opravdu odstranit sloupec?')) return
-    setMatrix(m => m ? { ...m, data:m.data.filter(r=>r.id!==colId) } : m)
+    setMatrix(m => m ? { ...m, data: m.data.filter(r => r.id !== colId) } : m)
     const newPv = { ...pivotValues }
-    matrix.months.forEach(({year,month})=>{
+    matrix.months.forEach(({ year, month }) => {
       delete newPv[`${year}-${month}-${colId}` as CellKey]
     })
     setPivotValues(newPv)
