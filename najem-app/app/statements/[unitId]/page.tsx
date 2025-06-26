@@ -2,25 +2,80 @@
 
 'use client'
 
-import React from 'react'
-import StatementTable from '@/components/StatementTable'
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import StatementHeader from '@/components/Statement/StatementHeader'
+import SummaryCards, { SummaryData } from '@/components/Statement/SummaryCards'
+import StatementTable, { PaymentsMatrix, CellKey } from '@/components/Statement/StatementTable'
+import AnnualSummary from '@/components/Statement/AnnualSummary'
+import StatementActions from '@/components/Statement/StatementActions'
 
-export default function StatementUnitPage({ params }: { params: { unitId: string } }) {
-  const { unitId } = params
+export default function StatementPage({ params }: { params: { unitId: string } }) {
+  const router       = useRouter()
   const searchParams = useSearchParams()
+  const unitId       = params.unitId
+  const from         = searchParams.get('from') || `${new Date().getFullYear()}-01`
+  const to           = searchParams.get('to')   || `${new Date().getFullYear()}-12`
 
-  // Výchozí období: aktuální rok
-  const now = new Date()
-  const defaultFrom = `${now.getFullYear()}-01`
-  const defaultTo = `${now.getFullYear()}-12`
-  const from = searchParams.get('from') || defaultFrom
-  const to = searchParams.get('to') || defaultTo
+  const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
+  const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
+  const [actuals,     setActuals]     = useState<Record<string, number>>({})
+  const [summary,     setSummary]     = useState<SummaryData>({
+    totalCosts: 0,
+    totalPaid:  0,
+    balance:    0
+  })
+
+  useEffect(() => {
+    if (!matrix) return
+    const totalCosts = Object.values(pivotValues).reduce((s, v) =>
+      s + (typeof v === 'number' ? v : 0), 0)
+    const totalPaid  = totalCosts * 0.9  // replace real fetch
+    const balance    = totalCosts - totalPaid
+    setSummary({ totalCosts, totalPaid, balance })
+  }, [matrix, pivotValues])
+
+  const handleActualChange = (id: string, v: number) =>
+    setActuals(a => ({ ...a, [id]: v }))
+
+  const handleSave       = () => alert('TODO: uložit vyúčtování')
+  const handleExportPDF  = () => alert('TODO: export PDF')
+  const handleExportExcel= () => alert('TODO: export Excel')
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Účtování poplatků – jednotka</h1>
-      <StatementTable unitId={unitId} from={from} to={to} />
+    <div className="max-w-6xl mx-auto py-8 space-y-8">
+      <StatementHeader
+        unitId={unitId}
+        from={from}
+        to={to}
+        onChangePeriod={(f,t) => router.push(`/statements/${unitId}?from=${f}&to=${t}`)}
+        titleLabel="Vyúčtování 2025"
+      />
+
+      <SummaryCards data={summary} />
+
+      <StatementTable
+        unitId={unitId}
+        from={from}
+        to={to}
+        onDataChange={(m,pv) => { setMatrix(m); setPivotValues(pv) }}
+      />
+
+      {matrix && (
+        <AnnualSummary
+          matrix={matrix}
+          pivotValues={pivotValues}
+          actuals={actuals}
+          onActualChange={handleActualChange}
+        />
+      )}
+
+      <StatementActions
+        onSave={handleSave}
+        onExportPDF={handleExportPDF}
+        onExportExcel={handleExportExcel}
+      />
     </div>
-  )
+)
 }
+
