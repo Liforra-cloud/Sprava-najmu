@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import StatementHeader from '@/components/Statement/StatementHeader'
 import SummaryCards, { SummaryData } from '@/components/Statement/SummaryCards'
@@ -17,23 +17,24 @@ export default function StatementPage({ params }: { params: { unitId: string } }
   const from         = searchParams.get('from') || `${new Date().getFullYear()}-01`
   const to           = searchParams.get('to')   || `${new Date().getFullYear()}-12`
 
+  // pokud by někdo zkusil přejít bez unitId
+  if (!unitId) {
+    return <div className="p-4 text-center">Vyberte prosím jednotku.</div>
+  }
+
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
   const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
   const [actuals,     setActuals]     = useState<Record<string, number>>({})
-  const [summary,     setSummary]     = useState<SummaryData>({ totalCosts: 0, totalPaid: 0, balance: 0 })
+  const [summary,     setSummary]     = useState<SummaryData>({ totalCosts:0, totalPaid:0, balance:0 })
 
+  // Po načtení matrixu počítat summary
   useEffect(() => {
     if (!matrix) return
 
-    // korektní reduce s typovou anotací
     const totalCosts = Object
       .values(pivotValues)
-      .reduce((s: number, v): number => {
-        const num = typeof v === 'number' ? v : 0
-        return s + num
-      }, 0)
-
-    const totalPaid = totalCosts * 0.9  // sem reálně fetch záloh
+      .reduce((s: number, v) => s + (typeof v === 'number' ? v : 0), 0)
+    const totalPaid = totalCosts * 0.9
     const balance   = totalCosts - totalPaid
 
     setSummary({ totalCosts, totalPaid, balance })
@@ -51,19 +52,14 @@ export default function StatementPage({ params }: { params: { unitId: string } }
       <StatementHeader
         from={from}
         to={to}
-        titleLabel="Vyúčtování 2025"
+        titleLabel="Vyúčtování"
         onChangePeriod={(f, t) => router.push(`/statements/${unitId}?from=${f}&to=${t}`)}
       />
 
-      <SummaryCards data={summary} />
+      {/* Summary karty – jen když máme data */}
+      {matrix && <SummaryCards data={summary} />}
 
-      <StatementTable
-        unitId={unitId}
-        from={from}
-        to={to}
-        onDataChange={(m, pv) => { setMatrix(m); setPivotValues(pv) }}
-      />
-
+      {/* Roční souhrn nad tabulkou – jen s data */}
       {matrix && (
         <AnnualSummary
           matrix={matrix}
@@ -73,6 +69,14 @@ export default function StatementPage({ params }: { params: { unitId: string } }
         />
       )}
 
+      {/* Tabulka měsíčních nákladů */}
+      <StatementTable
+        unitId={unitId}
+        from={from}
+        to={to}
+        onDataChange={(m, pv) => { setMatrix(m); setPivotValues(pv) }}
+      />
+
       <StatementActions
         onSave={handleSave}
         onExportPDF={handleExportPDF}
@@ -81,4 +85,3 @@ export default function StatementPage({ params }: { params: { unitId: string } }
     </div>
   )
 }
-
