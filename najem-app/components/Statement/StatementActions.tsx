@@ -1,19 +1,30 @@
 // components/Statement/StatementActions.tsx
+
+
 'use client'
 
 import React from 'react'
 import { SummaryData } from './SummaryCards'
 
-export default function StatementActions({
-  unitId,
-  summary
-}: {
-  unitId: string
+interface Props {
+  unitId:  string
   summary: SummaryData
-}) {
-  const handleSave = () => {
-    // TODO: sem přidat skutečné volání API pro uložení celého vyúčtování
-    alert('Vyúčtování uloženo.')
+}
+
+export default function StatementActions({ unitId, summary }: Props) {
+  const handleSave = async () => {
+    // Uložíme celé vyúčtování na server
+    await fetch('/api/statements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        unitId,
+        totalCosts: summary.totalCosts,
+        totalPaid:  summary.totalPaid,
+        balance:    summary.balance
+      })
+    })
+    alert(`Vyúčtování pro jednotku ${unitId} uloženo.`)
   }
 
   return (
