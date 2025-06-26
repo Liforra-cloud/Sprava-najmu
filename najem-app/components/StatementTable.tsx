@@ -2,7 +2,10 @@
 
 'use client'
 import { useEffect, useState } from 'react'
-import type { Override } from '@/app/api/statement/route'
+
+///////////////////////////
+// 1) Typy a pomocné
+///////////////////////////
 
 type MatrixRow = {
   id: string
@@ -15,18 +18,26 @@ type PaymentsMatrix = {
   data:   MatrixRow[]
 }
 
-type CellKey  = `${number}-${number}-${string}`
-type MonthKey = `${number}-${number}`
+// Lokální typ pro uživatelské přepisy (snake_case podle API)
+type Override = {
+  lease_id:    string
+  year:        number
+  month:       number
+  charge_id:   string         // id poplatku, nebo '' pro poznámku
+  override_val: number | null
+  note:        string | null
+}
 
-export default function StatementTable({
-  unitId,
-  from,
-  to
-}: {
+type CellKey  = `${number}-${number}-${string}` // "YYYY-MM-id"
+type MonthKey = `${number}-${number}`            // "YYYY-MM"
+
+interface StatementTableProps {
   unitId: string
-  from:   string
-  to:     string
-}) {
+  from:   string // "YYYY-MM"
+  to:     string // "YYYY-MM"
+}
+
+export default function StatementTable({ unitId, from, to }: StatementTableProps) {
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
   const [months,      setMonths]      = useState<PaymentsMatrix['months']>([])
   const [loading,     setLoading]     = useState(true)
@@ -34,8 +45,12 @@ export default function StatementTable({
   const [monthNotes,  setMonthNotes]  = useState<Record<MonthKey, string>>({})
 
   useEffect(() => {
-    if (!unitId) { setLoading(false); return }
+    if (!unitId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
+
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(r => r.json())
       .then((data: {
@@ -46,33 +61,33 @@ export default function StatementTable({
         setMatrix(pm)
         setMonths(pm.months)
 
-        // init pivot + overrides
+        // --- Inicializace pivotValues s override_val ---
         const pv: Record<CellKey, number | ''> = {}
-        pm.data.forEach(r => {
+        pm.data.forEach(row => {
           pm.months.forEach(m => {
-            const key = `${m.year}-${m.month}-${r.id}` as CellKey
+            const ck = `${m.year}-${m.month}-${row.id}` as CellKey
             const idx = pm.months.findIndex(x => x.year === m.year && x.month === m.month)
-            const base = r.values[idx]
+            const base = row.values[idx]
             const ov = data.overrides.find(o =>
-              o.leaseId === unitId &&
-              o.chargeId === r.id &&
-              o.year === m.year &&
-              o.month === m.month
+              o.lease_id  === unitId &&
+              o.charge_id === row.id &&
+              o.year      === m.year &&
+              o.month     === m.month
             )
-            pv[key] = ov?.overrideVal ?? base
+            pv[ck] = ov?.override_val ?? base
           })
         })
         setPivotValues(pv)
 
-        // init notes
-        const mn: Record<MonthKey,string> = {}
+        // --- Inicializace poznámek z overrides.note ---
+        const mn: Record<MonthKey, string> = {}
         pm.months.forEach(m => {
           const mk = `${m.year}-${m.month}` as MonthKey
           const ov = data.overrides.find(o =>
-            o.leaseId === unitId &&
-            o.chargeId === '' &&
-            o.year === m.year &&
-            o.month === m.month
+            o.lease_id  === unitId &&
+            o.charge_id === '' &&
+            o.year      === m.year &&
+            o.month     === m.month
           )
           mn[mk] = ov?.note ?? ''
         })
@@ -82,26 +97,45 @@ export default function StatementTable({
       .finally(() => setLoading(false))
   }, [unitId, from, to])
 
-  if (loading) return <div>Načítám…</div>
-  if (!matrix) return <div>Chyba načtení dat</div>
+  if (loading)        return <div>Načítám…</div>
+  if (!matrix)        return <div>Chyba načtení dat</div>
 
-  const saveCell = (year:number, month:number, id:string) => {
-    const key = `${year}-${month}-${id}` as CellKey
-    const val = pivotValues[key] === '' ? 0 : pivotValues[key]
+  ///////////////////////////
+  // Handlery pro uložení
+  ///////////////////////////
+
+  const saveCell = (year: number, month: number, id: string) => {
+    const ck  = `${year}-${month}-${id}` as CellKey
+    const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
     fetch('/api/statement/new', {
       method: 'PATCH',
       headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ leaseId: unitId, year, month, chargeId: id, overrideVal: val })
+      body: JSON.stringify({
+        leaseId:     unitId,
+        year, month,
+        chargeId:    id,
+        overrideVal: val
+      })
     })
   }
-  const saveNote = (year:number, month:number) => {
-    const key = `${year}-${month}` as MonthKey
+
+  const saveNote = (year: number, month: number) => {
+    const mk = `${year}-${month}` as MonthKey
     fetch('/api/statement/new', {
       method: 'PATCH',
       headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ leaseId: unitId, year, month, chargeId: '', note: monthNotes[key] })
+      body: JSON.stringify({
+        leaseId:  unitId,
+        year, month,
+        chargeId: '',
+        note:     monthNotes[mk]
+      })
     })
   }
+
+  ///////////////////////////
+  // Render tabulky
+  ///////////////////////////
 
   return (
     <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-8">
@@ -123,7 +157,9 @@ export default function StatementTable({
             const mk = `${m.year}-${m.month}` as MonthKey
             return (
               <tr key={mk}>
-                <td className="border p-1">{`${String(m.month).padStart(2,'0')}/${m.year}`}</td>
+                <td className="border p-1">
+                  {`${String(m.month).padStart(2,'0')}/${m.year}`}
+                </td>
                 {matrix.data.map(r => {
                   const ck = `${m.year}-${m.month}-${r.id}` as CellKey
                   return (
@@ -147,7 +183,9 @@ export default function StatementTable({
                   <textarea
                     rows={2}
                     value={monthNotes[mk]}
-                    onChange={e => setMonthNotes(n => ({ ...n, [mk]: e.target.value }))}
+                    onChange={e =>
+                      setMonthNotes(n => ({ ...n, [mk]: e.target.value }))
+                    }
                     onBlur={() => saveNote(m.year, m.month)}
                     className="w-full border rounded px-1 py-1"
                   />
