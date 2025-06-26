@@ -1,54 +1,51 @@
-// app/api/statement/new/route.ts
+// app/api/statements/new/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 type Body = {
-  leaseId:     string
-  year:        number
-  month:       number
-  chargeId?:   string
-  overrideVal?: number
-  note?:       string
+  unitId:        string
+  title:         string
+  from:          string // "YYYY-MM"
+  to:            string // "YYYY-MM"
+  annualSummary: Record<string, {
+    total:      number
+    actual:     number
+    difference: number
+  }>
 }
 
-export async function PATCH(req: NextRequest) {
+export async function POST(req: NextRequest) {
   let body: Body
   try {
     body = await req.json()
   } catch {
+    return NextResponse.json({ error: 'Neplatné JSON tělo' }, { status: 400 })
+  }
+
+  const { unitId, title, from, to, annualSummary } = body
+  if (!unitId || !title || !from || !to) {
     return NextResponse.json(
-      { error: 'Neplatné JSON tělo požadavku' },
+      { error: 'unitId, title, from a to jsou povinné' },
       { status: 400 }
     )
   }
 
-  const { leaseId, year, month, chargeId = '', overrideVal, note } = body
-  if (!leaseId || typeof year !== 'number' || typeof month !== 'number') {
-    return NextResponse.json(
-      { error: 'leaseId, year a month jsou povinné' },
-      { status: 400 }
-    )
-  }
+  const period_from = new Date(`${from}-01`)
+  const [y, m]      = to.split('-').map(Number)
+  const period_to   = new Date(y, m, 0)
 
   try {
-    const id = `${leaseId}-${year}-${month}-${chargeId}`
-    const entry = await prisma.statementEntry.upsert({
-      where:  { id },
-      create: {
-        id,
-        lease_id:     leaseId,
-        year,
-        month,
-        charge_id:    chargeId,
-        override_val: overrideVal ?? null,
-        note:         note ?? null
-      },
-      update: {
-        override_val: overrideVal ?? null,
-        note:         note ?? null
+    const st = await prisma.statement.create({
+      data: {
+        unit_id:        unitId,
+        lease_id:       null,
+        period_from,
+        period_to,
+        title,
+        annual_summary: annualSummary,
       }
     })
-    return NextResponse.json(entry)
+    return NextResponse.json(st)
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: msg }, { status: 500 })
