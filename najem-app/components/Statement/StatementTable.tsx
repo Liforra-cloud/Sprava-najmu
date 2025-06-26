@@ -1,4 +1,5 @@
 // components/Statement/StatementTable.tsx
+
 'use client'
 
 import React, { useEffect, useState } from 'react'
@@ -97,11 +98,11 @@ export default function StatementTable({
         setLoading(false)
       }
     })()
-  }, [unitId, from, to])
+  }, [unitId, from, to, onDataChange])  // ← přidáno onDataChange
 
   useEffect(() => {
     if (matrix) onDataChange?.(matrix, pivotValues)
-  }, [matrix, pivotValues])
+  }, [matrix, pivotValues, onDataChange])  // ← přidáno onDataChange
 
   if (loading) return <div>Načítám…</div>
   if (error)   return <div className="text-red-600">Chyba: {error}</div>
