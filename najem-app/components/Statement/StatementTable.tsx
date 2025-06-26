@@ -33,7 +33,7 @@ type Override = {
 export type CellKey  = `${number}-${number}-${string}`
 export type MonthKey = `${number}-${number}`
 
-interface StatementTableProps {
+interface Props {
   unitId:       string
   from:         string
   to:           string
@@ -42,7 +42,7 @@ interface StatementTableProps {
 
 export default function StatementTable({
   unitId, from, to, onDataChange
-}: StatementTableProps) {
+}: Props) {
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState<string | null>(null)
@@ -50,23 +50,18 @@ export default function StatementTable({
   const [monthNotes,  setMonthNotes]  = useState<Record<MonthKey, string>>({})
 
   useEffect(() => {
-    if (!unitId) {
-      setMatrix(null)
-      return
-    }
-    setLoading(true)
-    setError(null)
+    if (!unitId) { setMatrix(null); return }
+    setLoading(true); setError(null)
 
     ;(async () => {
       try {
         const res = await fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
         if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
         const data: { paymentsMatrix: PaymentsMatrix; overrides: Override[] } = await res.json()
-
         const pm = data.paymentsMatrix
         setMatrix(pm)
 
-        // init pivotValues
+        // pivotValues
         const pv: Record<CellKey, number | ''> = {}
         pm.data.forEach(row =>
           pm.months.forEach(({ year, month }, idx) => {
@@ -83,7 +78,7 @@ export default function StatementTable({
         )
         setPivotValues(pv)
 
-        // init monthNotes
+        // monthNotes
         const mn: Record<MonthKey, string> = {}
         pm.months.forEach(({ year, month }) => {
           const mk = `${year}-${month}` as MonthKey
@@ -110,7 +105,7 @@ export default function StatementTable({
     if (matrix) onDataChange?.(matrix, pivotValues)
   }, [matrix, pivotValues, onDataChange])
 
-  // pokud jsme ještě nikdy nedostali matrix
+  // fallback před prvním načtením
   if (!matrix) {
     if (loading) return <div>Načítám…</div>
     if (error)   return <div className="text-red-600">Chyba: {error}</div>
@@ -128,7 +123,7 @@ export default function StatementTable({
       })
       if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
     } catch (e) {
-      console.error('Chyba při ukládání:', e)
+      console.error(e)
     }
   }
 
@@ -142,7 +137,7 @@ export default function StatementTable({
       })
       if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
     } catch (e) {
-      console.error('Chyba při ukládání poznámky:', e)
+      console.error(e)
     }
   }
 
@@ -150,55 +145,61 @@ export default function StatementTable({
     const name = prompt('Název nového poplatku:')
     if (!name) return
     const id = makeSlug(name)
-    const newRow: MatrixRow = { id, name, values: matrix.months.map(() => ''), total: 0 }
+    const newRow: MatrixRow = {
+      id, name,
+      values: matrix.months.map(() => ''),
+      total: 0
+    }
     setMatrix(m => m ? { ...m, data: [...m.data, newRow] } : m)
-    const newPv = { ...pivotValues }
-    matrix.months.forEach(({ year, month }) => {
-      newPv[`${year}-${month}-${id}` as CellKey] = ''
+    setPivotValues(pv => {
+      const copy = { ...pv }
+      matrix.months.forEach(({ year, month }) => {
+        copy[`${year}-${month}-${id}` as CellKey] = ''
+      })
+      return copy
     })
-    setPivotValues(newPv)
   }
 
   const handleRemoveColumn = (colId: string) => {
     if (!confirm('Opravdu odstranit sloupec?')) return
     setMatrix(m => m ? { ...m, data: m.data.filter(r => r.id !== colId) } : m)
-    const newPv = { ...pivotValues }
-    matrix.months.forEach(({ year, month }) => {
-      delete newPv[`${year}-${month}-${colId}` as CellKey]
+    setPivotValues(pv => {
+      const copy = { ...pv }
+      matrix.months.forEach(({ year, month }) => {
+        delete copy[`${year}-${month}-${colId}` as CellKey]
+      })
+      return copy
     })
-    setPivotValues(newPv)
   }
 
   return (
-    <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Rozpis nákladů po měsících</h2>
+    <div className="max-w-4xl mx-auto mt-4 p-4 bg-white shadow rounded space-y-4">
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-lg font-medium">Rozpis nákladů po měsících</h2>
         <button
           onClick={handleAddColumn}
-          className="px-3 py-1 bg-blue-600 text-white rounded"
+          className="px-2 py-1 bg-blue-600 text-white text-sm rounded"
         >
-          Přidat sloupec
+          + Poplatek
         </button>
       </div>
       <table className="min-w-full border text-sm">
         <thead className="bg-gray-100">
           <tr>
-            <th className="p-2 border">Měsíc/Rok</th>
+            <th className="border p-1">Měsíc/Rok</th>
             {matrix.data.map(r => (
-              <th key={r.id} className="p-2 border text-center">
+              <th key={r.id} className="border p-1 text-center">
                 <div className="flex items-center justify-center gap-1">
-                  {r.name}
+                  <span className="truncate">{r.name}</span>
                   <button
                     onClick={() => handleRemoveColumn(r.id)}
-                    className="text-red-500 font-bold"
-                    title="Odebrat sloupec"
-                  >
-                    ×
-                  </button>
+                    className="text-red-500 text-xs"
+                    title="Odebrat"
+                  >×</button>
                 </div>
               </th>
             ))}
-            <th className="p-2 border">Poznámka</th>
+            <th className="border p-1">Poznámka</th>
           </tr>
         </thead>
         <tbody>
@@ -222,7 +223,7 @@ export default function StatementTable({
                           setPivotValues(pv => ({ ...pv, [ck]: num }))
                         }}
                         onBlur={() => saveCell(m.year, m.month, r.id)}
-                        className="w-full text-center"
+                        className="w-full text-center text-xs"
                         min={0}
                       />
                     </td>
@@ -230,19 +231,24 @@ export default function StatementTable({
                 })}
                 <td className="border p-1">
                   <textarea
-                    rows={2}
+                    rows={1}
                     value={monthNotes[mk]}
                     onChange={e =>
                       setMonthNotes(n => ({ ...n, [mk]: e.target.value }))
                     }
                     onBlur={() => saveNote(m.year, m.month)}
-                    className="w-full border rounded px-1 py-1"
+                    className="w-full text-xs border rounded px-1 py-0.5"
                   />
                 </td>
               </tr>
             )
           })}
         </tbody>
+      </table>
+    </div>
+  )
+}
+
       </table>
     </div>
   )
