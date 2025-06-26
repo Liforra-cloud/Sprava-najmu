@@ -1,7 +1,8 @@
 // components/StatementTable.tsx
 
 'use client'
-import { useEffect, useState } from 'react'
+
+import React, { useEffect, useState } from 'react'
 
 ///////////////////////////
 // 1) Typy a pomocné
@@ -18,124 +19,136 @@ type PaymentsMatrix = {
   data:   MatrixRow[]
 }
 
-// Lokální typ pro uživatelské přepisy (snake_case podle API)
 type Override = {
   lease_id:    string
   year:        number
   month:       number
-  charge_id:   string         // id poplatku, nebo '' pro poznámku
+  charge_id:   string
   override_val: number | null
   note:        string | null
 }
 
-type CellKey  = `${number}-${number}-${string}` // "YYYY-MM-id"
-type MonthKey = `${number}-${number}`            // "YYYY-MM"
+type CellKey  = `${number}-${number}-${string}`
+type MonthKey = `${number}-${number}`
 
 interface StatementTableProps {
   unitId: string
-  from:   string // "YYYY-MM"
-  to:     string // "YYYY-MM"
+  from:   string
+  to:     string
 }
 
 export default function StatementTable({ unitId, from, to }: StatementTableProps) {
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
-  const [months,      setMonths]      = useState<PaymentsMatrix['months']>([])
-  const [loading,     setLoading]     = useState(true)
+  const [loading,     setLoading]     = useState(false)
+  const [error,       setError]       = useState<string | null>(null)
   const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
   const [monthNotes,  setMonthNotes]  = useState<Record<MonthKey, string>>({})
 
   useEffect(() => {
     if (!unitId) {
-      setLoading(false)
+      setMatrix(null)
       return
     }
-    setLoading(true)
 
-    fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
-      .then(r => r.json())
-      .then((data: {
-        paymentsMatrix: PaymentsMatrix
-        overrides:      Override[]
-      }) => {
+    setLoading(true)
+    setError(null)
+
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
+        if (!res.ok) {
+          throw new Error(`(${res.status}) ${res.statusText}`)
+        }
+        const data: {
+          paymentsMatrix: PaymentsMatrix
+          overrides:      Override[]
+        } = await res.json()
+
         const pm = data.paymentsMatrix
         setMatrix(pm)
-        setMonths(pm.months)
 
-        // --- Inicializace pivotValues s override_val ---
+        // Inicializace pivotValues
         const pv: Record<CellKey, number | ''> = {}
-        pm.data.forEach(row => {
-          pm.months.forEach(m => {
-            const ck = `${m.year}-${m.month}-${row.id}` as CellKey
-            const idx = pm.months.findIndex(x => x.year === m.year && x.month === m.month)
-            const base = row.values[idx]
+        for (const row of pm.data) {
+          pm.months.forEach(({ year, month }, idx) => {
+            const key = `${year}-${month}-${row.id}` as CellKey
+            const base = row.values[idx] ?? 0
             const ov = data.overrides.find(o =>
               o.lease_id  === unitId &&
               o.charge_id === row.id &&
-              o.year      === m.year &&
-              o.month     === m.month
+              o.year      === year &&
+              o.month     === month
             )
-            pv[ck] = ov?.override_val ?? base
+            pv[key] = ov?.override_val ?? base
           })
-        })
+        }
         setPivotValues(pv)
 
-        // --- Inicializace poznámek z overrides.note ---
+        // Inicializace monthNotes
         const mn: Record<MonthKey, string> = {}
-        pm.months.forEach(m => {
-          const mk = `${m.year}-${m.month}` as MonthKey
+        pm.months.forEach(({ year, month }) => {
+          const mk = `${year}-${month}` as MonthKey
           const ov = data.overrides.find(o =>
             o.lease_id  === unitId &&
             o.charge_id === '' &&
-            o.year      === m.year &&
-            o.month     === m.month
+            o.year      === year &&
+            o.month     === month
           )
           mn[mk] = ov?.note ?? ''
         })
         setMonthNotes(mn)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+      }
+      catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
+      finally {
+        setLoading(false)
+      }
+    })()
   }, [unitId, from, to])
 
   if (loading)        return <div>Načítám…</div>
+  if (error)          return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix)        return <div>Chyba načtení dat</div>
 
-  ///////////////////////////
-  // Handlery pro uložení
-  ///////////////////////////
-
-  const saveCell = (year: number, month: number, id: string) => {
+  const saveCell = async (year: number, month: number, id: string) => {
     const ck  = `${year}-${month}-${id}` as CellKey
     const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
-    fetch('/api/statement/new', {
-      method: 'PATCH',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        leaseId:     unitId,
-        year, month,
-        chargeId:    id,
-        overrideVal: val
+    try {
+      const res = await fetch('/api/statement/new', {
+        method: 'PATCH',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          leaseId:     unitId,
+          year, month,
+          chargeId:    id,
+          overrideVal: val
+        })
       })
-    })
+      if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
+    } catch (e) {
+      console.error('Chyba při ukládání hodnoty:', e)
+    }
   }
 
-  const saveNote = (year: number, month: number) => {
+  const saveNote = async (year: number, month: number) => {
     const mk = `${year}-${month}` as MonthKey
-    fetch('/api/statement/new', {
-      method: 'PATCH',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        leaseId:  unitId,
-        year, month,
-        chargeId: '',
-        note:     monthNotes[mk]
+    try {
+      const res = await fetch('/api/statement/new', {
+        method: 'PATCH',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          leaseId:  unitId,
+          year, month,
+          chargeId: '',
+          note:     monthNotes[mk]
+        })
       })
-    })
+      if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
+    } catch (e) {
+      console.error('Chyba při ukládání poznámky:', e)
+    }
   }
-
-  ///////////////////////////
-  // Render tabulky
-  ///////////////////////////
 
   return (
     <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-8">
@@ -153,7 +166,7 @@ export default function StatementTable({ unitId, from, to }: StatementTableProps
           </tr>
         </thead>
         <tbody>
-          {months.map(m => {
+          {matrix.months.map(m => {
             const mk = `${m.year}-${m.month}` as MonthKey
             return (
               <tr key={mk}>
