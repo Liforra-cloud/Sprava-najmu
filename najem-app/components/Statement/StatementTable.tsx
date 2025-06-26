@@ -32,7 +32,7 @@ type Override = {
 export type CellKey  = `${number}-${number}-${string}`
 export type MonthKey = `${number}-${number}`
 
-interface Props {
+interface StatementTableProps {
   unitId:       string
   from:         string
   to:           string
@@ -41,7 +41,7 @@ interface Props {
 
 export default function StatementTable({
   unitId, from, to, onDataChange
-}: Props) {
+}: StatementTableProps) {
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState<string | null>(null)
@@ -109,11 +109,11 @@ export default function StatementTable({
 
   const saveCell = async (year:number, month:number, id:string) => {
     const ck  = `${year}-${month}-${id}` as CellKey
-    const val = pivotValues[ck]===''?0:pivotValues[ck]
+    const val = pivotValues[ck]==='' ? 0 : pivotValues[ck]
     try {
       const res = await fetch('/api/statement/new', {
         method:'PATCH',
-        headers:{'Content-Type':'application/json'},
+        headers:{ 'Content-Type':'application/json' },
         body:JSON.stringify({ leaseId: unitId, year, month, chargeId: id, overrideVal: val })
       })
       if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
@@ -127,7 +127,7 @@ export default function StatementTable({
     try {
       const res = await fetch('/api/statement/new', {
         method:'PATCH',
-        headers:{'Content-Type':'application/json'},
+        headers:{ 'Content-Type':'application/json' },
         body:JSON.stringify({ leaseId: unitId, year, month, chargeId: '', note: monthNotes[mk] })
       })
       if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
@@ -144,15 +144,15 @@ export default function StatementTable({
     setMatrix(m => m ? { ...m, data:[...m.data,newRow] } : m)
     const newPv = { ...pivotValues }
     matrix.months.forEach(({year,month})=>{
-      newPv[`${year}-${month}-${id}` as CellKey]=''
+      newPv[`${year}-${month}-${id}` as CellKey] = ''
     })
     setPivotValues(newPv)
   }
 
   const handleRemoveColumn = (colId:string) => {
     if (!confirm('Opravdu odstranit sloupec?')) return
-    setMatrix(m=>m?{...m,data:m.data.filter(r=>r.id!==colId)}:m)
-    const newPv={...pivotValues}
+    setMatrix(m => m ? { ...m, data:m.data.filter(r=>r.id!==colId) } : m)
+    const newPv = { ...pivotValues }
     matrix.months.forEach(({year,month})=>{
       delete newPv[`${year}-${month}-${colId}` as CellKey]
     })
@@ -165,4 +165,75 @@ export default function StatementTable({
         <h2 className="text-xl font-semibold">Rozpis nákladů po měsících</h2>
         <button
           onClick={handleAddColumn}
-          className="px-3 py-1 bg-blue-600 text-white rounded
+          className="px-3 py-1 bg-blue-600 text-white rounded"
+        >
+          Přidat sloupec
+        </button>
+      </div>
+      <table className="min-w-full border text-sm">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="p-2 border">Měsíc/Rok</th>
+            {matrix.data.map(r => (
+              <th key={r.id} className="p-2 border text-center">
+                <div className="flex items-center justify-center gap-1">
+                  {r.name}
+                  <button
+                    onClick={() => handleRemoveColumn(r.id)}
+                    className="text-red-500 font-bold"
+                    title="Odebrat sloupec"
+                  >
+                    ×
+                  </button>
+                </div>
+              </th>
+            ))}
+            <th className="p-2 border">Poznámka</th>
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.months.map(m => {
+            const mk = `${m.year}-${m.month}` as MonthKey
+            return (
+              <tr key={mk}>
+                <td className="border p-1">
+                  {`${String(m.month).padStart(2,'0')}/${m.year}`}
+                </td>
+                {matrix.data.map(r => {
+                  const ck = `${m.year}-${m.month}-${r.id}` as CellKey
+                  return (
+                    <td key={ck} className="border p-1">
+                      <input
+                        type="number"
+                        value={pivotValues[ck]}
+                        onChange={e => {
+                          const v = e.target.value
+                          const num = v === '' ? '' : Number(v)
+                          setPivotValues(pv => ({ ...pv, [ck]: num }))
+                        }}
+                        onBlur={() => saveCell(m.year, m.month, r.id)}
+                        className="w-full text-center"
+                        min={0}
+                      />
+                    </td>
+                  )
+                })}
+                <td className="border p-1">
+                  <textarea
+                    rows={2}
+                    value={monthNotes[mk]}
+                    onChange={e =>
+                      setMonthNotes(n => ({ ...n, [mk]: e.target.value }))
+                    }
+                    onBlur={() => saveNote(m.year, m.month)}
+                    className="w-full border rounded px-1 py-1"
+                  />
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
