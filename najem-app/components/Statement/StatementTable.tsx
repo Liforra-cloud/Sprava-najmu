@@ -25,10 +25,7 @@ type OverrideEntry = {
   note:         string | null
 }
 
-/** Props:
- * - unitId, from, to: pro fetch dat
- * - onDataChange: volá se po každé změně flagů nebo hodnot
- */
+/** Dolní tabulka: Přehled plateb */
 export default function StatementTable({
   unitId,
   from,
@@ -40,15 +37,15 @@ export default function StatementTable({
   to:     string
   onDataChange?: (
     matrix: PaymentsMatrix,
-    pivotValues: Record<CellKey, number | ''>,
-    chargeFlags: Record<CellKey, boolean>
+    pivotValues: Record<string, number | ''>,
+    chargeFlags: Record<string, boolean>
   ) => void
 }) {
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState<string | null>(null)
-  const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
-  const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({})
+  const [pivotValues, setPivotValues] = useState<Record<string, number | ''>>({})
+  const [chargeFlags, setChargeFlags] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (!unitId) {
@@ -70,22 +67,21 @@ export default function StatementTable({
         const pm = data.paymentsMatrix
         setMatrix(pm)
 
-        // init pivotValues & chargeFlags
-        const pv: Record<CellKey, number | ''> = {}
-        const cf: Record<CellKey, boolean>     = {}
-
+        // init pivot + flags
+        const pv: Record<string, number | ''>    = {}
+        const cf: Record<string, boolean>        = {}
         pm.data.forEach(row =>
           pm.months.forEach(({ year, month }, idx) => {
-            const ck = `${year}-${month}-${row.id}` as CellKey
+            const key = `${year}-${month}-${row.id}`
             const base = row.values[idx] ?? 0
             const ov = data.overrides.find(o =>
               o.lease_id  === unitId &&
               o.charge_id === row.id &&
-              o.year      === year &&
+              o.year      === year     &&
               o.month     === month
             )
-            pv[ck] = ov?.override_val ?? base
-            cf[ck] = ov != null ? ov.override_val !== null : true
+            pv[key] = ov?.override_val ?? base
+            cf[key] = ov != null ? ov.override_val !== null : true
           })
         )
 
@@ -102,10 +98,10 @@ export default function StatementTable({
   if (error)   return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix) return <div>Vyberte nemovitost, jednotku a období.</div>
 
-  const toggleCharge = (ck: CellKey) => {
+  const toggleCharge = (ck: string) => {
     setChargeFlags(oldFlags => {
       const nextFlags = { ...oldFlags, [ck]: !oldFlags[ck] }
-      // persist změnu flagu
+      // uložit
       const [y, m, ...rest] = ck.split('-')
       const year  = Number(y)
       const month = Number(m)
@@ -126,7 +122,7 @@ export default function StatementTable({
   }
 
   const saveCell = (year: number, month: number, id: string) => {
-    const ck = `${year}-${month}-${id}` as CellKey
+    const ck = `${year}-${month}-${id}`
     if (!chargeFlags[ck]) return
     const v = pivotValues[ck]
     const val = v === '' ? 0 : v
@@ -151,12 +147,12 @@ export default function StatementTable({
         </thead>
         <tbody>
           {matrix.months.map(({ year, month }) => {
-            const mk = `${year}-${month}` as CellKey
+            const mk = `${year}-${month}`
             return (
               <tr key={mk}>
                 <td className="border p-1">{`${String(month).padStart(2,'0')}/${year}`}</td>
                 {matrix.data.map(r => {
-                  const ck = `${year}-${month}-${r.id}` as CellKey
+                  const ck = `${year}-${month}-${r.id}`
                   const on = chargeFlags[ck]
                   return (
                     <td key={ck} className="border p-1">
@@ -178,12 +174,10 @@ export default function StatementTable({
                           onChange={e => {
                             const v = e.target.value
                             const num = v === '' ? '' : Number(v)
-                            setPivotValues(oldPv => {
-                              const nextPv = { ...oldPv, [ck]: num }
-                              if (on) {
-                                onDataChange?.(matrix, nextPv, chargeFlags)
-                              }
-                              return nextPv
+                            setPivotValues(old => {
+                              const next = { ...old, [ck]: num }
+                              if (on) onDataChange?.(matrix, next, chargeFlags)
+                              return next
                             })
                             if (on) saveCell(year, month, r.id)
                           }}
@@ -196,7 +190,7 @@ export default function StatementTable({
                   )
                 })}
                 <td className="border p-1">
-                  {/* sem můžete přidat textarea pro poznámku */}
+                  {/* poznámky k měsíci */}
                 </td>
               </tr>
             )
@@ -206,3 +200,4 @@ export default function StatementTable({
     </div>
   )
 }
+
