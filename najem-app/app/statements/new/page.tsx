@@ -22,7 +22,7 @@ export default function NewStatementPage() {
   const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({})
   const [actuals,     setActuals]     = useState<Record<string, number | ''>>({})
 
-  // přebíráme i flags a tenant (tenant zůstanou v StatementTable)
+  // voláno z StatementTable po každé změně
   const handleDataChange = useCallback((
     m: PaymentsMatrix,
     pv: Record<CellKey, number | ''>,
@@ -51,7 +51,7 @@ export default function NewStatementPage() {
       .catch(console.error)
   }, [propertyId])
 
-  // Souhrn jen z flagovaných řádků
+  // Souhrn jen z položek s chargeFlags=true
   const summary = useMemo(() => {
     if (!matrix) return []
     return matrix.data.map(row => {
@@ -64,7 +64,7 @@ export default function NewStatementPage() {
       const act = typeof actuals[row.id] === 'number'
         ? actuals[row.id] as number
         : 0
-      return { id:row.id, name:row.name, total, actual:act, diff: act - total }
+      return { id: row.id, name: row.name, total, actual: act, diff: act - total }
     })
   }, [matrix, pivotValues, chargeFlags, actuals])
 
@@ -168,14 +168,17 @@ export default function NewStatementPage() {
         </div>
       )}
 
-      {/* Rozpis nákladů po měsících */}
+      {/* Přehled plateb */}
       {unitId && (
-        <StatementTable
-          unitId={unitId}
-          from={from}
-          to={to}
-          onDataChange={handleDataChange}
-        />
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Přehled plateb</h2>
+          <StatementTable
+            unitId={unitId}
+            from={from}
+            to={to}
+            onDataChange={handleDataChange}
+          />
+        </div>
       )}
     </div>
   )
