@@ -69,7 +69,7 @@ model Tenant {
   date_registered DateTime  @default(now()) @map("date_registered")
   note            String?
   leases          Lease[]
-  user_id        String
+  user_id         String
 
   @@map("tenants")
 }
@@ -87,13 +87,13 @@ model Lease {
   monthly_gas         Float
   monthly_electricity Float
   monthly_services    Float
-deposit            Float    @default(0) // ← přidáno
+  deposit             Float    @default(0)
   repair_fund         Float
   custom_fields       Json
   custom_charges      Json
   charge_flags        Json
   total_billable_rent Float
-  document_url        String?   // nově přidané pole pro URL dokumentu
+  document_url        String?
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
 
@@ -153,17 +153,17 @@ model MonthlyObligation {
   @@map("monthly_obligations")
 }
 
- model StatementEntry {
+model StatementEntry {
   id           String    @id @default(uuid()) @db.Uuid
-   lease_id     String   @db.Uuid
-   year         Int
-   month        Int
-   charge_id    String    @db.Text
+  lease_id     String    @db.Uuid
+  year         Int
+  month        Int
+  charge_id    String    @db.Text
   override_val Decimal?  @db.Decimal(65,30)
-   note         String?   @db.Text
-   created_at   DateTime  @db.Timestamptz @default(now())
-   updated_at   DateTime  @db.Timestamptz @default(now())
+  note         String?   @db.Text
+  created_at   DateTime  @db.Timestamptz @default(now())
+  updated_at   DateTime  @db.Timestamptz @default(now())
 
-   @@map("statements")
-   @@index([lease_id], name: "idx_statements_lease_id")
- }
+  @@map("statements")
+  @@index([lease_id], name: "idx_statements_lease_id")
+}
