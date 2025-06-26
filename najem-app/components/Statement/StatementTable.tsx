@@ -1,5 +1,4 @@
 // components/Statement/StatementTable.tsx
-
 'use client'
 
 import React, { useEffect, useState } from 'react'
@@ -50,8 +49,12 @@ export default function StatementTable({
   const [monthNotes,  setMonthNotes]  = useState<Record<MonthKey, string>>({})
 
   useEffect(() => {
-    if (!unitId) { setMatrix(null); return }
-    setLoading(true); setError(null)
+    if (!unitId) {
+      setMatrix(null)
+      return
+    }
+    setLoading(true)
+    setError(null)
 
     ;(async () => {
       try {
@@ -61,7 +64,7 @@ export default function StatementTable({
         const pm = data.paymentsMatrix
         setMatrix(pm)
 
-        // pivotValues
+        // init pivot values
         const pv: Record<CellKey, number | ''> = {}
         pm.data.forEach(row =>
           pm.months.forEach(({ year, month }, idx) => {
@@ -78,7 +81,7 @@ export default function StatementTable({
         )
         setPivotValues(pv)
 
-        // monthNotes
+        // init month notes
         const mn: Record<MonthKey, string> = {}
         pm.months.forEach(({ year, month }) => {
           const mk = `${year}-${month}` as MonthKey
@@ -105,7 +108,6 @@ export default function StatementTable({
     if (matrix) onDataChange?.(matrix, pivotValues)
   }, [matrix, pivotValues, onDataChange])
 
-  // fallback před prvním načtením
   if (!matrix) {
     if (loading) return <div>Načítám…</div>
     if (error)   return <div className="text-red-600">Chyba: {error}</div>
@@ -117,9 +119,9 @@ export default function StatementTable({
     const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
     try {
       const res = await fetch('/api/statement/new', {
-        method:'PATCH',
-        headers:{ 'Content-Type':'application/json' },
-        body:JSON.stringify({ leaseId: unitId, year, month, chargeId: id, overrideVal: val })
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leaseId: unitId, year, month, chargeId: id, overrideVal: val })
       })
       if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
     } catch (e) {
@@ -131,9 +133,9 @@ export default function StatementTable({
     const mk = `${year}-${month}` as MonthKey
     try {
       const res = await fetch('/api/statement/new', {
-        method:'PATCH',
-        headers:{ 'Content-Type':'application/json' },
-        body:JSON.stringify({ leaseId: unitId, year, month, chargeId: '', note: monthNotes[mk] })
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leaseId: unitId, year, month, chargeId: '', note: monthNotes[mk] })
       })
       if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`)
     } catch (e) {
@@ -174,6 +176,7 @@ export default function StatementTable({
 
   return (
     <div className="max-w-4xl mx-auto mt-4 p-4 bg-white shadow rounded space-y-4">
+      {/* Table header */}
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-lg font-medium">Rozpis nákladů po měsících</h2>
         <button
@@ -183,6 +186,8 @@ export default function StatementTable({
           + Poplatek
         </button>
       </div>
+
+      {/* Table */}
       <table className="min-w-full border text-sm">
         <thead className="bg-gray-100">
           <tr>
@@ -244,11 +249,6 @@ export default function StatementTable({
             )
           })}
         </tbody>
-      </table>
-    </div>
-  )
-}
-
       </table>
     </div>
   )
