@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { MonthlyObligation } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
-/** Záznam přepisu (override) */
+/** Override záznam */
 type OverrideEntry = {
   lease_id:     string
   year:         number
@@ -14,18 +14,19 @@ type OverrideEntry = {
   note:         string | null
 }
 
-/** Custom poplatek v JSON poli monthly_obligations.custom_charges */
+/** Custom poplatek z JSONB pole custom_charges */
 type CustomCharge = {
   name:    string
   amount:  number
   enabled: boolean
 }
 function isCustomCharge(x: unknown): x is CustomCharge {
+  if (typeof x !== 'object' || x === null) return false
+  const obj = x as Record<string, unknown>
   return (
-    typeof x === 'object' && x !== null &&
-    typeof (x as any).name    === 'string' &&
-    typeof (x as any).amount  === 'number' &&
-    typeof (x as any).enabled === 'boolean'
+    typeof obj.name    === 'string' &&
+    typeof obj.amount  === 'number' &&
+    typeof obj.enabled === 'boolean'
   )
 }
 
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
   const toObj   = parseYm(to)
   const months  = getMonthsInRange(fromObj, toObj)
 
-  // 2) Najdi platnou lease pro dané unitId a období
+  // 2) Najdi lease pro unitId pokrývající období
   const lease = await prisma.lease.findFirst({
     where: {
       unit_id: unitId,
@@ -89,7 +90,7 @@ export async function GET(req: NextRequest) {
     where: { id: lease.tenant_id }
   })
 
-  // 4) Načti obligations
+  // 4) Načti monthly obligations
   const obligations = await prisma.monthlyObligation.findMany({
     where: {
       lease_id: lease.id,
@@ -114,7 +115,8 @@ export async function GET(req: NextRequest) {
     note:         o.note
   }))
 
-  // 6) Definice standardních poplatků
+  // 6) Standardní poplatky
+  type MatrixRow = { id: string; name: string; values: (number | '')[]; total: number }
   const standardKeys: {
     id: string
     label: string
@@ -129,21 +131,19 @@ export async function GET(req: NextRequest) {
     { id:'repair_fund', label:'Fond oprav', field:'repair_fund', flag:'repair_fund'         }
   ]
 
-  // 7) Pivot standardních poplatků
-  type MatrixRow = { id:string; name:string; values:(number|'')[]; total:number }
   const matrixData: MatrixRow[] = standardKeys.map(key => {
     const values = months.map(({ year, month }) => {
-      const obl = obligations.find(o => o.year === year && o.month === month)
-      const flags = (obl?.charge_flags as Record<string, boolean> | null) ?? {}
-      const base  =
-        obl && flags[key.flag] && typeof obl[key.field] === 'number'
+      const obl        = obligations.find(o => o.year === year && o.month === month)
+      const chargeFlags = (obl?.charge_flags as Record<string, boolean> | null) ?? {}
+      const base       =
+        obl && chargeFlags[key.flag] && typeof obl[key.field] === 'number'
           ? obl[key.field] as number
           : 0
 
       const ov = overrides.find(o =>
         o.lease_id  === lease.id &&
-        o.year      === year       &&
-        o.month     === month      &&
+        o.year      === year    &&
+        o.month     === month   &&
         o.charge_id === key.id
       )
       return ov?.override_val ?? base
@@ -156,7 +156,7 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // 8) Pivot custom poplatků
+  // 7) Custom poplatky
   const allCustomNames = obligations.flatMap(o =>
     (Array.isArray(o.custom_charges) ? o.custom_charges : [])
       .filter(isCustomCharge)
@@ -177,8 +177,8 @@ export async function GET(req: NextRequest) {
 
       const ov = overrides.find(o =>
         o.lease_id  === lease.id &&
-        o.year      === year     &&
-        o.month     === month    &&
+        o.year      === year    &&
+        o.month     === month   &&
         o.charge_id === name
       )
       return ov?.override_val ?? base
@@ -191,7 +191,7 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // 9) Sestav a vrať response
+  // 8) Výsledek
   const paymentsMatrix = { months, data: [...matrixData, ...customData] }
   return NextResponse.json({
     paymentsMatrix,
