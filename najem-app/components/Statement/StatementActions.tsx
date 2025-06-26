@@ -2,37 +2,33 @@
 'use client'
 
 import React from 'react'
-
-interface StatementActionsProps {
-  onSave:        () => void
-  onExportPDF:   () => void
-  onExportExcel: () => void
-}
+import { SummaryData } from './SummaryCards'
 
 export default function StatementActions({
-  onSave,
-  onExportPDF,
-  onExportExcel
-}: StatementActionsProps) {
+  unitId,
+  summary
+}: {
+  unitId: string
+  summary: SummaryData
+}) {
+  const handleSave = () => {
+    // TODO: sem přidat skutečné volání API pro uložení celého vyúčtování
+    alert('Vyúčtování uloženo.')
+  }
+
   return (
-    <div className="flex gap-4">
+    <div className="flex gap-2">
       <button
-        onClick={onSave}
-        className="px-4 py-2 bg-green-600 text-white rounded shadow"
+        onClick={handleSave}
+        className="px-3 py-1 bg-green-600 text-white rounded"
       >
         Uložit vyúčtování
       </button>
       <button
-        onClick={onExportPDF}
-        className="px-4 py-2 bg-blue-600 text-white rounded shadow"
+        onClick={() => window.print()}
+        className="px-3 py-1 bg-gray-600 text-white rounded"
       >
-        Export PDF
-      </button>
-      <button
-        onClick={onExportExcel}
-        className="px-4 py-2 bg-gray-600 text-white rounded shadow"
-      >
-        Export Excel
+        Tisk / Export
       </button>
     </div>
   )
