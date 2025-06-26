@@ -3,7 +3,24 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import slugify from 'slugify'
+
+//
+// -- Malá funkce pro převod textu na “slug” (bez externích balíčků)
+//
+function makeSlug(str: string) {
+  return str
+    .toLowerCase()
+    // odstranit diakritiku
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    // nepovolené znaky na pomlčky
+    .replace(/[^a-z0-9]+/g, '-')
+    // oříznout okraje
+    .replace(/(^-|-$)/g, '')
+}
+
+///////////////////////////
+// 1) Typy a pomocné
+///////////////////////////
 
 export type MatrixRow = {
   id: string
@@ -34,7 +51,10 @@ interface StatementTableProps {
 }
 
 export default function StatementTable({
-  unitId, from, to, onDataChange
+  unitId,
+  from,
+  to,
+  onDataChange
 }: StatementTableProps) {
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
   const [loading,     setLoading]     = useState(false)
@@ -56,6 +76,7 @@ export default function StatementTable({
         const pm = data.paymentsMatrix
         setMatrix(pm)
 
+        // init pivotValues
         const pv: Record<CellKey, number | ''> = {}
         pm.data.forEach(row =>
           pm.months.forEach(({ year, month }, idx) => {
@@ -72,6 +93,7 @@ export default function StatementTable({
         )
         setPivotValues(pv)
 
+        // init monthNotes
         const mn: Record<MonthKey, string> = {}
         pm.months.forEach(({ year, month }) => {
           const mk = `${year}-${month}` as MonthKey
@@ -94,7 +116,7 @@ export default function StatementTable({
     })()
   }, [unitId, from, to])
 
-  // report zpět rodiči při změně dat
+  // ohlásit rodiči jakákoli změna
   useEffect(() => {
     if (matrix) onDataChange?.(matrix, pivotValues)
   }, [matrix, pivotValues])
@@ -103,6 +125,7 @@ export default function StatementTable({
   if (error)   return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix) return <div>Chyba načtení dat</div>
 
+  // uložit jednu buňku
   const saveCell = async (year: number, month: number, id: string) => {
     const ck  = `${year}-${month}-${id}` as CellKey
     const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
@@ -118,6 +141,7 @@ export default function StatementTable({
     }
   }
 
+  // uložit poznámku
   const saveNote = async (year: number, month: number) => {
     const mk = `${year}-${month}` as MonthKey
     try {
@@ -132,10 +156,11 @@ export default function StatementTable({
     }
   }
 
+  // přidat sloupec
   const handleAddColumn = () => {
     const name = prompt('Název nového poplatku:')
     if (!name) return
-    const id = slugify(name, { lower: true, strict: true })
+    const id = makeSlug(name)
     const newRow: MatrixRow = {
       id, name,
       values: matrix.months.map(() => ''),
@@ -149,6 +174,7 @@ export default function StatementTable({
     setPivotValues(newPv)
   }
 
+  // odebrat sloupec
   const handleRemoveColumn = (colId: string) => {
     if (!confirm('Opravdu odstranit sloupec?')) return
     setMatrix(m => m ? { ...m, data: m.data.filter(r => r.id !== colId) } : m)
@@ -231,4 +257,3 @@ export default function StatementTable({
     </div>
   )
 }
-
