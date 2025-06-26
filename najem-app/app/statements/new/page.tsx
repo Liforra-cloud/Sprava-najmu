@@ -1,6 +1,5 @@
 // app/statements/new/page.tsx
 
-
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -11,11 +10,9 @@ export default function NewStatementPage() {
   const router       = useRouter()
   const searchParams = useSearchParams()
 
-  // předvyplnění z URL ?property_id=...&unit_id=...
   const paramPropertyId = searchParams.get('property_id') ?? ''
   const paramUnitId     = searchParams.get('unit_id')     ?? ''
 
-  // stavy
   const [propertyId, setPropertyId] = useState(paramPropertyId)
   const [unitId,     setUnitId]     = useState(paramUnitId)
   const [title,      setTitle]      = useState('')
@@ -25,12 +22,10 @@ export default function NewStatementPage() {
   const [properties, setProperties] = useState<{id:string;name:string}[]>([])
   const [units,      setUnits]      = useState<{id:string;identifier:string}[]>([])
 
-  // matice a pivot
-  const [matrix, setMatrix]         = useState<PaymentsMatrix|null>(null)
-  const [pivot,  setPivot]          = useState<Record<CellKey, number | ''>>({})
-  const [actuals, setActuals]       = useState<Record<string, number | ''>>({})
+  const [matrix, setMatrix] = useState<PaymentsMatrix|null>(null)
+  const [pivot,  setPivot]  = useState<Record<CellKey, number | ''>>({})
+  const [actuals, setActuals] = useState<Record<string, number | ''>>({})
 
-  // načíst nemovitosti
   useEffect(() => {
     fetch('/api/properties')
       .then(r => r.json())
@@ -38,11 +33,9 @@ export default function NewStatementPage() {
       .catch(console.error)
   }, [])
 
-  // načíst jednotky kdykoli se změní propertyId
   useEffect(() => {
     if (!propertyId) {
-      setUnits([])
-      setUnitId('')
+      setUnits([]); setUnitId('')
       return
     }
     fetch(`/api/units?propertyId=${propertyId}`)
@@ -57,33 +50,21 @@ export default function NewStatementPage() {
     if (!title.trim()) return alert('Zadejte název vyúčtování')
     if (!matrix)    return alert('Data nejsou načtena')
 
-    // sestav roční souhrn
     const summary: Record<string, { total:number; actual:number; difference:number }> = {}
     matrix.data.forEach(r => {
       const total = matrix.months.reduce((s, m) => {
         const key = `${m.year}-${m.month}-${r.id}` as CellKey
         const v   = pivot[key]
-        return s + (typeof v === 'number' ? v : 0)
+        return s + (typeof v==='number'?v:0)
       }, 0)
-      const act = typeof actuals[r.id] === 'number' ? actuals[r.id] as number : 0
-      summary[r.id] = {
-        total,
-        actual:     act,
-        difference: act - total
-      }
+      const act = typeof actuals[r.id]==='number' ? actuals[r.id] as number : 0
+      summary[r.id] = { total, actual: act, difference: act - total }
     })
 
     const res = await fetch('/api/statements/new', {
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        propertyId,  // pokud to Backend potřebuje
-        unitId,
-        title,
-        from,
-        to,
-        annualSummary: summary
-      })
+      body: JSON.stringify({ propertyId, unitId, title, from, to, annualSummary: summary })
     })
     const js = await res.json()
     if (!res.ok) return alert('Chyba: ' + js.error)
@@ -91,10 +72,9 @@ export default function NewStatementPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto mt-10 p-6 bg-white shadow rounded space-y-6">
+    <div className="max-w-4xl mx-auto mt-8 p-6 bg-white shadow rounded space-y-6">
       <h1 className="text-2xl font-bold">Nové vyúčtování</h1>
 
-      {/* Výběr nemovitosti a jednotky */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label>
           <span>Nemovitost:</span>
@@ -109,14 +89,13 @@ export default function NewStatementPage() {
             ))}
           </select>
         </label>
-
         <label>
           <span>Jednotka:</span>
           <select
             value={unitId}
             onChange={e => setUnitId(e.target.value)}
-            className="border rounded w-full px-2 py-1"
             disabled={!propertyId}
+            className="border rounded w-full px-2 py-1"
           >
             <option value="">-- Vyber jednotku --</option>
             {units.map(u => (
@@ -126,7 +105,6 @@ export default function NewStatementPage() {
         </label>
       </div>
 
-      {/* Zbytek formuláře */}
       <label className="block">
         <span>Název vyúčtování:</span>
         <input
@@ -161,25 +139,17 @@ export default function NewStatementPage() {
         </label>
       </div>
 
-      {/* Tabulka nákladů */}
-      <StatementTable
-        unitId={unitId}
-        from={from}
-        to={to}
-        onDataChange={(m,pv) => { setMatrix(m); setPivot(pv) }}
-      />
-
-      {/* Roční souhrn */}
+      {/* === ROČNÍ SOUHRN NAD TABULKOU === */}
       {matrix && (
-        <div>
-          <h2 className="text-xl font-semibold mt-6 mb-2">Roční souhrn</h2>
-          <table className="min-w-full border text-sm mb-4">
+        <div className="bg-gray-50 p-4 rounded border">
+          <h2 className="text-lg font-medium mb-2">Roční souhrn</h2>
+          <table className="w-full text-sm border-collapse">
             <thead className="bg-gray-100">
               <tr>
-                <th className="border p-2">Poplatek</th>
-                <th className="border p-2">Vypočteno</th>
-                <th className="border p-2">Reálná spotřeba</th>
-                <th className="border p-2">Rozdíl</th>
+                <th className="border px-2 py-1">Poplatek</th>
+                <th className="border px-2 py-1 text-right">Vypočteno</th>
+                <th className="border px-2 py-1 text-right">Reálná spotřeba</th>
+                <th className="border px-2 py-1 text-right">Rozdíl</th>
               </tr>
             </thead>
             <tbody>
@@ -188,26 +158,28 @@ export default function NewStatementPage() {
                   const key = `${m.year}-${m.month}-${r.id}` as CellKey
                   const v   = pivot[key]
                   return s + (typeof v==='number'?v:0)
-                },0)
+                }, 0)
                 const act = typeof actuals[r.id]==='number' ? actuals[r.id] as number : 0
-                const diff= act - total
+                const diff = act - total
                 return (
                   <tr key={r.id}>
-                    <td className="border p-1">{r.name}</td>
-                    <td className="border p-1 text-right">{total}</td>
-                    <td className="border p-1 text-right">
+                    <td className="border px-2 py-1">{r.name}</td>
+                    <td className="border px-2 py-1 text-right">{total}</td>
+                    <td className="border px-2 py-1 text-right">
                       <input
                         type="number"
                         value={actuals[r.id] ?? ''}
-                        onChange={e=>{
-                          const v=e.target.value
-                          setActuals(a=>({ ...a, [r.id]: v===''? '' : Number(v) }))
+                        onChange={e => {
+                          const v = e.target.value
+                          setActuals(a => ({ ...a, [r.id]: v===''?'':Number(v) }))
                         }}
-                        className="w-full text-right border rounded px-1"
+                        className="w-16 text-right text-xs border rounded px-1 py-0.5"
                         min={0}
                       />
                     </td>
-                    <td className={`border p-1 text-right ${diff<0?'text-red-600':''}`}>{diff}</td>
+                    <td className={`border px-2 py-1 text-right ${diff<0?'text-red-600':''}`}>
+                      {diff}
+                    </td>
                   </tr>
                 )
               })}
@@ -216,10 +188,18 @@ export default function NewStatementPage() {
         </div>
       )}
 
-      <div className="flex gap-4">
+      {/* === ROZPIS NÁKLADŮ PO MĚSÍCÍCH === */}
+      <StatementTable
+        unitId={unitId}
+        from={from}
+        to={to}
+        onDataChange={(m,pv) => { setMatrix(m); setPivot(pv) }}
+      />
+
+      <div className="flex justify-end pt-4">
         <button
           onClick={handleSave}
-          className="px-4 py-2 bg-green-600 text-white rounded shadow"
+          className="px-4 py-2 bg-green-600 text-white rounded"
         >
           Uložit vyúčtování
         </button>
@@ -227,3 +207,4 @@ export default function NewStatementPage() {
     </div>
   )
 }
+
