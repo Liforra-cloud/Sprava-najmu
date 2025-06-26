@@ -68,8 +68,9 @@ export default function StatementTable({
         setMatrix(pm)
 
         // init pivot + flags
-        const pv: Record<string, number | ''>    = {}
-        const cf: Record<string, boolean>        = {}
+        const pv: Record<string, number | ''> = {}
+        const cf: Record<string, boolean>     = {}
+
         pm.data.forEach(row =>
           pm.months.forEach(({ year, month }, idx) => {
             const key = `${year}-${month}-${row.id}`
@@ -101,7 +102,7 @@ export default function StatementTable({
   const toggleCharge = (ck: string) => {
     setChargeFlags(oldFlags => {
       const nextFlags = { ...oldFlags, [ck]: !oldFlags[ck] }
-      // uložit
+      // uložit do DB
       const [y, m, ...rest] = ck.split('-')
       const year  = Number(y)
       const month = Number(m)
@@ -173,7 +174,7 @@ export default function StatementTable({
                           disabled={!on}
                           onChange={e => {
                             const v = e.target.value
-                            const num = v === '' ? '' : Number(v)
+                            const num: number | '' = v === '' ? '' : Number(v)
                             setPivotValues(old => {
                               const next = { ...old, [ck]: num }
                               if (on) onDataChange?.(matrix, next, chargeFlags)
@@ -200,4 +201,3 @@ export default function StatementTable({
     </div>
   )
 }
-
