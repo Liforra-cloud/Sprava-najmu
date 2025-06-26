@@ -3,7 +3,6 @@
 
 import React, { useEffect, useState } from 'react'
 
-// --- Typy v jednom souboru ---
 export type MatrixRow = {
   id: string
   name: string
@@ -17,7 +16,17 @@ export type PaymentsMatrix = {
 export type CellKey  = `${number}-${number}-${string}`
 export type MonthKey = `${number}-${number}`
 
-// --- Malá ikonka pro účtovat / neúčtovat ---
+// Přesný typ override záznamu
+type Override = {
+  lease_id:    string
+  year:        number
+  month:       number
+  charge_id:   string
+  override_val: number | null
+  note:        string | null
+}
+
+// Ikonka „účtovat/neúčtovat“
 function ChargedIcon({ on, toggle }: { on: boolean; toggle(): void }) {
   return (
     <span
@@ -39,8 +48,8 @@ export default function StatementTable({
   unitId, from, to, onDataChange
 }: {
   unitId: string
-  from: string
-  to: string
+  from:   string
+  to:     string
   onDataChange?: (m: PaymentsMatrix, pv: Record<CellKey, number | ''>) => void
 }) {
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
@@ -49,33 +58,34 @@ export default function StatementTable({
   const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
   const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({})
 
-  // Načtení dat
   useEffect(() => {
     if (!unitId) {
       setMatrix(null)
       return
     }
-    setLoading(true); setError(null)
+    setLoading(true)
+    setError(null)
+
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(r => {
         if (!r.ok) throw new Error(r.statusText)
-        return r.json()
+        return r.json() as Promise<{ paymentsMatrix: PaymentsMatrix; overrides: Override[] }>
       })
-      .then((data: { paymentsMatrix: PaymentsMatrix; overrides: any[] }) => {
+      .then(data => {
         const pm = data.paymentsMatrix
         setMatrix(pm)
 
-        // Init pivot a flagů
         const pv: Record<CellKey, number | ''> = {}
         const cf: Record<CellKey, boolean>     = {}
         pm.data.forEach(row =>
           pm.months.forEach(({ year, month }, idx) => {
-            const ck = `${year}-${month}-${row.id}` as CellKey
+            const ck   = `${year}-${month}-${row.id}` as CellKey
             const base = row.values[idx] ?? 0
             const ov   = data.overrides.find(o =>
               o.lease_id === unitId &&
               o.charge_id === row.id &&
-              o.year === year && o.month === month
+              o.year === year &&
+              o.month === month
             )
             pv[ck] = ov?.override_val ?? base
             cf[ck] = ov != null ? (ov.override_val !== null) : true
@@ -86,7 +96,7 @@ export default function StatementTable({
 
         onDataChange?.(pm, pv)
       })
-      .catch(e => setError(e.message))
+      .catch(e => setError((e as Error).message))
       .finally(() => setLoading(false))
   }, [unitId, from, to, onDataChange])
 
@@ -96,14 +106,17 @@ export default function StatementTable({
     return <div>Vyberte jednotku</div>
   }
 
-  // Uložení jednoho override
+  const toggleCharge = (ck: CellKey) =>
+    setChargeFlags(cf => ({ ...cf, [ck]: !cf[ck] }))
+
   const saveCell = async (year: number, month: number, id: string) => {
     const ck  = `${year}-${month}-${id}` as CellKey
     const on  = chargeFlags[ck]
     const val = on ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
+
     await fetch('/api/statement/new', {
       method: 'PATCH',
-      headers: { 'Content-Type':'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         leaseId: unitId,
         year, month,
@@ -111,11 +124,6 @@ export default function StatementTable({
         overrideVal: val
       })
     })
-  }
-
-  // Přepnutí účtovat/neudčtovat
-  const toggleCharge = (ck: CellKey) => {
-    setChargeFlags(cf => ({ ...cf, [ck]: !cf[ck] }))
   }
 
   return (
@@ -133,12 +141,10 @@ export default function StatementTable({
         </thead>
         <tbody>
           {matrix.months.map(m => {
-            const mk = `${m.year}-${m.month}` as string
+            const mk = `${m.year}-${m.month}` as CellKey
             return (
               <tr key={mk}>
-                <td className="border p-1">
-                  {`${String(m.month).padStart(2,'0')}/${m.year}`}
-                </td>
+                <td className="border p-1">{`${String(m.month).padStart(2,'0')}/${m.year}`}</td>
                 {matrix.data.map(r => {
                   const ck = `${m.year}-${m.month}-${r.id}` as CellKey
                   const on = chargeFlags[ck]
@@ -164,7 +170,7 @@ export default function StatementTable({
                   )
                 })}
                 <td className="border p-1">
-                  {/* Zde můžete mít poznámky buňky */}
+                  {/* tu zůstanou poznámky */}
                 </td>
               </tr>
             )
