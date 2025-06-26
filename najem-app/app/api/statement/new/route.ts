@@ -1,28 +1,36 @@
 // app/api/statements/new/route.ts
 
-// app/api/statements/new/route.ts
+
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function POST(req: NextRequest) {
-  const { propertyId, unitId, title, from, to } = await req.json()
+type Body = {
+  leaseId:     string
+  year:        number
+  month:       number
+  chargeId:    string
+  overrideVal: number | null
+}
 
-  if (!unitId || !title || !from || !to) {
-    return NextResponse.json(
-      { error: 'unitId, title, from a to jsou povinné' },
-      { status: 400 }
-    )
+export async function PATCH(req: NextRequest) {
+  const { leaseId, year, month, chargeId, overrideVal } = (await req.json()) as Body
+  if (!leaseId) {
+    return NextResponse.json({ error:'leaseId je povinné' }, { status:400 })
   }
-
-  const entry = await prisma.statementEntry.create({
-    data: {
-      lease_id:  unitId,
-      charge_id: '',        // značí hlavní záznam
-      year:      Number(from.split('-')[0]),
-      month:     Number(from.split('-')[1]),
-      note:      JSON.stringify({ propertyId, title, from, to })
+  const id = `${leaseId}-${year}-${month}-${chargeId}`
+  const entry = await prisma.statementEntry.upsert({
+    where:  { id },
+    create: {
+      id,
+      lease_id:    leaseId,
+      year, month,
+      charge_id:   chargeId,
+      override_val: overrideVal,
+      note:         null
+    },
+    update: {
+      override_val: overrideVal
     }
   })
-
   return NextResponse.json(entry)
 }
