@@ -1,18 +1,25 @@
 // components/Statement/StatementHeader.tsx
+
 'use client'
 
 import React from 'react'
 
 interface Props {
-  unitId:      string
-  from:        string
-  to:          string
-  titleLabel:  string
+  /** Od které doby */
+  from: string
+  /** Do které doby */
+  to: string
+  /** Titulek vyúčtování */
+  titleLabel: string
+  /** Callback při změně období */
   onChangePeriod: (from: string, to: string) => void
 }
 
 export default function StatementHeader({
-  unitId, from, to, titleLabel, onChangePeriod
+  from,
+  to,
+  titleLabel,
+  onChangePeriod
 }: Props) {
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
