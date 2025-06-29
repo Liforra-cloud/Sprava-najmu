@@ -45,7 +45,6 @@ export default function StatementTable({
   const [pivotValues, setPivotValues] = useState<Record<string, number | ''>>({})
   const [chargeFlags, setChargeFlags] = useState<Record<string, boolean>>({})
 
-  // Načtení dat
   useEffect(() => {
     if (!unitId) {
       setMatrix(null)
@@ -92,7 +91,6 @@ export default function StatementTable({
   if (error)   return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix) return <div>Vyberte jednotku a období.</div>
 
-  // Přidat novou položku
   const addColumn = () => {
     const name = window.prompt('Název nového poplatku:')
     if (!name) return
@@ -128,7 +126,6 @@ export default function StatementTable({
     })
   }
 
-  // Odebrat sloupec
   const removeColumn = (id: string) => {
     if (!window.confirm(`Opravdu smazat sloupec "${id}"?`)) return
     setMatrix(prev => {
@@ -152,7 +149,6 @@ export default function StatementTable({
     })
   }
 
-  // Přepnout účtovat/neúčtovat
   const toggleCharge = (ck: string) => {
     setChargeFlags(old => {
       const next = { ...old, [ck]: !old[ck] }
@@ -173,7 +169,6 @@ export default function StatementTable({
     })
   }
 
-  // Uložit buňku
   const saveCell = (year: number, month: number, id: string) => {
     const ck = `${year}-${month}-${id}`
     if (!chargeFlags[ck]) return
@@ -225,17 +220,7 @@ export default function StatementTable({
                 const on = chargeFlags[ck]
                 return (
                   <td key={ck} className="border p-1">
-                    <div className="flex items-center space-x-1">
-                      <span
-                        onClick={() => toggleCharge(ck)}
-                        style={{ cursor:'pointer', width:12, height:12, flexShrink:0 }}
-                        title={on ? 'Účtovat: ano' : 'Účtovat: ne'}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 8 8">
-                          <circle cx="4" cy="4" r="3"
-                            fill={on ? '#22c55e' : '#94a3b8'} />
-                        </svg>
-                      </span>
+                    <div className="flex items-center justify-between">
                       <input
                         type="number"
                         value={pivotValues[ck]}
@@ -251,9 +236,19 @@ export default function StatementTable({
                           if (on) saveCell(year, month, r.id)
                         }}
                         onBlur={() => saveCell(year, month, r.id)}
-                        className={`flex-1 text-right text-xs border rounded px-1 py-0 ${!on ? 'opacity-50' : ''}`}
+                        className={`w-16 text-right text-xs border rounded px-1 py-0 ${!on ? 'opacity-50' : ''}`}
                         min={0}
                       />
+                      <span
+                        onClick={() => toggleCharge(ck)}
+                        className="ml-2 cursor-pointer"
+                        title={on ? 'Účtovat: ano' : 'Účtovat: ne'}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 8 8">
+                          <circle cx="4" cy="4" r="3"
+                            fill={on ? '#22c55e' : '#94a3b8'} />
+                        </svg>
+                      </span>
                     </div>
                   </td>
                 )
