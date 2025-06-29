@@ -154,15 +154,19 @@ model MonthlyObligation {
 }
 
 model StatementEntry {
-  id           String    @id @default(uuid()) @db.Uuid
-  lease_id     String    @db.Uuid
-  year         Int
-  month        Int
-  charge_id    String    @db.Text
-  override_val Decimal?  @db.Decimal(65,30)
-  note         String?   @db.Text
-  created_at   DateTime  @db.Timestamptz @default(now())
-  updated_at   DateTime  @db.Timestamptz @default(now())
+  id             String    @id @default(uuid()) @db.Uuid
+  unit_id        String    @db.Uuid       // ID jednotky (nově přidáno)
+  lease_id       String    @db.Uuid
+  period_from    DateTime  @db.Date       // počátek období (nově přidáno)
+  period_to      DateTime  @db.Date       // konec období (nově přidáno)
+  data           Json                     // kompletní data vyúčtování (nově přidáno)
+  year           Int
+  month          Int
+  charge_id      String    @db.Text
+  override_val   Decimal?  @db.Decimal(65,30)
+  note           String?   @db.Text
+  title          String    @db.Text       // název vyúčtování (nově přidáno)
+  annual_summary Json?                   // souhrnné informace (nově přidáno)
 
   @@map("statements")
   @@index([lease_id], name: "idx_statements_lease_id")
