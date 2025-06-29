@@ -4,7 +4,7 @@
 'use client'
 
 import React from 'react'
-import { PaymentsMatrix } from './StatementTable'
+import type { PaymentsMatrix } from './StatementTable'
 
 export default function AnnualSummary({
   matrix,
@@ -16,32 +16,40 @@ export default function AnnualSummary({
   chargeFlags: Record<string, boolean>
 }) {
   return (
-    <div className="overflow-x-auto">
-      <h2 className="text-xl font-semibold mb-2">Přehled období</h2>
-      <table className="min-w-full border text-sm">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="border p-1 text-left">Poplatek</th>
-            <th className="border p-1 text-right">Součet</th>
-          </tr>
-        </thead>
-        <tbody>
-          {matrix.data.map(row => {
-            const total = matrix.months.reduce((sum, m) => {
-              const key = `${m.year}-${m.month}-${row.id}`
-              const val = pivotValues[key]
-              return sum + (chargeFlags[key] && typeof val === 'number' ? val : 0)
-            }, 0)
-            return (
-              <tr key={row.id}>
-                <td className="border p-1">{row.name}</td>
-                <td className="border p-1 text-right">{total.toFixed(2)}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+    <table className="w-full border mb-4 text-sm">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="border p-1">Poplatek</th>
+          <th className="border p-1">Vypočteno</th>
+          <th className="border p-1">Reálná spotřeba</th>
+          <th className="border p-1">Rozdíl</th>
+        </tr>
+      </thead>
+      <tbody>
+        {matrix.data.map(row => {
+          const calc = row.total
+          const paid = Object.entries(pivotValues).reduce((sum,[key,val]) => {
+            const [y,m,id] = key.split('-')
+            if (id===row.id && chargeFlags[key] && typeof val==='number') {
+              return sum + val
+            }
+            return sum
+          },0)
+          const diff = calc - paid
+          return (
+            <tr key={row.id}>
+              <td className="border p-1">{row.name}</td>
+              <td className="border p-1">{calc.toLocaleString()}</td>
+              <td className="border p-1">
+                {/* sem můžete doplnit input pro skutečnou hodnotu */}
+              </td>
+              <td className={`border p-1 ${diff<0?'text-red-600':''}`}>
+                {diff.toLocaleString()}
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
   )
 }
-  
