@@ -14,16 +14,25 @@ interface Props {
   params: { unitId: string }
 }
 
+// Odpověď z našeho API
+interface ApiResponse {
+  paymentsMatrix: PaymentsMatrix
+  tenant: {
+    full_name: string
+    lease_end: string | null
+  } | null
+}
+
 export default function StatementUnitPage({ params }: Props) {
   const { unitId } = params
   const router     = useRouter()
   const sp         = useSearchParams()
 
   // Výchozí období: leden–prosinec aktuálního roku
-  const now      = new Date()
-  const year     = now.getFullYear()
-  const defaultFrom = `${year}-01`
-  const defaultTo   = `${year}-12`
+  const now         = new Date()
+  const currentYear = now.getFullYear()
+  const defaultFrom = `${currentYear}-01`
+  const defaultTo   = `${currentYear}-12`
 
   const [from, setFrom] = useState(sp.get('from') ?? defaultFrom)
   const [to,   setTo]   = useState(sp.get('to')   ?? defaultTo)
@@ -37,7 +46,8 @@ export default function StatementUnitPage({ params }: Props) {
     [router, unitId]
   )
 
-  // Data tabulky
+  const [tenantName, setTenantName] = useState<string>('–')
+
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
   const [pivotValues, setPivotValues] = useState<Record<string, number | ''>>({})
   const [chargeFlags, setChargeFlags] = useState<Record<string, boolean>>({})
@@ -57,46 +67,33 @@ export default function StatementUnitPage({ params }: Props) {
     setChargeFlags(cf)
   }, [])
 
-  // Jméno nájemníka
-  const [tenantName, setTenantName] = useState<string>('–')
-
-  // Načtení jména nájemníka (a matrix) na změnu unitId, from, to
+  // Načtení matice a jména nájemníka
   useEffect(() => {
     if (!unitId) return
 
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => {
         if (!res.ok) throw new Error(res.statusText)
-        return res.json() as Promise<{
-          paymentsMatrix: PaymentsMatrix
-          overrides: any[]
-          tenant: { full_name: string; lease_end: string | null } | null
-        }>
+        return res.json() as Promise<ApiResponse>
       })
       .then(data => {
-        // nastavit matrix a přeposlat data tabulce
         setMatrix(data.paymentsMatrix)
-        // zpracování pivotValues a chargeFlags už ošetří StatementTable přes onDataChange
-        // načtení jména
-        if (data.tenant) {
-          setTenantName(data.tenant.full_name)
-        } else {
-          setTenantName('–')
-        }
+        setTenantName(data.tenant?.full_name ?? '–')
       })
       .catch(() => {
-        setTenantName('–')
         setMatrix(null)
+        setTenantName('–')
       })
   }, [unitId, from, to])
 
-  // Přepočet souhrnu po změně pivotValues / chargeFlags
+  // Přepočet souhrnu
   useEffect(() => {
     if (!matrix) return
-    const totalCosts = Object.entries(pivotValues).reduce((sum, [key, val]) => {
-      return sum + (chargeFlags[key] && typeof val === 'number' ? val : 0)
-    }, 0)
-    const totalPaid = totalCosts * 0.9   // <<< sem vložte skutečný výpočet
+    const totalCosts = Object.entries(pivotValues).reduce((sum, [k, v]) =>
+      sum + (chargeFlags[k] && typeof v === 'number' ? v : 0),
+      0
+    )
+    const totalPaid = totalCosts * 0.9  // tady váš skutečný vzorec
     const balance   = totalCosts - totalPaid
     setSummary({ totalCosts, totalPaid, balance })
   }, [pivotValues, chargeFlags, matrix])
