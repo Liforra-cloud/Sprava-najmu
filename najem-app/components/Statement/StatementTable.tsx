@@ -15,8 +15,6 @@ export type PaymentsMatrix = {
   data:   MatrixRow[]
 }
 
-export type CellKey = `${number}-${number}-${string}`
-
 type OverrideEntry = {
   lease_id:     string
   year:         number
@@ -47,6 +45,7 @@ export default function StatementTable({
   const [pivotValues, setPivotValues] = useState<Record<string, number | ''>>({})
   const [chargeFlags, setChargeFlags] = useState<Record<string, boolean>>({})
 
+  // Načtení dat
   useEffect(() => {
     if (!unitId) {
       setMatrix(null)
@@ -91,9 +90,9 @@ export default function StatementTable({
 
   if (loading) return <div>Načítám…</div>
   if (error)   return <div className="text-red-600">Chyba: {error}</div>
-  if (!matrix) return <div>Vyberte nemovitost, jednotku a období.</div>
+  if (!matrix) return <div>Vyberte jednotku a období.</div>
 
-  // Přidání nového sloupce
+  // Přidat novou položku
   const addColumn = () => {
     const name = window.prompt('Název nového poplatku:')
     if (!name) return
@@ -106,14 +105,12 @@ export default function StatementTable({
       id,
       name,
       values: matrix.months.map(() => 0),
-      total: 0
+      total:  0
     }
     setMatrix(prev => {
-      const next = prev
-        ? { months: prev.months, data: [...prev.data, newRow] }
-        : prev
+      const next = prev && { months: prev.months, data: [...prev.data, newRow] }
       onDataChange?.(next!, pivotValues, chargeFlags)
-      return next
+      return next!
     })
     setPivotValues(old => {
       const next = { ...old }
@@ -131,15 +128,13 @@ export default function StatementTable({
     })
   }
 
-  // Odebrání libovolného sloupce
+  // Odebrat sloupec
   const removeColumn = (id: string) => {
     if (!window.confirm(`Opravdu smazat sloupec "${id}"?`)) return
     setMatrix(prev => {
-      const next = prev
-        ? { months: prev.months, data: prev.data.filter(r => r.id !== id) }
-        : prev
+      const next = prev && { months: prev.months, data: prev.data.filter(r => r.id !== id) }
       onDataChange?.(next!, pivotValues, chargeFlags)
-      return next
+      return next!
     })
     setPivotValues(old => {
       const next = { ...old }
@@ -157,7 +152,7 @@ export default function StatementTable({
     })
   }
 
-  // Přepnutí účtovat/neúčtovat
+  // Přepnout účtovat/neúčtovat
   const toggleCharge = (ck: string) => {
     setChargeFlags(old => {
       const next = { ...old, [ck]: !old[ck] }
@@ -178,7 +173,7 @@ export default function StatementTable({
     })
   }
 
-  // Uložení změny hodnoty
+  // Uložit buňku
   const saveCell = (year: number, month: number, id: string) => {
     const ck = `${year}-${month}-${id}`
     if (!chargeFlags[ck]) return
@@ -207,7 +202,6 @@ export default function StatementTable({
               <th key={r.id} className="border p-1 text-center">
                 <div className="flex items-center justify-center space-x-1">
                   <span>{r.name}</span>
-                  {/* Tlačítko mazání i pro standardní sloupce */}
                   <button
                     onClick={() => removeColumn(r.id)}
                     className="text-red-500 hover:text-red-700"
@@ -231,10 +225,10 @@ export default function StatementTable({
                 const on = chargeFlags[ck]
                 return (
                   <td key={ck} className="border p-1">
-                    <div className="flex flex-col items-center space-y-1">
+                    <div className="flex items-center space-x-1">
                       <span
                         onClick={() => toggleCharge(ck)}
-                        style={{ cursor:'pointer', width:12, height:12 }}
+                        style={{ cursor:'pointer', width:12, height:12, flexShrink:0 }}
                         title={on ? 'Účtovat: ano' : 'Účtovat: ne'}
                       >
                         <svg width="12" height="12" viewBox="0 0 8 8">
@@ -251,20 +245,20 @@ export default function StatementTable({
                           const num: number | '' = v === '' ? '' : Number(v)
                           setPivotValues(old => {
                             const next = { ...old, [ck]: num }
-                            if (on) onDataChange?.(matrix, next, chargeFlags)
+                            if (on) onDataChange?.(matrix!, next, chargeFlags)
                             return next
                           })
                           if (on) saveCell(year, month, r.id)
                         }}
                         onBlur={() => saveCell(year, month, r.id)}
-                        className={`w-full text-center text-xs ${!on?'opacity-50':''}`}
+                        className={`flex-1 text-right text-xs border rounded px-1 py-0 ${!on ? 'opacity-50' : ''}`}
                         min={0}
                       />
                     </div>
                   </td>
                 )
               })}
-              <td className="border p-1">{/* poznámky */}</td>
+              <td className="border p-1">{/* poznámka buňky */}</td>
             </tr>
           ))}
         </tbody>
