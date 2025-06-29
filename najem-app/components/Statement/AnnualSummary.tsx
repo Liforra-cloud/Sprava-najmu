@@ -1,6 +1,5 @@
 // components/Statement/AnnualSummary.tsx
 
-
 'use client'
 
 import React from 'react'
@@ -28,13 +27,13 @@ export default function AnnualSummary({
       <tbody>
         {matrix.data.map(row => {
           const calc = row.total
-          const paid = Object.entries(pivotValues).reduce((sum,[key,val]) => {
-            const [y,m,id] = key.split('-')
-            if (id===row.id && chargeFlags[key] && typeof val==='number') {
+          const paid = Object.entries(pivotValues).reduce((sum, [key, val]) => {
+            const [, , id] = key.split('-')  // y a m se přeskočí
+            if (id === row.id && chargeFlags[key] && typeof val === 'number') {
               return sum + val
             }
             return sum
-          },0)
+          }, 0)
           const diff = calc - paid
           return (
             <tr key={row.id}>
@@ -43,7 +42,7 @@ export default function AnnualSummary({
               <td className="border p-1">
                 {/* sem můžete doplnit input pro skutečnou hodnotu */}
               </td>
-              <td className={`border p-1 ${diff<0?'text-red-600':''}`}>
+              <td className={`border p-1 ${diff < 0 ? 'text-red-600' : ''}`}>
                 {diff.toLocaleString()}
               </td>
             </tr>
