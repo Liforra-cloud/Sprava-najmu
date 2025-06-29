@@ -1,5 +1,4 @@
 // app/statements/page.tsx
-
 'use client'
 
 import Link from 'next/link'
@@ -7,10 +6,11 @@ import { useEffect, useState } from 'react'
 
 type Statement = {
   id: string
-  unit_id: string
-  lease_id: string
+  title: string
   from_month: string
   to_month: string
+  unit_identifier: string
+  tenant_name: string
   status: string
   total_due: number
   created_at: string
@@ -23,6 +23,7 @@ export default function StatementsListPage() {
     fetch('/api/statements')
       .then(res => res.json())
       .then(data => setStatements(data))
+      .catch(err => console.error(err))
   }, [])
 
   return (
@@ -32,10 +33,12 @@ export default function StatementsListPage() {
         Nové vyúčtování
       </Link>
       <table className="min-w-full border mt-4">
-        <thead>
+        <thead className="bg-gray-100">
           <tr>
+            <th className="border p-2">Název</th>
             <th className="border p-2">Období</th>
             <th className="border p-2">Jednotka</th>
+            <th className="border p-2">Nájemník</th>
             <th className="border p-2">Stav</th>
             <th className="border p-2">Vytvořeno</th>
             <th className="border p-2">Akce</th>
@@ -44,10 +47,16 @@ export default function StatementsListPage() {
         <tbody>
           {statements.map(s => (
             <tr key={s.id}>
+              <td className="border p-2">{s.title}</td>
               <td className="border p-2">{s.from_month} – {s.to_month}</td>
-              <td className="border p-2">{s.unit_id}</td>
-              <td className="border p-2">{s.status}</td>
-              <td className="border p-2">{new Date(s.created_at).toLocaleString()}</td>
+              <td className="border p-2">{s.unit_identifier}</td>
+              <td className="border p-2">{s.tenant_name}</td>
+              <td className="border p-2">
+                {s.status}{s.status !== 'Vyrovnáno' && ` (${s.total_due} Kč)`}
+              </td>
+              <td className="border p-2">
+                {new Date(s.created_at).toLocaleDateString()}
+              </td>
               <td className="border p-2">
                 <Link href={`/statements/${s.id}`} className="text-blue-700 underline">
                   Otevřít
