@@ -15,6 +15,8 @@ export type PaymentsMatrix = {
   data:   MatrixRow[]
 }
 
+export type CellKey = `${number}-${number}-${string}`
+
 type OverrideEntry = {
   lease_id:     string
   year:         number
@@ -67,7 +69,7 @@ export default function StatementTable({
         const cf: Record<string, boolean>     = {}
         pm.data.forEach(row =>
           pm.months.forEach(({ year, month }, idx) => {
-            const key = `${year}-${month}-${row.id}`
+            const ck = `${year}-${month}-${row.id}` as CellKey
             const base = row.values[idx] ?? 0
             const ov = data.overrides.find(o =>
               o.lease_id  === unitId &&
@@ -75,8 +77,8 @@ export default function StatementTable({
               o.year      === year  &&
               o.month     === month
             )
-            pv[key] = ov?.override_val ?? base
-            cf[key] = ov != null ? ov.override_val !== null : true
+            pv[ck] = ov?.override_val ?? base
+            cf[ck] = ov != null ? ov.override_val !== null : true
           })
         )
         setPivotValues(pv)
@@ -170,7 +172,7 @@ export default function StatementTable({
   }
 
   const saveCell = (year: number, month: number, id: string) => {
-    const ck = `${year}-${month}-${id}`
+    const ck = `${year}-${month}-${id}` as CellKey
     if (!chargeFlags[ck]) return
     const v = pivotValues[ck]
     const val = v === '' ? 0 : v
@@ -216,11 +218,11 @@ export default function StatementTable({
             <tr key={`${year}-${month}`}>
               <td className="border p-1">{`${String(month).padStart(2,'0')}/${year}`}</td>
               {matrix.data.map(r => {
-                const ck = `${year}-${month}-${r.id}`
+                const ck = `${year}-${month}-${r.id}` as CellKey
                 const on = chargeFlags[ck]
                 return (
                   <td key={ck} className="border p-1">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1">
                       <input
                         type="number"
                         value={pivotValues[ck]}
@@ -236,12 +238,12 @@ export default function StatementTable({
                           if (on) saveCell(year, month, r.id)
                         }}
                         onBlur={() => saveCell(year, month, r.id)}
-                        className={`w-16 text-right text-xs border rounded px-1 py-0 ${!on ? 'opacity-50' : ''}`}
+                        className={`w-full text-right text-xs border rounded px-1 py-0 ${!on ? 'opacity-50' : ''}`}
                         min={0}
                       />
                       <span
                         onClick={() => toggleCharge(ck)}
-                        className="ml-2 cursor-pointer"
+                        className="cursor-pointer"
                         title={on ? 'Účtovat: ano' : 'Účtovat: ne'}
                       >
                         <svg width="12" height="12" viewBox="0 0 8 8">
@@ -253,7 +255,7 @@ export default function StatementTable({
                   </td>
                 )
               })}
-              <td className="border p-1">{/* poznámka buňky */}</td>
+              <td className="border p-1">{/* poznámky */}</td>
             </tr>
           ))}
         </tbody>
