@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { MonthlyObligation, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
-/** Override záznam */
 type OverrideEntry = {
   lease_id:     string
   year:         number
@@ -14,7 +13,6 @@ type OverrideEntry = {
   note:         string | null
 }
 
-/** Custom poplatek uložený v JSON poli */
 type CustomCharge = {
   name:    string
   amount:  number
@@ -34,7 +32,6 @@ function parseYm(ym: string) {
   const [y, m] = ym.split('-').map(Number)
   return { year: y, month: m }
 }
-
 function getMonthsInRange(
   from: { year: number; month: number },
   to:   { year: number; month: number }
@@ -62,18 +59,16 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // 1) Parsování období
+  // parsování období a měsíce
   const fromObj = parseYm(from)
   const toObj   = parseYm(to)
   const months  = getMonthsInRange(fromObj, toObj)
 
-  // 2) Najdi aktivní lease pro jednotku v daném období
+  // najdi lease pro danou jednotku a období
   const lease = await prisma.lease.findFirst({
     where: {
       unit_id: unitId,
-      start_date: {
-        lte: new Date(`${toObj.year}-${String(toObj.month).padStart(2,'0')}-01`)
-      },
+      start_date: { lte: new Date(`${toObj.year}-${String(toObj.month).padStart(2,'0')}-01`) },
       OR: [
         { end_date: null },
         { end_date: { gte: new Date(`${fromObj.year}-${String(fromObj.month).padStart(2,'0')}-01`) } }
@@ -82,17 +77,17 @@ export async function GET(req: NextRequest) {
   })
   if (!lease) {
     return NextResponse.json(
-      { error: 'Pro tuto jednotku není žádná platná smlouva v zadaném období' },
+      { error: 'Žádná smlouva pro tuto jednotku v daném období' },
       { status: 404 }
     )
   }
 
-  // 3) Informace o nájemníkovi
+  // info o nájemníkovi
   const tenant = await prisma.tenant.findUnique({
     where: { id: lease.tenant_id }
   })
 
-  // 4) Načti monthlyObligations
+  // měsíční povinnosti
   const obligations = await prisma.monthlyObligation.findMany({
     where: {
       lease_id: lease.id,
@@ -104,7 +99,7 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // 5) Načti overrides (statementEntry)
+  // overrides z předešlých úprav
   const rawOverrides = await prisma.statementEntry.findMany({
     where: { lease_id: lease.id }
   })
@@ -119,7 +114,7 @@ export async function GET(req: NextRequest) {
     note:         o.note
   }))
 
-  // 6) Definice standardních poplatků
+  // standardní poplatky
   type MatrixRow = { id:string; name:string; values:(number|'')[]; total:number }
   const standardKeys: {
     id: string
@@ -142,11 +137,10 @@ export async function GET(req: NextRequest) {
       const base  = obl && flags[key.flag] && typeof obl[key.field] === 'number'
         ? (obl[key.field] as number)
         : 0
-
       const ov = overrides.find(o =>
         o.lease_id  === lease.id &&
-        o.year      === year      &&
-        o.month     === month     &&
+        o.year      === year  &&
+        o.month     === month &&
         o.charge_id === key.id
       )
       return ov?.override_val ?? base
@@ -159,33 +153,24 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // 7) Připrav custom poplatky
+  // custom poplatky
   const allCustomNames = obligations.flatMap(o => {
-    const raw = Array.isArray(o.custom_charges)
-      ? (o.custom_charges as unknown[])
-      : []
-    return raw
-      .filter(isCustomCharge)
-      .filter(c => c.enabled)
-      .map(c => c.name)
+    const raw = Array.isArray(o.custom_charges) ? o.custom_charges : []
+    return raw.filter(isCustomCharge).filter(c => c.enabled).map(c => c.name)
   })
   const customNames = Array.from(new Set(allCustomNames))
-
   const customData: MatrixRow[] = customNames.map(name => {
     const values = months.map(({ year, month }) => {
       const obl = obligations.find(o => o.year === year && o.month === month)
-      const raw = obl && Array.isArray(obl.custom_charges)
-        ? (obl.custom_charges as unknown[])
-        : []
-      const base = raw
-        .filter(isCustomCharge)
-        .find(c => c.name === name && c.enabled)
-        ?.amount ?? 0
-
+      const base = obl && Array.isArray(obl.custom_charges)
+        ? (obl.custom_charges as CustomCharge[])
+            .find(c => c.name === name && c.enabled)
+            ?.amount ?? 0
+        : 0
       const ov = overrides.find(o =>
         o.lease_id  === lease.id &&
-        o.year      === year      &&
-        o.month     === month     &&
+        o.year      === year  &&
+        o.month     === month &&
         o.charge_id === name
       )
       return ov?.override_val ?? base
@@ -198,8 +183,8 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // 8) Odešli odpověď
   const paymentsMatrix = { months, data: [...matrixData, ...customData] }
+
   return NextResponse.json({
     paymentsMatrix,
     overrides,
@@ -208,3 +193,4 @@ export async function GET(req: NextRequest) {
       : null
   })
 }
+
