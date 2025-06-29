@@ -5,15 +5,10 @@
 import React from 'react'
 
 interface Props {
-  /** Od které doby */
-  from: string
-  /** Do které doby */
-  to: string
-  /** Titulek vyúčtování */
-  titleLabel: string
-  /** Jméno nájemníka */
-  tenantName?: string
-  /** Callback při změně období */
+  from: string           // Od které doby (YYYY-MM)
+  to:   string           // Do které doby
+  titleLabel: string     // Titulek
+  tenantName: string     // **Nově**: jméno nájemníka
   onChangePeriod: (from: string, to: string) => void
 }
 
@@ -26,8 +21,11 @@ export default function StatementHeader({
 }: Props) {
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-      <h1 className="text-3xl font-bold">{titleLabel}</h1>
-      <div className="flex flex-wrap items-center gap-6">
+      <div>
+        <h1 className="text-3xl font-bold">{titleLabel}</h1>
+        <p className="text-sm text-gray-600">Nájemník: <strong>{tenantName}</strong></p>
+      </div>
+      <div className="flex gap-4">
         <label>
           <span className="block text-sm font-medium">Období od:</span>
           <input
@@ -46,14 +44,7 @@ export default function StatementHeader({
             className="mt-1 block border rounded px-2 py-1"
           />
         </label>
-        {tenantName && (
-          <div className="text-sm">
-            <span className="font-medium">Nájemník:</span> {tenantName}
-          </div>
-        )}
       </div>
     </div>
   )
 }
-
-
