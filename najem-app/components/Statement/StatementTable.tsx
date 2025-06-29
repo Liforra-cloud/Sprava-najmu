@@ -1,4 +1,6 @@
 // components/Statement/StatementTable.tsx
+
+
 'use client'
 
 import React, { useEffect, useState } from 'react'
@@ -15,6 +17,7 @@ export type PaymentsMatrix = {
   data:   MatrixRow[]
 }
 
+// Klíč buňky ve tvaru "YYYY-M-ID"
 export type CellKey = `${number}-${number}-${string}`
 
 type OverrideEntry = {
@@ -47,6 +50,7 @@ export default function StatementTable({
   const [pivotValues, setPivotValues] = useState<Record<string, number | ''>>({})
   const [chargeFlags, setChargeFlags] = useState<Record<string, boolean>>({})
 
+  // Načtení dat z API
   useEffect(() => {
     if (!unitId) {
       setMatrix(null)
@@ -54,6 +58,7 @@ export default function StatementTable({
     }
     setLoading(true)
     setError(null)
+
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => {
         if (!res.ok) throw new Error(res.statusText)
@@ -65,11 +70,13 @@ export default function StatementTable({
       .then(data => {
         const pm = data.paymentsMatrix
         setMatrix(pm)
+
+        // Inicializace pivotValues a chargeFlags
         const pv: Record<string, number | ''> = {}
         const cf: Record<string, boolean>     = {}
         pm.data.forEach(row =>
           pm.months.forEach(({ year, month }, idx) => {
-            const ck = `${year}-${month}-${row.id}` as CellKey
+            const ck   = `${year}-${month}-${row.id}` as CellKey
             const base = row.values[idx] ?? 0
             const ov = data.overrides.find(o =>
               o.lease_id  === unitId &&
@@ -83,16 +90,18 @@ export default function StatementTable({
         )
         setPivotValues(pv)
         setChargeFlags(cf)
+
         onDataChange?.(pm, pv, cf)
       })
       .catch(e => setError((e as Error).message))
       .finally(() => setLoading(false))
   }, [unitId, from, to, onDataChange])
 
-  if (loading) return <div>Načítám…</div>
-  if (error)   return <div className="text-red-600">Chyba: {error}</div>
-  if (!matrix) return <div>Vyberte jednotku a období.</div>
+  if (loading)    return <div>Načítám…</div>
+  if (error)      return <div className="text-red-600">Chyba: {error}</div>
+  if (!matrix)    return <div>Vyberte jednotku a období.</div>
 
+  // Přidání vlastního sloupce
   const addColumn = () => {
     const name = window.prompt('Název nového poplatku:')
     if (!name) return
@@ -128,6 +137,7 @@ export default function StatementTable({
     })
   }
 
+  // Odebrání sloupce
   const removeColumn = (id: string) => {
     if (!window.confirm(`Opravdu smazat sloupec "${id}"?`)) return
     setMatrix(prev => {
@@ -151,6 +161,7 @@ export default function StatementTable({
     })
   }
 
+  // Přepnutí účtovat/neúčtovat
   const toggleCharge = (ck: string) => {
     setChargeFlags(old => {
       const next = { ...old, [ck]: !old[ck] }
@@ -161,25 +172,28 @@ export default function StatementTable({
       const val   = next[ck]
         ? (pivotValues[ck] === '' ? 0 : pivotValues[ck])
         : null
+
       fetch('/api/statement/new', {
-        method:'PATCH',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ leaseId:unitId, year, month, chargeId:id, overrideVal:val })
+        method:  'PATCH',
+        headers: { 'Content-Type':'application/json' },
+        body:    JSON.stringify({ leaseId:unitId, year, month, chargeId:id, overrideVal:val })
       })
+
       onDataChange?.(matrix, pivotValues, next)
       return next
     })
   }
 
+  // Uložení změněné buňky
   const saveCell = (year: number, month: number, id: string) => {
     const ck = `${year}-${month}-${id}` as CellKey
     if (!chargeFlags[ck]) return
     const v = pivotValues[ck]
     const val = v === '' ? 0 : v
     fetch('/api/statement/new', {
-      method:'PATCH',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ leaseId:unitId, year, month, chargeId:id, overrideVal:val })
+      method:  'PATCH',
+      headers: { 'Content-Type':'application/json' },
+      body:    JSON.stringify({ leaseId:unitId, year, month, chargeId:id, overrideVal:val })
     })
   }
 
@@ -238,7 +252,9 @@ export default function StatementTable({
                           if (on) saveCell(year, month, r.id)
                         }}
                         onBlur={() => saveCell(year, month, r.id)}
-                        className={`w-full text-right text-xs border rounded px-1 py-0 ${!on ? 'opacity-50' : ''}`}
+                        className={`w-full text-right text-xs border rounded px-1 py-0 ${
+                          !on ? 'opacity-50' : ''
+                        }`}
                         min={0}
                       />
                       <span
