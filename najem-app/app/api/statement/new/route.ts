@@ -1,6 +1,5 @@
 // app/api/statements/new/route.ts
 
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -13,7 +12,7 @@ type Body = {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { leaseId, year, month, chargeId, overrideVal } = (await req.json()) as Body
+  const { leaseId, year, month, chargeId, overrideVal } = await req.json() as Body
   if (!leaseId) {
     return NextResponse.json({ error:'leaseId je povinné' }, { status:400 })
   }
