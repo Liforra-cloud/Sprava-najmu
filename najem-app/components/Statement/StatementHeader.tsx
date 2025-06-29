@@ -11,6 +11,8 @@ interface Props {
   to: string
   /** Titulek vyúčtování */
   titleLabel: string
+  /** Jméno nájemníka */
+  tenantName?: string
   /** Callback při změně období */
   onChangePeriod: (from: string, to: string) => void
 }
@@ -19,12 +21,13 @@ export default function StatementHeader({
   from,
   to,
   titleLabel,
+  tenantName,
   onChangePeriod
 }: Props) {
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
       <h1 className="text-3xl font-bold">{titleLabel}</h1>
-      <div className="flex gap-4">
+      <div className="flex flex-wrap items-center gap-6">
         <label>
           <span className="block text-sm font-medium">Období od:</span>
           <input
@@ -43,8 +46,14 @@ export default function StatementHeader({
             className="mt-1 block border rounded px-2 py-1"
           />
         </label>
+        {tenantName && (
+          <div className="text-sm">
+            <span className="font-medium">Nájemník:</span> {tenantName}
+          </div>
+        )}
       </div>
     </div>
   )
 }
+
 
