@@ -10,29 +10,24 @@ import StatementTable, { PaymentsMatrix } from '@/components/Statement/Statement
 import AnnualSummary from '@/components/Statement/AnnualSummary'
 import StatementActions from '@/components/Statement/StatementActions'
 
-export default function StatementUnitPage({
-  params
-}: {
+interface Props {
   params: { unitId: string }
-}) {
-  const { unitId }   = params
-  const router       = useRouter()
-  const sp           = useSearchParams()
+}
 
-  // výchozí období (leden–prosinec aktuálního roku)
-  const now = new Date()
-  const defFrom = `${now.getFullYear()}-01`
-  const defTo   = `${now.getFullYear()}-12`
-  const fromParam = sp.get('from') ?? defFrom
-  const toParam   = sp.get('to')   ?? defTo
+export default function StatementUnitPage({ params }: Props) {
+  const { unitId } = params
+  const router     = useRouter()
+  const sp         = useSearchParams()
 
-  const [from, setFrom] = useState(fromParam)
-  const [to,   setTo]   = useState(toParam)
+  // Výchozí období: leden–prosinec aktuálního roku
+  const now      = new Date()
+  const year     = now.getFullYear()
+  const defaultFrom = `${year}-01`
+  const defaultTo   = `${year}-12`
 
-  // **Nově**: nájemník
-  const [tenantName, setTenantName] = useState<string>('–')
+  const [from, setFrom] = useState(sp.get('from') ?? defaultFrom)
+  const [to,   setTo]   = useState(sp.get('to')   ?? defaultTo)
 
-  // Při změně období udržujeme URL i stav
   const onChangePeriod = useCallback(
     (newFrom: string, newTo: string) => {
       setFrom(newFrom)
@@ -42,7 +37,7 @@ export default function StatementUnitPage({
     [router, unitId]
   )
 
-  // Stav pro tabulku
+  // Data tabulky
   const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
   const [pivotValues, setPivotValues] = useState<Record<string, number | ''>>({})
   const [chargeFlags, setChargeFlags] = useState<Record<string, boolean>>({})
@@ -62,7 +57,10 @@ export default function StatementUnitPage({
     setChargeFlags(cf)
   }, [])
 
-  // Při každé změně unitId, from, to stáhneme jméno nájemníka
+  // Jméno nájemníka
+  const [tenantName, setTenantName] = useState<string>('–')
+
+  // Načtení jména nájemníka (a matrix) na změnu unitId, from, to
   useEffect(() => {
     if (!unitId) return
 
@@ -76,6 +74,10 @@ export default function StatementUnitPage({
         }>
       })
       .then(data => {
+        // nastavit matrix a přeposlat data tabulce
+        setMatrix(data.paymentsMatrix)
+        // zpracování pivotValues a chargeFlags už ošetří StatementTable přes onDataChange
+        // načtení jména
         if (data.tenant) {
           setTenantName(data.tenant.full_name)
         } else {
@@ -84,18 +86,28 @@ export default function StatementUnitPage({
       })
       .catch(() => {
         setTenantName('–')
+        setMatrix(null)
       })
   }, [unitId, from, to])
 
-  // ... zbytek PAGE zůstává beze změny ...
+  // Přepočet souhrnu po změně pivotValues / chargeFlags
+  useEffect(() => {
+    if (!matrix) return
+    const totalCosts = Object.entries(pivotValues).reduce((sum, [key, val]) => {
+      return sum + (chargeFlags[key] && typeof val === 'number' ? val : 0)
+    }, 0)
+    const totalPaid = totalCosts * 0.9   // <<< sem vložte skutečný výpočet
+    const balance   = totalCosts - totalPaid
+    setSummary({ totalCosts, totalPaid, balance })
+  }, [pivotValues, chargeFlags, matrix])
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
       <StatementHeader
         titleLabel="Vyúčtování"
+        tenantName={tenantName}
         from={from}
         to={to}
-+       tenantName={tenantName}
         onChangePeriod={onChangePeriod}
       />
 
@@ -120,5 +132,3 @@ export default function StatementUnitPage({
     </div>
   )
 }
-
-
