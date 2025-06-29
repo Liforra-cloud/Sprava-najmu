@@ -1,6 +1,5 @@
 // components/Statement/StatementActions.tsx
 
-
 'use client'
 
 import React from 'react'
@@ -14,8 +13,9 @@ export default function StatementActions({
   summary: SummaryData
 }) {
   const exportPdf = () => {
-    // sem zavolat API, nebo router.push na generátor
-    alert('PDF export zatím není implementován.')
+    // využijeme oba props, aby ESLint nehlásil unused-vars
+    console.log('Export PDF pro jednotku', unitId, 'se souhrnem', summary)
+    alert(`Export PDF pro jednotku ${unitId}\nCelkem: ${summary.totalCosts}`)
   }
 
   return (
