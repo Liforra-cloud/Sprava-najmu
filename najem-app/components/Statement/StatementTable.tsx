@@ -15,7 +15,6 @@ export type PaymentsMatrix = {
   data:   MatrixRow[]
 }
 
-// tady chybějící export CellKey
 export type CellKey = `${number}-${number}-${string}`
 
 type OverrideEntry = {
@@ -27,7 +26,6 @@ type OverrideEntry = {
   note:         string | null
 }
 
-/** Dolní tabulka: Přehled plateb s přidáváním/odebíráním sloupců */
 export default function StatementTable({
   unitId,
   from,
@@ -49,11 +47,6 @@ export default function StatementTable({
   const [pivotValues, setPivotValues] = useState<Record<string, number | ''>>({})
   const [chargeFlags, setChargeFlags] = useState<Record<string, boolean>>({})
 
-  // Standardní poplatky (tyto se nesmažou)
-  const standardIds = new Set([
-    'rent','electricity','water','gas','services','repair_fund'
-  ])
-
   useEffect(() => {
     if (!unitId) {
       setMatrix(null)
@@ -61,7 +54,6 @@ export default function StatementTable({
     }
     setLoading(true)
     setError(null)
-
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => {
         if (!res.ok) throw new Error(res.statusText)
@@ -73,10 +65,8 @@ export default function StatementTable({
       .then(data => {
         const pm = data.paymentsMatrix
         setMatrix(pm)
-
         const pv: Record<string, number | ''> = {}
         const cf: Record<string, boolean>     = {}
-
         pm.data.forEach(row =>
           pm.months.forEach(({ year, month }, idx) => {
             const key = `${year}-${month}-${row.id}`
@@ -84,14 +74,13 @@ export default function StatementTable({
             const ov = data.overrides.find(o =>
               o.lease_id  === unitId &&
               o.charge_id === row.id &&
-              o.year      === year     &&
+              o.year      === year  &&
               o.month     === month
             )
             pv[key] = ov?.override_val ?? base
             cf[key] = ov != null ? ov.override_val !== null : true
           })
         )
-
         setPivotValues(pv)
         setChargeFlags(cf)
         onDataChange?.(pm, pv, cf)
@@ -104,6 +93,7 @@ export default function StatementTable({
   if (error)   return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix) return <div>Vyberte nemovitost, jednotku a období.</div>
 
+  // Přidání nového sloupce
   const addColumn = () => {
     const name = window.prompt('Název nového poplatku:')
     if (!name) return
@@ -127,20 +117,21 @@ export default function StatementTable({
     })
     setPivotValues(old => {
       const next = { ...old }
-      matrix.months.forEach(({year,month}) => {
+      matrix.months.forEach(({ year, month }) => {
         next[`${year}-${month}-${id}`] = 0
       })
       return next
     })
     setChargeFlags(old => {
       const next = { ...old }
-      matrix.months.forEach(({year,month}) => {
+      matrix.months.forEach(({ year, month }) => {
         next[`${year}-${month}-${id}`] = true
       })
       return next
     })
   }
 
+  // Odebrání libovolného sloupce
   const removeColumn = (id: string) => {
     if (!window.confirm(`Opravdu smazat sloupec "${id}"?`)) return
     setMatrix(prev => {
@@ -166,6 +157,7 @@ export default function StatementTable({
     })
   }
 
+  // Přepnutí účtovat/neúčtovat
   const toggleCharge = (ck: string) => {
     setChargeFlags(old => {
       const next = { ...old, [ck]: !old[ck] }
@@ -186,6 +178,7 @@ export default function StatementTable({
     })
   }
 
+  // Uložení změny hodnoty
   const saveCell = (year: number, month: number, id: string) => {
     const ck = `${year}-${month}-${id}`
     if (!chargeFlags[ck]) return
@@ -214,14 +207,15 @@ export default function StatementTable({
               <th key={r.id} className="border p-1 text-center">
                 <div className="flex items-center justify-center space-x-1">
                   <span>{r.name}</span>
-                  {!standardIds.has(r.id) && (
-                    <button
-                      onClick={() => removeColumn(r.id)}
-                      className="text-red-500 hover:text-red-700"
-                      title="Odebrat sloupec"
-                      style={{ lineHeight:1 }}
-                    >&times;</button>
-                  )}
+                  {/* Tlačítko mazání i pro standardní sloupce */}
+                  <button
+                    onClick={() => removeColumn(r.id)}
+                    className="text-red-500 hover:text-red-700"
+                    title="Odebrat sloupec"
+                    style={{ lineHeight:1 }}
+                  >
+                    &times;
+                  </button>
                 </div>
               </th>
             ))}
