@@ -1,5 +1,4 @@
 // app/statements/new/page.tsx
-
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
@@ -16,7 +15,7 @@ type PaymentsMatrix = {
   months: YearMonth[]
   data:   StatementRow[]
 }
-type Tenant = { full_name: string }
+type Tenant   = { full_name: string }
 type Property = { id: string; name: string }
 type Unit     = { id: string; identifier: string }
 
@@ -76,7 +75,6 @@ export default function NewStatementPage() {
         }
         setPaymentsMatrix(payload.paymentsMatrix)
         setTenant(payload.tenant)
-        // reset actuals
         setActuals({})
       })
       .catch(err => setError(err.message))
@@ -91,8 +89,8 @@ export default function NewStatementPage() {
         ? (actuals[row.id] as number)
         : 0
       return {
-        id:     row.id,
-        name:   row.name,
+        id:    row.id,
+        name:  row.name,
         total,
         actual,
         diff: actual - total
@@ -143,7 +141,6 @@ export default function NewStatementPage() {
             ))}
           </select>
         </label>
-
         <label>
           Jednotka:
           <select
@@ -159,6 +156,13 @@ export default function NewStatementPage() {
           </select>
         </label>
       </div>
+
+      {/* Zobraz jméno nájemníka */}
+      {tenant && unitId && (
+        <p className="mb-4">
+          Nájemník: <strong>{tenant.full_name}</strong>
+        </p>
+      )}
 
       {/* Výběr období */}
       <div className="flex gap-4">
