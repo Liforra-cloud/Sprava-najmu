@@ -1,6 +1,5 @@
 // app/api/statement/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import type { MonthlyObligation } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
 // --- Rok a měsíc ---
@@ -40,7 +39,7 @@ interface StatementSaveRequest {
   actuals?:  Record<string, number | "">
 }
 
-// --- Standardní poplatky (id, label, pole v MonthlyObligation, klíč v charge_flags) ---
+// --- Standardní poplatky (id, label, pole, flag) ---
 const standardKeys = [
   { id: 'rent',        label: 'Nájem',      field: 'rent',        flag: 'rent_amount' },
   { id: 'electricity', label: 'Elektřina',  field: 'electricity', flag: 'monthly_electricity' },
@@ -50,13 +49,12 @@ const standardKeys = [
   { id: 'repair_fund', label: 'Fond oprav', field: 'repair_fund', flag: 'repair_fund' }
 ] as const
 
-// --- Sdílená funkce -- sestaví matici plateb podle leaseId a období ---
+// --- Sdílená funkce: sestaví matici plateb ---
 async function computePaymentsMatrix(
   leaseId: string,
   fromYm: YearMonth,
   toYm: YearMonth
 ): Promise<{ months: YearMonth[]; data: { id: string; name: string; values: number[]; total: number }[] }> {
-  // 1) Načti obligations a override záznamy
   const obligations = await prisma.monthlyObligation.findMany({
     where: {
       lease_id: leaseId,
@@ -74,24 +72,21 @@ async function computePaymentsMatrix(
       o.override_val === null ? null : Number(o.override_val)
   })
 
-  // 2) Vygeneruj pole měsíců
   const months = getMonthsInRange(fromYm, toYm)
 
-  // 3) Standardní položky
   const standardData = standardKeys.map(key => {
     const values = months.map(({ year, month }) => {
       const obl   = obligations.find(o => o.year === year && o.month === month)
       const flags = (obl?.charge_flags as Record<string, boolean> | null) ?? {}
-      const base  = (obl && flags[key.flag] && typeof (obl[key.field] as unknown) === 'number')
-        ? Number((obl[key.field] as unknown))
+      const base  = obl && flags[key.flag] && typeof (obl[key.field] as unknown) === 'number'
+        ? Number(obl[key.field] as unknown)
         : 0
       const ov = overrideMap[`${year}-${month}-${key.id}`]
       return ov !== undefined ? (ov === null ? 0 : ov) : base
     })
-    return { id: key.id, name: key.label, values, total: values.reduce((a,b) => a + b, 0) }
+    return { id: key.id, name: key.label, values, total: values.reduce((a,b)=>a+b,0) }
   })
 
-  // 4) Vlastní položky
   const customNames = Array.from(new Set(
     obligations
       .flatMap(o => Array.isArray(o.custom_charges) ? o.custom_charges : [])
@@ -102,20 +97,19 @@ async function computePaymentsMatrix(
   const customData = customNames.map(name => {
     const values = months.map(({ year, month }) => {
       const obl = obligations.find(o => o.year === year && o.month === month)
-      const base = (obl && Array.isArray(obl.custom_charges))
-        ? (obl.custom_charges as CustomCharge[])
-            .find(c => c.name === name && c.enabled)?.amount ?? 0
+      const base = obl && Array.isArray(obl.custom_charges)
+        ? (obl.custom_charges as CustomCharge[]).find(c=>c.name===name&&c.enabled)?.amount ?? 0
         : 0
       const ov = overrideMap[`${year}-${month}-${name}`]
-      return ov !== undefined ? (ov === null ? 0 : ov) : base
+      return ov!==undefined ? (ov===null?0:ov) : base
     })
-    return { id: name, name, values, total: values.reduce((a,b) => a + b, 0) }
+    return { id: name, name, values, total: values.reduce((a,b)=>a+b,0) }
   })
 
   return { months, data: [...standardData, ...customData] }
 }
 
-// --- GET: náhled matic plateb + jméno nájemníka ---
+// --- GET: náhled plateb + nájemník ---
 export async function GET(req: NextRequest) {
   const url    = new URL(req.url)
   const unitId = url.searchParams.get('unitId')
@@ -137,7 +131,7 @@ export async function GET(req: NextRequest) {
     }
   })
   if (!lease) {
-    return NextResponse.json({ error: 'Neexistuje smlouva pro dané období' }, { status: 404 })
+    return NextResponse.json({ error: 'Neexistuje smlouva pro toto období' }, { status: 404 })
   }
 
   const paymentsMatrix = await computePaymentsMatrix(lease.id, fromYm, toYm)
@@ -168,19 +162,17 @@ export async function POST(req: NextRequest) {
     }
   })
   if (!lease) {
-    return NextResponse.json({ error: 'Neexistuje smlouva pro dané období' }, { status: 404 })
+    return NextResponse.json({ error: 'Neexistuje smlouva pro toto období' }, { status: 404 })
   }
 
-  // 1) Sestav matici plateb
   const { months, data } = await computePaymentsMatrix(lease.id, fromYm, toYm)
 
-  // 2) Spočti souhrnné položky
+  // Souhrn
   type SummaryItem = { id: string; name: string; total: number; actual: number; diff: number }
   const summaryItems: SummaryItem[] = data.map(row => {
-    const total = row.values.reduce((sum, v) => sum + v, 0)
+    const total = row.values.reduce((s,v)=>s+v,0)
     const actualVal = actuals[row.id] !== undefined && actuals[row.id] !== ''
-      ? Number(actuals[row.id])
-      : total
+      ? Number(actuals[row.id]) : total
     return {
       id:    row.id,
       name:  row.name,
@@ -189,19 +181,17 @@ export async function POST(req: NextRequest) {
       diff:   actualVal - total
     }
   })
-  const totalCosts  = summaryItems.reduce((s,i) => s + i.total,  0)
-  const totalActual = summaryItems.reduce((s,i) => s + i.actual, 0)
+  const totalCosts  = summaryItems.reduce((s,i)=>s+i.total,0)
+  const totalActual = summaryItems.reduce((s,i)=>s+i.actual,0)
   const balance     = totalActual - totalCosts
 
-  // 3) Titulek období
-  const pad   = (n: number) => String(n).padStart(2, '0')
-  const title = (fromYm.year === toYm.year && fromYm.month === 1 && toYm.month === 12)
+  const pad   = (n:number)=>String(n).padStart(2,'0')
+  const title = (fromYm.year===toYm.year&&fromYm.month===1&&toYm.month===12)
     ? `Vyúčtování ${fromYm.year}`
     : `Vyúčtování ${pad(fromYm.month)}/${fromYm.year}–${pad(toYm.month)}/${toYm.year}`
 
-  // 4) Ulož do DB
   const newStmt = await prisma.statementEntry.create({
-    data: {
+    data:{
       unit_id:        lease.unit_id,
       lease_id:       lease.id,
       period_from:    new Date(`${fromYm.year}-${pad(fromYm.month)}-01`),
@@ -213,12 +203,7 @@ export async function POST(req: NextRequest) {
       override_val:   null,
       note:           null,
       title,
-      annual_summary: {
-        totalCosts,
-        totalActual,
-        balance,
-        items: summaryItems
-      }
+      annual_summary: { totalCosts, totalActual, balance, items: summaryItems }
     }
   })
 
