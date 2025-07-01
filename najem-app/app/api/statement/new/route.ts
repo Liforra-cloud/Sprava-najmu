@@ -1,98 +1,80 @@
-// app/statements/new/page.tsx
-'use client'
+// app/api/statement/new/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
-import { useSearchParams } from 'next/navigation'
-import { useState, useEffect } from 'react'
+// Endpoint pro dílčí override záznamy (PATCH)
+export async function PATCH(req: NextRequest) {
+  // Tělo požadavku
+  interface OverrideRequest {
+    leaseId:    string
+    year:       number
+    month:      number
+    chargeId:   string
+    overrideVal: number | null
+  }
 
-// Typy pro data z API
-type YearMonth = { year: number; month: number }
-type StatementRow = {
-  id:    string
-  name:  string
-  values: number[]
-  total: number
-}
-type PaymentsMatrix = {
-  months: YearMonth[]
-  data:   StatementRow[]
-}
-type Tenant = {
-  full_name: string
-}
+  const { leaseId, year, month, chargeId, overrideVal } =
+    (await req.json()) as OverrideRequest
 
-export default function NewStatementPage() {
-  const params = useSearchParams()
-  const unitId = params.get('unit_id') ?? ''
+  if (!leaseId) {
+    return NextResponse.json({ error: 'leaseId je povinné' }, { status: 400 })
+  }
 
-  const [paymentsMatrix, setPaymentsMatrix] = useState<PaymentsMatrix | null>(null)
-  const [tenant, setTenant]                 = useState<Tenant | null>(null)
-  const [error, setError]                   = useState<string | null>(null)
+  // Pokus najít lease podle ID
+  let lease = await prisma.lease.findUnique({ where: { id: leaseId } })
+  if (!lease) {
+    // Pokud ID nesedí na primary key, zkusíme podle unit_id a data
+    lease = await prisma.lease.findFirst({
+      where: {
+        unit_id: leaseId,
+        start_date: { lte: new Date(`${year}-${String(month).padStart(2,'0')}-01`) },
+        OR: [
+          { end_date: null },
+          { end_date: { gte: new Date(`${year}-${String(month).padStart(2,'0')}-01`) } }
+        ]
+      }
+    })
+  }
+  if (!lease) {
+    return NextResponse.json({ error: 'Lease pro dané ID nebyl nalezen' }, { status: 400 })
+  }
 
-  useEffect(() => {
-    if (!unitId) {
-      setError('Chybí unit_id v URL parametrech')
-      return
+  // Zkontrolovat, zda už override existuje
+  const existing = await prisma.statementEntry.findFirst({
+    where: {
+      lease_id:  lease.id,
+      year,
+      month,
+      charge_id: chargeId
     }
+  })
 
-    const from = '2025-01'
-    const to   = '2025-12'
-    fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
-      .then(async res => {
-        if (!res.ok) {
-          const payload = await res.json()
-          throw new Error(payload.error ?? 'Neznámá chyba')
-        }
-        return res.json()
-      })
-      .then(payload => {
-        // Správně destrukturuji data, ne data.data
-        const pm = payload.paymentsMatrix as PaymentsMatrix
-        setPaymentsMatrix(pm)
-        setTenant(payload.tenant as Tenant)
-      })
-      .catch(err => {
-        setError(err.message)
-      })
-  }, [unitId])
-
-  if (error) {
-    return <div className="text-red-600">Chyba: {error}</div>
+  let entry
+  if (existing) {
+    // Aktualizovat pouze override_val
+    entry = await prisma.statementEntry.update({
+      where: { id: existing.id },
+      data: { override_val: overrideVal }
+    })
+  } else {
+    // Vytvořit nový override záznam (annual_summary vynecháme, bude NULL)
+    entry = await prisma.statementEntry.create({
+      data: {
+        lease_id:     lease.id,
+        unit_id:      lease.unit_id,
+        year,
+        month,
+        charge_id:    chargeId,
+        override_val: overrideVal,
+        note:         null,
+        title:        '',  // prázdný => jde o dílčí override
+        period_from:  new Date(`${year}-${String(month).padStart(2,'0')}-01`),
+        period_to:    new Date(`${year}-${String(month).padStart(2,'0')}-01`),
+        data:         {}   // JSON sloupec NOT NULL
+        // annual_summary NEUVÁDĚJTE, zůstane NULL
+      }
+    })
   }
-  if (!paymentsMatrix) {
-    return <div>Načítám vyúčtování…</div>
-  }
 
-  return (
-    <main className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Vyúčtování jednotky {unitId}</h1>
-      <p className="mb-6">
-        Nájemník: <strong>{tenant?.full_name ?? '—'}</strong>
-      </p>
-
-      <table className="w-full table-auto border-collapse">
-        <thead>
-          <tr>
-            <th className="border px-2 py-1 text-left">Položka</th>
-            {paymentsMatrix.months.map(m => (
-              <th key={`${m.year}-${m.month}`} className="border px-2 py-1">
-                {String(m.month).padStart(2, '0')}/{m.year}
-              </th>
-            ))}
-            <th className="border px-2 py-1">Součet</th>
-          </tr>
-        </thead>
-        <tbody>
-          {paymentsMatrix.data.map(row => (
-            <tr key={row.id}>
-              <td className="border px-2 py-1">{row.name}</td>
-              {row.values.map((v, i) => (
-                <td key={i} className="border px-2 py-1">{v}</td>
-              ))}
-              <td className="border px-2 py-1 font-semibold">{row.total}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
-  )
+  return NextResponse.json(entry)
 }
