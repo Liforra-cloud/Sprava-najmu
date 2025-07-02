@@ -53,7 +53,7 @@ export default function StatementTable({
     {} as Record<CellKey, boolean>
   )
 
-  // Load the matrix + overrides
+  // --- load paymentsMatrix + overrides ---
   useEffect(() => {
     if (!unitId) {
       setMatrix(null)
@@ -73,9 +73,9 @@ export default function StatementTable({
       .then(({ paymentsMatrix: pm, overrides }) => {
         setMatrix(pm)
 
-        // build fresh pivot+flags maps
-        const pv: Record<CellKey, number | ''>   = {} as any
-        const cf: Record<CellKey, boolean>       = {} as any
+        // initialize pv & cf maps
+        const pv = {} as Record<CellKey, number | ''>
+        const cf = {} as Record<CellKey, boolean>
 
         pm.months.forEach(({ year, month }, mi) => {
           pm.data.forEach(row => {
@@ -104,7 +104,7 @@ export default function StatementTable({
   if (error)   return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix) return <div>Vyberte jednotku a období.</div>
 
-  // Add / remove item (column)
+  // --- add/remove item column ---
   const addColumn = () => {
     const name = prompt('Název nové položky:')?.trim()
     if (!name) return
@@ -115,6 +115,7 @@ export default function StatementTable({
     }
     const newRow: MatrixRow = { id, name, values: matrix.months.map(() => 0) }
     setMatrix(prev => prev && ({ months: prev.months, data: [...prev.data, newRow] }))
+
     setPivotValues(old => {
       const next = { ...old }
       matrix.months.forEach(({ year, month }) => {
@@ -149,7 +150,7 @@ export default function StatementTable({
     })
   }
 
-  // Toggle charge on/off
+  // --- toggle billing on/off ---
   const toggleCharge = (ck: CellKey) => {
     setChargeFlags(prev => {
       const next = { ...prev, [ck]: !prev[ck] }
@@ -161,8 +162,8 @@ export default function StatementTable({
 
       fetch('/api/statement', {
         method:  'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal: val })
+        headers: { 'Content-Type':'application/json' },
+        body:    JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal:val })
       })
 
       onDataChange?.(matrix, pivotValues, next)
@@ -170,7 +171,7 @@ export default function StatementTable({
     })
   }
 
-  // Save a single cell
+  // --- save single override ---
   const saveCell = (ck: CellKey) => {
     if (!chargeFlags[ck]) return
     const [y,m,...rest] = ck.split('-')
@@ -181,12 +182,12 @@ export default function StatementTable({
 
     fetch('/api/statement', {
       method:  'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal: val })
+      headers: { 'Content-Type':'application/json' },
+      body:    JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal:val })
     })
   }
 
-  // Sums
+  // --- row + column sums ---
   const getRowSum = (year: number, month: number) =>
     matrix.data.reduce((s, r) => {
       const ck = `${year}-${month}-${r.id}` as CellKey
