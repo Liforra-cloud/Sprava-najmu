@@ -190,16 +190,7 @@ export default function StatementTable({
     })
   }
 
-  // Výpočet součtů za měsíc (řádek)
-  const getMonthSum = (year: number, month: number) => {
-    return matrix.data.reduce((sum, row) => {
-      const ck = `${year}-${month}-${row.id}` as CellKey
-      const val = pivotValues[ck]
-      return sum + (chargeFlags[ck] && typeof val === 'number' ? val : 0)
-    }, 0)
-  }
-
-  // Výpočet součtů za položku (sloupec)
+  // Výpočet součtu za sloupec (položku)
   const getColumnSum = (id: string) => {
     return matrix.months.reduce((sum, { year, month }) => {
       const ck = `${year}-${month}-${id}` as CellKey
@@ -208,14 +199,25 @@ export default function StatementTable({
     }, 0)
   }
 
+  // Výpočet součtu za řádek (měsíc)
+  const getRowSum = (year: number, month: number) => {
+    return matrix.data.reduce((sum, row) => {
+      const ck = `${year}-${month}-${row.id}` as CellKey
+      const val = pivotValues[ck]
+      return sum + (chargeFlags[ck] && typeof val === 'number' ? val : 0)
+    }, 0)
+  }
+
   return (
     <div className="overflow-x-auto border rounded-lg mt-4">
-      <button
-        onClick={addColumn}
-        className="mb-2 px-3 py-1 bg-blue-600 text-white rounded"
-      >
-        Přidat položku
-      </button>
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={addColumn}
+          className="px-3 py-1 bg-blue-600 text-white rounded"
+        >
+          Přidat položku
+        </button>
+      </div>
       <table className="min-w-full text-sm border-collapse">
         <thead className="bg-gray-100">
           <tr>
@@ -276,7 +278,7 @@ export default function StatementTable({
                 )
               })}
               <td className="border p-2 text-right font-bold">
-                {getMonthSum(year, month)}
+                {getRowSum(year, month)}
               </td>
             </tr>
           ))}
