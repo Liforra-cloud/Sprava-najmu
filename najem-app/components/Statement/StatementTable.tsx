@@ -141,7 +141,7 @@ export default function StatementTable({
         </thead>
         <tbody>
           {matrix.data.map(row => {
-            const sum = row.values.reduce((a, v) => a + (typeof v === 'number' ? v : 0), 0)
+            const sum = row.values.reduce<number>((a, v) => a + (typeof v === 'number' ? v : 0), 0) => a + (typeof v === 'number' ? v : 0), 0)
             return (
               <tr key={row.id}>
                 <td className="border p-2">
