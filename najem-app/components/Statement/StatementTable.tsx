@@ -5,36 +5,25 @@
 import React, { useEffect, useState } from 'react'
 
 export type MatrixRow = {
-  id:     string
-  name:   string
+  id: string
+  name: string
   values: (number | '')[]
 }
 
 export type PaymentsMatrix = {
   months: { year: number; month: number }[]
-  data:   MatrixRow[]
+  data: MatrixRow[]
 }
 
 export type CellKey = `${number}-${number}-${string}`
 
 type OverrideEntry = {
-  lease_id:     string
-  year:         number
-  month:        number
-  charge_id:    string
+  lease_id:   string
+  year:       number
+  month:      number
+  charge_id:  string
   override_val: number | null
-  note:         string | null
-}
-
-interface StatementTableProps {
-  unitId: string
-  from:   string
-  to:     string
-  onDataChange?: (
-    matrix:      PaymentsMatrix,
-    pivotValues: Record<CellKey, number | ''>,
-    chargeFlags: Record<CellKey, boolean>
-  ) => void
+  note:       string | null
 }
 
 export default function StatementTable({
@@ -42,10 +31,21 @@ export default function StatementTable({
   from,
   to,
   onDataChange,
-}: StatementTableProps) {
-  const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
-  const [loading,     setLoading]     = useState<boolean>(false)
-  const [error,       setError]       = useState<string | null>(null)
+}: {
+  unitId: string
+  from:   string
+  to:     string
+  onDataChange?: (
+    matrix: PaymentsMatrix,
+    pivotValues: Record<CellKey, number | ''>,
+    chargeFlags: Record<CellKey, boolean>
+  ) => void
+}) {
+  const [matrix, setMatrix] = useState<PaymentsMatrix | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState<string | null>(null)
+
+  // ← cast the empty object so TS knows it’s the right indexed type
   const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>(
     {} as Record<CellKey, number | ''>
   )
@@ -53,7 +53,7 @@ export default function StatementTable({
     {} as Record<CellKey, boolean>
   )
 
-  // --- load paymentsMatrix + overrides ---
+  // load data + overrides
   useEffect(() => {
     if (!unitId) {
       setMatrix(null)
@@ -73,16 +73,16 @@ export default function StatementTable({
       .then(({ paymentsMatrix: pm, overrides }) => {
         setMatrix(pm)
 
-        // initialize pv & cf maps
-        const pv = {} as Record<CellKey, number | ''>
-        const cf = {} as Record<CellKey, boolean>
+        // build pivot+flags
+        const pv: Record<CellKey, number | ''> = {}
+        const cf: Record<CellKey, boolean>     = {}
 
-        pm.months.forEach(({ year, month }, mi) => {
+        pm.months.forEach(({ year, month }, monthIdx) => {
           pm.data.forEach(row => {
-            const ck   = `${year}-${month}-${row.id}` as CellKey
-            const base = row.values[mi] ?? 0
-            const ov   = overrides.find(o =>
-              o.lease_id  === unitId &&
+            const ck = `${year}-${month}-${row.id}` as CellKey
+            const base = row.values[monthIdx] ?? 0
+            const ov = overrides.find(o =>
+              o.lease_id   === unitId &&
               o.charge_id === row.id   &&
               o.year      === year     &&
               o.month     === month
@@ -104,18 +104,22 @@ export default function StatementTable({
   if (error)   return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix) return <div>Vyberte jednotku a období.</div>
 
-  // --- add/remove item column ---
+  // add/remove columns
   const addColumn = () => {
-    const name = prompt('Název nové položky:')?.trim()
+    const name = window.prompt('Název nové položky:')
     if (!name) return
-    const id = name.replace(/\s+/g, '_')
+    const id = name.trim().replace(/\s+/g, '_')
     if (matrix.data.some(r => r.id === id)) {
       alert('Tato položka již existuje.')
       return
     }
-    const newRow: MatrixRow = { id, name, values: matrix.months.map(() => 0) }
-    setMatrix(prev => prev && ({ months: prev.months, data: [...prev.data, newRow] }))
-
+    const newRow: MatrixRow = {
+      id,
+      name,
+      values: matrix.months.map(() => 0),
+    }
+    setMatrix(prev => prev && { months: prev.months, data: [...prev.data, newRow] })
+    // init new keys in pivot+flags
     setPivotValues(old => {
       const next = { ...old }
       matrix.months.forEach(({ year, month }) => {
@@ -134,85 +138,75 @@ export default function StatementTable({
 
   const removeColumn = (id: string) => {
     if (!confirm(`Opravdu smazat položku "${id}"?`)) return
-    setMatrix(prev => prev && ({
+    setMatrix(prev => prev && {
       months: prev.months,
-      data:   prev.data.filter(r => r.id !== id)
-    }))
+      data: prev.data.filter(r => r.id !== id)
+    })
     setPivotValues(old => {
       const next = { ...old }
-      Object.keys(next).forEach(k => k.endsWith(`-${id}`) && delete next[k as CellKey])
+      Object.keys(next).forEach(k => { if (k.endsWith(`-${id}`)) delete next[k as CellKey] })
       return next
     })
     setChargeFlags(old => {
       const next = { ...old }
-      Object.keys(next).forEach(k => k.endsWith(`-${id}`) && delete next[k as CellKey])
+      Object.keys(next).forEach(k => { if (k.endsWith(`-${id}`)) delete next[k as CellKey] })
       return next
     })
   }
 
-  // --- toggle billing on/off ---
+  // toggle & save overrides
   const toggleCharge = (ck: CellKey) => {
     setChargeFlags(prev => {
       const next = { ...prev, [ck]: !prev[ck] }
       const [y,m,...rest] = ck.split('-')
-      const year     = +y
-      const month    = +m
-      const chargeId = rest.join('-')
-      const val      = next[ck] ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
+      const year = +y, month = +m, chargeId = rest.join('-')
+      const val = next[ck] ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
 
-      fetch('/api/statement', {
-        method:  'PATCH',
-        headers: { 'Content-Type':'application/json' },
-        body:    JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal:val })
+      fetch('/api/statement/new', {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal:val })
       })
-
       onDataChange?.(matrix, pivotValues, next)
       return next
     })
   }
 
-  // --- save single override ---
   const saveCell = (ck: CellKey) => {
     if (!chargeFlags[ck]) return
     const [y,m,...rest] = ck.split('-')
-    const year     = +y
-    const month    = +m
-    const chargeId = rest.join('-')
-    const val      = pivotValues[ck] === '' ? 0 : pivotValues[ck]
+    const year = +y, month = +m, chargeId = rest.join('-')
+    const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
 
-    fetch('/api/statement', {
-      method:  'PATCH',
-      headers: { 'Content-Type':'application/json' },
-      body:    JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal:val })
+    fetch('/api/statement/new', {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal:val })
     })
   }
 
-  // --- row + column sums ---
-  const getRowSum = (year: number, month: number) =>
-    matrix.data.reduce((s, r) => {
-      const ck = `${year}-${month}-${r.id}` as CellKey
-      const v  = pivotValues[ck]
-      return s + (chargeFlags[ck] && typeof v === 'number' ? v : 0)
+  // sums
+  const getRowSum = (year:number, month:number) =>
+    matrix.data.reduce((s,row) => {
+      const ck = `${year}-${month}-${row.id}` as CellKey
+      const v = pivotValues[ck]
+      return s + (chargeFlags[ck] && typeof v==='number' ? v : 0)
     }, 0)
 
-  const getColSum = (id: string) =>
-    matrix.months.reduce((s, { year, month }) => {
+  const getColSum = (id:string) =>
+    matrix.months.reduce((s,{year,month}) => {
       const ck = `${year}-${month}-${id}` as CellKey
-      const v  = pivotValues[ck]
-      return s + (chargeFlags[ck] && typeof v === 'number' ? v : 0)
+      const v = pivotValues[ck]
+      return s + (chargeFlags[ck] && typeof v==='number' ? v : 0)
     }, 0)
 
   return (
     <div className="overflow-x-auto border rounded-lg mt-4">
       <div className="flex justify-end mb-2">
-        <button
-          onClick={addColumn}
-          className="px-3 py-1 bg-blue-600 text-white rounded"
-        >
+        <button onClick={addColumn} className="px-3 py-1 bg-blue-600 text-white rounded">
           Přidat položku
         </button>
       </div>
-
       <table className="min-w-full text-sm border-collapse">
         <thead className="bg-gray-100">
           <tr>
@@ -221,11 +215,9 @@ export default function StatementTable({
               <th key={r.id} className="border p-2 text-center">
                 <div className="inline-flex items-center space-x-1">
                   <span>{r.name}</span>
-                  <button
-                    onClick={() => removeColumn(r.id)}
-                    className="text-red-500 hover:text-red-700"
-                    title="Odebrat položku"
-                  >
+                  <button onClick={() => removeColumn(r.id)}
+                          className="text-red-500 hover:text-red-700"
+                          title="Odebrat">
                     ×
                   </button>
                 </div>
@@ -234,17 +226,16 @@ export default function StatementTable({
             <th className="border p-2 text-center font-bold">Součet</th>
           </tr>
         </thead>
-
         <tbody>
-          {matrix.months.map(({ year, month }) => (
+          {matrix.months.map(({year,month}) => (
             <tr key={`${year}-${month}`}>
               <td className="border p-2 text-center">
                 {String(month).padStart(2,'0')}/{year}
               </td>
               {matrix.data.map(r => {
-                const ck      = `${year}-${month}-${r.id}` as CellKey
+                const ck = `${year}-${month}-${r.id}` as CellKey
                 const enabled = chargeFlags[ck]
-                const val     = pivotValues[ck]
+                const val = pivotValues[ck]
                 return (
                   <td key={ck} className="border p-2 text-right">
                     <div className="flex items-center justify-end space-x-2">
@@ -252,36 +243,33 @@ export default function StatementTable({
                         type="number"
                         value={val}
                         disabled={!enabled}
-                        min={0}
-                        onChange={e =>
-                          setPivotValues(prev => ({
-                            ...prev,
-                            [ck]: e.target.value === '' ? '' : +e.target.value
-                          }))
-                        }
+                        onChange={e => {
+                          const v = e.currentTarget.value
+                          const num = v === '' ? '' : Number(v)
+                          setPivotValues(prev => ({...prev, [ck]:num}))
+                        }}
                         onBlur={() => saveCell(ck)}
                         className={`w-16 text-right text-xs border rounded px-1 py-0 ${
                           !enabled ? 'opacity-50' : ''
                         }`}
+                        min={0}
                       />
                       <span
-                        className={`w-3 h-3 rounded-full cursor-pointer border ${
+                        onClick={() => toggleCharge(ck)}
+                        className={`inline-block w-3 h-3 rounded-full cursor-pointer ${
                           enabled ? 'bg-green-500' : 'bg-gray-400'
                         }`}
                         title={enabled ? 'Účtovat' : 'Neúčtovat'}
-                        onClick={() => toggleCharge(ck)}
+                        style={{ border: '1px solid #ccc' }}
                       />
                     </div>
                   </td>
                 )
               })}
-              <td className="border p-2 text-right font-bold">
-                {getRowSum(year, month)}
-              </td>
+              <td className="border p-2 text-right font-bold">{getRowSum(year, month)}</td>
             </tr>
           ))}
         </tbody>
-
         <tfoot>
           <tr>
             <td className="border p-2 text-center font-bold">Součet</td>
