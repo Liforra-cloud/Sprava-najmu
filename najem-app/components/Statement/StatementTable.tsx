@@ -16,7 +16,6 @@ export type PaymentsMatrix = {
   data: MatrixRow[]
 }
 
-// Klíč buňky ve tvaru "YYYY-M-ID"
 export type CellKey = `${number}-${number}-${string}`
 
 type OverrideEntry = {
@@ -46,10 +45,9 @@ export default function StatementTable({
   const [matrix, setMatrix] = useState<PaymentsMatrix | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({} as Record<CellKey, number | ''>)
-  const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({} as Record<CellKey, boolean>)
+  const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
+  const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({})
 
-  // Načtení dat z API + overrides
   useEffect(() => {
     if (!unitId) {
       setMatrix(null)
@@ -64,8 +62,8 @@ export default function StatementTable({
       })
       .then(({ paymentsMatrix: pm, overrides }) => {
         setMatrix(pm)
-        const pv: Record<CellKey, number | ''> = {} as Record<CellKey, number | ''>
-        const cf: Record<CellKey, boolean> = {} as Record<CellKey, boolean>
+        const pv: Record<CellKey, number | ''> = {} // správný typ!
+        const cf: Record<CellKey, boolean> = {}
         pm.data.forEach(row => {
           pm.months.forEach(({ year, month }, idx) => {
             const ck = `${year}-${month}-${row.id}` as CellKey
@@ -95,7 +93,7 @@ export default function StatementTable({
   // Přepnutí účtovat/neúčtovat
   const toggleCharge = (ck: CellKey) => {
     setChargeFlags(prev => {
-      const next = { ...prev, [ck]: !prev[ck] }
+      const next: Record<CellKey, boolean> = { ...prev, [ck]: !prev[ck] }
       const [y, m, ...rest] = ck.split('-')
       const year = Number(y)
       const month = Number(m)
@@ -106,7 +104,7 @@ export default function StatementTable({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leaseId: unitId, year, month, chargeId, overrideVal: val })
       })
-      onDataChange?.(matrix, pivotValues, next)
+      onDataChange?.(matrix!, pivotValues, next)
       return next
     })
   }
@@ -142,7 +140,6 @@ export default function StatementTable({
         </thead>
         <tbody>
           {matrix.data.map(row => {
-            // Součet se počítá podle aktuálního pivotValues a chargeFlags
             const sum = matrix.months.reduce((a, m) => {
               const ck = `${m.year}-${m.month}-${row.id}` as CellKey
               if (!chargeFlags[ck]) return a
@@ -165,7 +162,10 @@ export default function StatementTable({
                           disabled={!enabled}
                           onChange={e => {
                             const num = e.target.value === '' ? '' : Number(e.target.value)
-                            setPivotValues(prev => ({ ...prev, [ck]: num }))
+                            setPivotValues(prev => {
+                              const next: Record<CellKey, number | ''> = { ...prev, [ck]: num }
+                              return next
+                            })
                           }}
                           onBlur={() => saveCell(ck)}
                           className={`w-16 text-right text-xs border rounded px-1 py-0 ${
