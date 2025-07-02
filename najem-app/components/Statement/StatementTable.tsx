@@ -1,226 +1,234 @@
 // components/Statement/StatementTable.tsx
-
 'use client'
 
 import React, { useEffect, useState } from 'react'
 
-export type MatrixRow = {
-  id: string
-  name: string
+// Klíč buňky: "YYYY-M-<id položky>"
+export type CellKey = `${number}-${number}-${string}`
+
+// Jedna řada v matici plateb (jedna položka napříč všemi měsíci)
+export interface MatrixRow {
+  id:     string
+  name:   string
   values: (number | '')[]
 }
 
-export type PaymentsMatrix = {
+// Data matice plateb: seznam měsíců a seznam položek
+export interface PaymentsMatrix {
   months: { year: number; month: number }[]
   data:   MatrixRow[]
 }
 
-export type CellKey = `${number}-${number}-${string}`
-
-type OverrideEntry = {
-  lease_id:    string
-  year:        number
-  month:       number
-  charge_id:   string
+// Záznam přepisu z API
+interface OverrideEntry {
+  lease_id:     string
+  year:         number
+  month:        number
+  charge_id:    string
   override_val: number | null
-  note:        string | null
+  note:         string | null
 }
 
-export default function StatementTable({
-  unitId,
-  from,
-  to,
-  onDataChange,
-}: {
-  unitId: string
-  from:   string
-  to:     string
+interface StatementTableProps {
+  unitId:       string
+  from:         string     // yyyy-MM
+  to:           string     // yyyy-MM
   onDataChange?: (
     matrix: PaymentsMatrix,
     pivotValues: Record<CellKey, number | ''>,
     chargeFlags: Record<CellKey, boolean>
   ) => void
-}) {
-  const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
-  const [loading,     setLoading]     = useState(false)
-  const [error,       setError]       = useState<string | null>(null)
+}
 
-  // ◀️ **Here are the two casts** so TS knows these objects support indexing by CellKey
-  const [pivotValues, setPivotValues] = useState<
-    Record<CellKey, number | ''>
-  >({} as Record<CellKey, number | ''>)
+export default function StatementTable({
+  unitId, from, to, onDataChange
+}: StatementTableProps) {
+  const [matrix,       setMatrix]       = useState<PaymentsMatrix | null>(null)
+  const [loading,      setLoading]      = useState(false)
+  const [error,        setError]        = useState<string | null>(null)
+  const [pivotValues,  setPivotValues]  = useState<Record<CellKey, number | ''>>({})
+  const [chargeFlags,  setChargeFlags]  = useState<Record<CellKey, boolean>>({})
 
-  const [chargeFlags, setChargeFlags] = useState<
-    Record<CellKey, boolean>
-  >({} as Record<CellKey, boolean>)
-
-  // Fetch matrix + overrides
+  // — Načtení matice a přepisů z API —
   useEffect(() => {
-    if (!unitId) {
-      setMatrix(null)
-      return
-    }
-    setLoading(true)
-    setError(null)
+    if (!unitId) { setMatrix(null); return }
+    setLoading(true); setError(null)
 
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => {
-        if (!res.ok) throw new Error(res.statusText)
-        return res.json() as Promise<{
-          paymentsMatrix: PaymentsMatrix
-          overrides:      OverrideEntry[]
-        }>
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json() as Promise<{ paymentsMatrix: PaymentsMatrix; overrides: OverrideEntry[] }>
       })
-      .then(({ paymentsMatrix: pm, overrides }) => {
-        setMatrix(pm)
+      .then(({ paymentsMatrix, overrides }) => {
+        setMatrix(paymentsMatrix)
 
+        // Inicializace pivotValues i chargeFlags
         const pv: Record<CellKey, number | ''> = {}
         const cf: Record<CellKey, boolean>     = {}
 
-        pm.months.forEach(({ year, month }, mi) => {
-          pm.data.forEach(row => {
-            const ck   = `${year}-${month}-${row.id}` as CellKey
+        paymentsMatrix.months.forEach(({ year, month }, mi) => {
+          paymentsMatrix.data.forEach(row => {
+            const key = `${year}-${month}-${row.id}` as CellKey
             const base = row.values[mi] ?? 0
             const ov = overrides.find(o =>
-              o.lease_id  === unitId &&
-              o.charge_id === row.id   &&
-              o.year      === year     &&
-              o.month     === month
+              o.lease_id === unitId &&
+              o.year     === year   &&
+              o.month    === month  &&
+              o.charge_id=== row.id
             )
-            pv[ck] = ov?.override_val ?? base
-            cf[ck] = ov ? ov.override_val !== null : true
+            pv[key] = ov?.override_val ?? base
+            cf[key] = ov ? (ov.override_val !== null) : true
           })
         })
 
         setPivotValues(pv)
         setChargeFlags(cf)
-        onDataChange?.(pm, pv, cf)
+        onDataChange?.(paymentsMatrix, pv, cf)
       })
       .catch(e => setError((e as Error).message))
       .finally(() => setLoading(false))
   }, [unitId, from, to, onDataChange])
 
-  if (loading) return <div>Načítám…</div>
-  if (error)   return <div className="text-red-600">Chyba: {error}</div>
-  if (!matrix) return <div>Vyberte jednotku a období.</div>
+  if (loading)   return <div>Načítám…</div>
+  if (error)     return <div className="text-red-600">Chyba: {error}</div>
+  if (!matrix)   return <div>Vyberte jednotku a období.</div>
 
-  // Add/remove columns
+  // — Přidat novou položku (sloupec) —
   const addColumn = () => {
-    const name = prompt('Název nové položky:')
+    const name = prompt('Název nové položky:')?.trim()
     if (!name) return
-    const id = name.trim().replace(/\s+/g, '_')
+    const id = name.replace(/\s+/g,'_')
     if (matrix.data.some(r => r.id === id)) {
-      alert('Tato položka již existuje.')
+      alert('Položka s tímto ID již existuje.')
       return
     }
     const newRow: MatrixRow = { id, name, values: matrix.months.map(() => 0) }
-    setMatrix(m => m && { months: m.months, data: [...m.data, newRow] })
-    setPivotValues(pv => {
-      const next = { ...pv }
-      matrix.months.forEach(({ year, month }) => {
+    const newMatrix: PaymentsMatrix = {
+      months: matrix.months,
+      data:   [...matrix.data, newRow]
+    }
+    setMatrix(newMatrix)
+
+    // Rozšířit pivotValues
+    setPivotValues(prev => {
+      const next = { ...prev }
+      matrix.months.forEach(({year,month}) => {
         next[`${year}-${month}-${id}` as CellKey] = 0
       })
       return next
     })
-    setChargeFlags(cf => {
-      const next = { ...cf }
-      matrix.months.forEach(({ year, month }) => {
+    // Rozšířit chargeFlags
+    setChargeFlags(prev => {
+      const next = { ...prev }
+      matrix.months.forEach(({year,month}) => {
         next[`${year}-${month}-${id}` as CellKey] = true
       })
       return next
     })
+
+    onDataChange?.(newMatrix, pivotValues, chargeFlags)
   }
 
+  // — Odebrat položku (sloupec) —
   const removeColumn = (id: string) => {
-    if (!confirm(`Opravdu smazat položku "${id}"?`)) return
-    setMatrix(m => m && { months: m.months, data: m.data.filter(r => r.id!==id) })
-    setPivotValues(pv => {
-      const next = { ...pv }
+    if (!confirm(`Opravdu smažu položku "${id}"?`)) return
+    const newMatrix: PaymentsMatrix = {
+      months: matrix.months,
+      data:   matrix.data.filter(r => r.id !== id)
+    }
+    setMatrix(newMatrix)
+    setPivotValues(prev => {
+      const next = { ...prev }
       Object.keys(next).forEach(k => {
         if (k.endsWith(`-${id}`)) delete next[k as CellKey]
       })
       return next
     })
-    setChargeFlags(cf => {
-      const next = { ...cf }
-      Object.keys(next).forEach(k => {
-        if (k.endsWith(`-${id}`)) delete next[k as CellKey]
-      })
-      return next
-    })
-  }
-
-  // Toggle + save overrides
-  const toggleCharge = (ck: CellKey) => {
     setChargeFlags(prev => {
-      const next = { ...prev, [ck]: !prev[ck] }
-      const [y,m,...rest] = ck.split('-')
-      const year = +y, month = +m, chargeId = rest.join('-')
-      const val  = next[ck] ? (pivotValues[ck]===''?0:pivotValues[ck]) : null
-
-      fetch('/api/statement/new',{
-        method:'PATCH',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal: val })
+      const next = { ...prev }
+      Object.keys(next).forEach(k => {
+        if (k.endsWith(`-${id}`)) delete next[k as CellKey]
       })
-      onDataChange?.(matrix!, pivotValues, next)
+      return next
+    })
+    onDataChange?.(newMatrix, pivotValues, chargeFlags)
+  }
+
+  // — Uložit změnu jedné buňky —
+  const saveCell = (key: CellKey) => {
+    if (!chargeFlags[key]) return
+    const [y, m, ...rest] = key.split('-')
+    const year     = +y
+    const month    = +m
+    const chargeId = rest.join('-')
+    const overrideVal = pivotValues[key] === '' ? 0 : pivotValues[key]
+    fetch('/api/statement/new', {
+      method: 'PATCH',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ leaseId: unitId, year, month, chargeId, overrideVal })
+    }).catch(console.error)
+  }
+
+  // — Přepnout účtovat / neúčtovat —
+  const toggleCharge = (key: CellKey) => {
+    setChargeFlags(prev => {
+      const next = { ...prev, [key]: !prev[key] }
+      // okamžitě uložit na server
+      saveCell(key)
+      onDataChange?.(matrix, pivotValues, next)
       return next
     })
   }
 
-  const saveCell = (ck: CellKey) => {
-    if (!chargeFlags[ck]) return
-    const [y,m,...rest] = ck.split('-')
-    const year = +y, month = +m, chargeId = rest.join('-')
-    const val  = pivotValues[ck] === '' ? 0 : pivotValues[ck]
-
-    fetch('/api/statement/new',{
-      method:'PATCH',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal: val })
-    })
-  }
-
-  // Row & column sums
-  const getRowSum = (year:number, month:number) =>
-    matrix.data.reduce((s,row) => {
-      const ck = `${year}-${month}-${row.id}` as CellKey
-      const v  = pivotValues[ck]
-      return s + (chargeFlags[ck] && typeof v==='number' ? v : 0)
+  // Součet hodnot za řádek (měsíc)
+  const getRowSum = (year: number, month: number) =>
+    matrix.data.reduce((sum, row) => {
+      const key = `${year}-${month}-${row.id}` as CellKey
+      const val = pivotValues[key]
+      return sum + (chargeFlags[key] && typeof val === 'number' ? val : 0)
     }, 0)
 
-  const getColSum = (id:string) =>
-    matrix.months.reduce((s,{year,month}) => {
-      const ck = `${year}-${month}-${id}` as CellKey
-      const v  = pivotValues[ck]
-      return s + (chargeFlags[ck] && typeof v==='number' ? v : 0)
+  // Součet hodnot za sloupec (položku)
+  const getColumnSum = (id: string) =>
+    matrix.months.reduce((sum, {year,month}) => {
+      const key = `${year}-${month}-${id}` as CellKey
+      const val = pivotValues[key]
+      return sum + (chargeFlags[key] && typeof val === 'number' ? val : 0)
     }, 0)
 
   return (
     <div className="overflow-x-auto border rounded-lg mt-4">
       <div className="flex justify-end mb-2">
-        <button onClick={addColumn}
-                className="px-3 py-1 bg-blue-600 text-white rounded">
+        <button
+          onClick={addColumn}
+          className="px-3 py-1 bg-blue-600 text-white rounded"
+        >
           Přidat položku
         </button>
       </div>
+
       <table className="min-w-full text-sm border-collapse">
         <thead className="bg-gray-100">
           <tr>
             <th className="border p-2 text-center">Měsíc/Rok</th>
             {matrix.data.map(r => (
               <th key={r.id} className="border p-2 text-center">
-                <div className="inline-flex items-center space-x-1">
+                <div className="flex items-center justify-center space-x-1">
                   <span>{r.name}</span>
-                  <button onClick={()=>removeColumn(r.id)}
-                          className="text-red-500 hover:text-red-700"
-                          title="Odebrat">×</button>
+                  <button
+                    onClick={() => removeColumn(r.id)}
+                    className="text-red-500 hover:text-red-700"
+                    title="Smazat položku"
+                  >
+                    ×
+                  </button>
                 </div>
               </th>
             ))}
-            <th className="border p-2 text-center font-bold">Součet</th>
+            <th className="border p-2 text-center font-semibold">Součet</th>
           </tr>
         </thead>
+
         <tbody>
           {matrix.months.map(({year,month}) => (
             <tr key={`${year}-${month}`}>
@@ -228,51 +236,52 @@ export default function StatementTable({
                 {String(month).padStart(2,'0')}/{year}
               </td>
               {matrix.data.map(r => {
-                const ck = `${year}-${month}-${r.id}` as CellKey
-                const enabled = chargeFlags[ck]
-                const val = pivotValues[ck]
+                const key     = `${year}-${month}-${r.id}` as CellKey
+                const enabled = chargeFlags[key]
+                const val     = pivotValues[key]
+
                 return (
-                  <td key={ck} className="border p-2 text-right">
+                  <td key={key} className="border p-2">
                     <div className="flex items-center justify-end space-x-2">
                       <input
                         type="number"
-                        value={val}
-                        disabled={!enabled}
-                        onChange={e => {
-                          const v = e.currentTarget.value
-                          const num = v===''? '' : Number(v)
-                          setPivotValues(pv=>({ ...pv, [ck]:num }))
-                        }}
-                        onBlur={()=>saveCell(ck)}
                         className={`w-16 text-right text-xs border rounded px-1 py-0 ${
                           !enabled ? 'opacity-50' : ''
                         }`}
+                        disabled={!enabled}
+                        value={val}
                         min={0}
+                        onChange={e => {
+                          const num = e.target.value === '' ? '' : Number(e.target.value)
+                          setPivotValues(prev => ({ ...prev, [key]: num }))
+                        }}
+                        onBlur={() => saveCell(key)}
                       />
                       <span
-                        onClick={()=>toggleCharge(ck)}
                         className={`inline-block w-3 h-3 rounded-full cursor-pointer ${
                           enabled ? 'bg-green-500' : 'bg-gray-400'
                         }`}
                         title={enabled ? 'Účtovat' : 'Neúčtovat'}
-                        style={{ border:'1px solid #ccc' }}
+                        onClick={() => toggleCharge(key)}
+                        style={{ border: '1px solid #ccc' }}
                       />
                     </div>
                   </td>
                 )
               })}
-              <td className="border p-2 text-right font-bold">
-                {getRowSum(year,month)}
+              <td className="border p-2 text-right font-semibold">
+                {getRowSum(year, month)}
               </td>
             </tr>
           ))}
         </tbody>
+
         <tfoot>
           <tr>
-            <td className="border p-2 text-center font-bold">Součet</td>
+            <td className="border p-2 font-semibold">Součet</td>
             {matrix.data.map(r => (
-              <td key={r.id} className="border p-2 text-right font-bold">
-                {getColSum(r.id)}
+              <td key={r.id} className="border p-2 text-right font-semibold">
+                {getColumnSum(r.id)}
               </td>
             ))}
             <td className="border p-2" />
