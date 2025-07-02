@@ -42,9 +42,9 @@ export default function StatementTable({
     chargeFlags: Record<string, boolean>
   ) => void
 }) {
-  const [matrix,      setMatrix]      = useState<PaymentsMatrix | null>(null)
-  const [loading,     setLoading]     = useState(false)
-  const [error,       setError]       = useState<string | null>(null)
+  const [matrix, setMatrix] = useState<PaymentsMatrix | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [pivotValues, setPivotValues] = useState<Record<string, number | ''>>({})
   const [chargeFlags, setChargeFlags] = useState<Record<string, boolean>>({})
 
@@ -56,7 +56,6 @@ export default function StatementTable({
     }
     setLoading(true)
     setError(null)
-
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
       .then(res => {
         if (!res.ok) throw new Error(res.statusText)
@@ -65,20 +64,19 @@ export default function StatementTable({
       .then(({ paymentsMatrix: pm, overrides }) => {
         setMatrix(pm)
         const pv: Record<string, number | ''> = {}
-        const cf: Record<string, boolean>     = {}
-
+        const cf: Record<string, boolean> = {}
         pm.data.forEach(row => {
           pm.months.forEach(({ year, month }, idx) => {
-            const ck   = `${year}-${month}-${row.id}` as CellKey
+            const ck = `${year}-${month}-${row.id}` as CellKey
             const base = row.values[idx] ?? 0
-            const ovEntry = overrides.find(o =>
+            const ov = overrides.find(o =>
               o.lease_id === unitId &&
               o.charge_id === row.id &&
               o.year === year &&
               o.month === month
             )
-            pv[ck] = ovEntry?.override_val ?? base
-            cf[ck] = ovEntry != null ? ovEntry.override_val !== null : true
+            pv[ck] = ov?.override_val ?? base
+            cf[ck] = ov != null ? ov.override_val !== null : true
           })
         })
         setPivotValues(pv)
@@ -89,151 +87,114 @@ export default function StatementTable({
       .finally(() => setLoading(false))
   }, [unitId, from, to, onDataChange])
 
-  if (loading) return <div>Načítám matici plateb…</div>
-  if (error)   return <div className="text-red-600">Chyba: {error}</div>
+  if (loading) return <div>Načítám…</div>
+  if (error) return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix) return <div>Vyberte jednotku a období.</div>
 
-  // Přidání vlastního sloupce
-  const addColumn = () => {
-    const name = window.prompt('Název nového poplatku:')
-    if (!name) return
-    const id = name.trim().replace(/\s+/g, '_')
-    if (matrix.data.find(r => r.id === id)) {
-      alert('Tento poplatek už existuje.')
-      return
-    }
-    const newRow: MatrixRow = { id, name, values: matrix.months.map(() => 0), total: 0 }
-    const newMatrix = { ...matrix, data: [...matrix.data, newRow] }
-    setMatrix(newMatrix)
-    matrix.months.forEach(({ year, month }) => {
-      const ck = `${year}-${month}-${id}` as CellKey
-      setPivotValues(pv => ({ ...pv, [ck]: 0 }))
-      setChargeFlags(cf => ({ ...cf, [ck]: true }))
-    })
-    onDataChange?.(newMatrix, pivotValues, chargeFlags)
-  }
-
-  // Odebrání sloupce
-  const removeColumn = (id: string) => {
-    if (!window.confirm(`Opravdu smazat sloupec "${id}"?`)) return
-    const newMatrix = { ...matrix, data: matrix.data.filter(r => r.id !== id) }
-    setMatrix(newMatrix)
-    setPivotValues(pv => {
-      const next = { ...pv }
-      Object.keys(next).forEach(k => { if (k.endsWith(`-${id}`)) delete next[k] })
-      return next
-    })
-    setChargeFlags(cf => {
-      const next = { ...cf }
-      Object.keys(next).forEach(k => { if (k.endsWith(`-${id}`)) delete next[k] })
-      return next
-    })
-    onDataChange?.(newMatrix, pivotValues, chargeFlags)
-  }
-
-  // Přepnutí účtovat/neúčtovat pro buňku
+  // Přepnutí účtovat/neúčtovat
   const toggleCharge = (ck: CellKey) => {
-    setChargeFlags(old => {
-      const next = { ...old, [ck]: !old[ck] }
+    setChargeFlags(prev => {
+      const next = { ...prev, [ck]: !prev[ck] }
       const [y, m, ...rest] = ck.split('-')
-      const year     = Number(y)
-      const month    = Number(m)
+      const year = Number(y)
+      const month = Number(m)
       const chargeId = rest.join('-')
-      const val = next[ck]
-        ? (pivotValues[ck] === '' ? 0 : pivotValues[ck])
-        : null
+      const val = next[ck] ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
       fetch('/api/statement/new', {
-        method:  'PATCH',
-        headers: { 'Content-Type':'application/json' },
-        body:    JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal:val })
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leaseId: unitId, year, month, chargeId, overrideVal: val })
       })
       onDataChange?.(matrix, pivotValues, next)
       return next
     })
   }
 
-  // Uložení upravené hodnoty buňky
+  // Uložení hodnoty
   const saveCell = (ck: CellKey) => {
     if (!chargeFlags[ck]) return
     const [y, m, ...rest] = ck.split('-')
-    const year     = Number(y)
-    const month    = Number(m)
+    const year = Number(y)
+    const month = Number(m)
     const chargeId = rest.join('-')
     const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
     fetch('/api/statement/new', {
-      method:  'PATCH',
-      headers: { 'Content-Type':'application/json' },
-      body:    JSON.stringify({ leaseId:unitId, year, month, chargeId, overrideVal:val })
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leaseId: unitId, year, month, chargeId, overrideVal: val })
     })
   }
 
   return (
     <div className="overflow-x-auto border rounded-lg">
-      <button
-        onClick={addColumn}
-        className="mb-2 px-2 py-1 bg-blue-600 text-white rounded"
-      >
-        Přidat sloupec
-      </button>
       <table className="min-w-full text-sm border-collapse">
         <thead className="bg-gray-100">
           <tr>
-            <th className="border p-2">Měsíc/Rok</th>
-            {matrix.data.map(r => (
-              <th key={r.id} className="border p-2 text-center whitespace-nowrap">
-                <div className="flex items-center justify-center space-x-1">
-                  <span className="font-medium">{r.name}</span>
-                  <span
-                    onClick={() => removeColumn(r.id)}
-                    className="text-red-500 cursor-pointer"
-                    title="Odebrat sloupec"
-                    style={{ lineHeight:1 }}
-                  >
-                    &times;
-                  </span>
-                </div>
+            <th className="border p-2">Položka</th>
+            {matrix.months.map(m => (
+              <th key={`${m.year}-${m.month}`} className="border p-2 text-center">
+                {String(m.month).padStart(2, '0')}/{m.year}
               </th>
             ))}
+            <th className="border p-2 text-center">Součet</th>
           </tr>
         </thead>
         <tbody>
-          {matrix.months.map(({ year, month }) => (
-            <tr key={`${year}-${month}`}>              
-              <td className="border p-2 font-medium">{`${String(month).padStart(2,'0')}/${year}`}</td>
-              {matrix.data.map(row => {
-                const ck = `${year}-${month}-${row.id}` as CellKey
-                const enabled = chargeFlags[ck]
-                const val     = pivotValues[ck]
-                return (
-                  <td key={ck} className="border p-2 text-right">
-                    <div className="flex items-center justify-end space-x-2">
-                      <input
-                        type="number"
-                        value={val}
-                        disabled={!enabled}
-                        onChange={e => {
-                          const num = e.target.value === '' ? '' : Number(e.target.value)
-                          setPivotValues(prev => ({ ...prev, [ck]: num }))
-                        }}
-                        onBlur={() => saveCell(ck)}
-                        className={`w-16 text-right text-xs border rounded px-1 py-0 ${
-                          !enabled ? 'opacity-50' : ''
-                        }`}
-                        min={0}
-                      />
-                      <span
-                        className={`inline-block w-2 h-2 rounded-full ${
-                          enabled ? 'bg-green-500' : 'bg-gray-400'
-                        }`}
-                        title={enabled ? 'Účtovat' : 'Neúčtovat'}
-                        onClick={() => toggleCharge(ck)}
-                      />
-                    </div>
-                  </td>
-                )
-              })}
-            </tr>
-          ))}
+          {matrix.data.map(row => {
+            const sum = row.values.reduce((a, v) => a + (typeof v === 'number' ? v : 0), 0)
+            return (
+              <tr key={row.id}>
+                <td className="border p-2">
+                  <div className="flex items-center space-x-1">
+                    <span className="font-medium">{row.name}</span>
+                    <button
+                      onClick={() => {
+                        /* implement removeColumn if needed */
+                      }}
+                      className="text-red-500 hover:text-red-700"
+                      title="Odebrat sloupec"
+                      style={{ lineHeight: 1 }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </td>
+                {matrix.months.map((m, idx) => {
+                  const ck = `${m.year}-${m.month}-${row.id}` as CellKey
+                  const enabled = chargeFlags[ck]
+                  const val = pivotValues[ck]
+                  return (
+                    <td key={ck} className="border p-2 text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        <input
+                          type="number"
+                          value={val}
+                          disabled={!enabled}
+                          onChange={e => {
+                            const num = e.target.value === '' ? '' : Number(e.target.value)
+                            setPivotValues(prev => ({ ...prev, [ck]: num }))
+                          }}
+                          onBlur={() => saveCell(ck)}
+                          className={`w-16 text-right text-xs border rounded px-1 py-0 ${
+                            !enabled ? 'opacity-50' : ''
+                          }`}
+                          min={0}
+                        />
+                        <span
+                          className={`inline-block w-2 h-2 rounded-full ${
+                            enabled ? 'bg-green-500' : 'bg-gray-400'
+                          }`}
+                          title={enabled ? 'Účtovat' : 'Neúčtovat'}
+                          onClick={() => toggleCharge(ck)}
+                        />
+                      </div>
+                    </td>
+                  )
+                })}
+                <td className="border p-2 text-right font-semibold">{sum}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
