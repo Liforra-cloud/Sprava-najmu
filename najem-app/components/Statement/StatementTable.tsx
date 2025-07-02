@@ -1,3 +1,5 @@
+// components/Statement/StatementTable.tsx
+
 'use client'
 
 import React, { useEffect, useState } from 'react'
@@ -6,63 +8,73 @@ export type MatrixRow = {
   id: string
   name: string
   values: (number | '')[]
+  total: number
 }
 
 export type PaymentsMatrix = {
   months: { year: number; month: number }[]
-  data:   MatrixRow[]
+  data: MatrixRow[]
 }
 
 // Klíč buňky ve tvaru "YYYY-M-ID"
 export type CellKey = `${number}-${number}-${string}`
 
 type OverrideEntry = {
-  lease_id:     string
-  year:         number
-  month:        number
-  charge_id:    string
+  lease_id: string
+  year: number
+  month: number
+  charge_id: string
   override_val: number | null
-  note:         string | null
+  note: string | null
 }
 
-interface StatementTableProps {
+export default function StatementTable({
+  unitId,
+  from,
+  to,
+  onDataChange,
+}: {
   unitId: string
-  from:   string
-  to:     string
+  from: string
+  to: string
   onDataChange?: (
     matrix: PaymentsMatrix,
     pivotValues: Record<CellKey, number | ''>,
     chargeFlags: Record<CellKey, boolean>
   ) => void
-}
-
-export default function StatementTable({ unitId, from, to, onDataChange }: StatementTableProps) {
+}) {
   const [matrix, setMatrix] = useState<PaymentsMatrix | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Explicitní typová assertion pro pivotValues a chargeFlags
   const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({} as Record<CellKey, number | ''>)
   const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({} as Record<CellKey, boolean>)
 
+  // Načtení dat z API + overrides
   useEffect(() => {
-    if (!unitId) { setMatrix(null); return }
-    setLoading(true); setError(null)
+    if (!unitId) {
+      setMatrix(null)
+      return
+    }
+    setLoading(true)
+    setError(null)
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
-      .then(res => { if (!res.ok) throw new Error(res.statusText); return res.json() })
-      .then((data: { paymentsMatrix: PaymentsMatrix; overrides: OverrideEntry[] }) => {
-        const pm = data.paymentsMatrix
+      .then(res => {
+        if (!res.ok) throw new Error(res.statusText)
+        return res.json() as Promise<{ paymentsMatrix: PaymentsMatrix; overrides: OverrideEntry[] }>
+      })
+      .then(({ paymentsMatrix: pm, overrides }) => {
         setMatrix(pm)
         const pv: Record<CellKey, number | ''> = {} as Record<CellKey, number | ''>
-        const cf: Record<CellKey, boolean>     = {} as Record<CellKey, boolean>
+        const cf: Record<CellKey, boolean> = {} as Record<CellKey, boolean>
         pm.data.forEach(row => {
           pm.months.forEach(({ year, month }, idx) => {
             const ck = `${year}-${month}-${row.id}` as CellKey
             const base = row.values[idx] ?? 0
-            const ov = data.overrides.find(o =>
-              o.lease_id  === unitId &&
-              o.charge_id === row.id  &&
-              o.year      === year    &&
-              o.month     === month
+            const ov = overrides.find(o =>
+              o.lease_id === unitId &&
+              o.charge_id === row.id &&
+              o.year === year &&
+              o.month === month
             )
             pv[ck] = ov?.override_val ?? base
             cf[ck] = ov != null ? ov.override_val !== null : true
@@ -77,15 +89,18 @@ export default function StatementTable({ unitId, from, to, onDataChange }: State
   }, [unitId, from, to, onDataChange])
 
   if (loading) return <div>Načítám…</div>
-  if (error)   return <div className="text-red-600">Chyba: {error}</div>
+  if (error) return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix) return <div>Vyberte jednotku a období.</div>
 
+  // Přepnutí účtovat/neúčtovat
   const toggleCharge = (ck: CellKey) => {
     setChargeFlags(prev => {
       const next = { ...prev, [ck]: !prev[ck] }
       const [y, m, ...rest] = ck.split('-')
-      const year = Number(y), month = Number(m), chargeId = rest.join('-')
-      const val   = next[ck] ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
+      const year = Number(y)
+      const month = Number(m)
+      const chargeId = rest.join('-')
+      const val = next[ck] ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
       fetch('/api/statement/new', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -96,20 +111,20 @@ export default function StatementTable({ unitId, from, to, onDataChange }: State
     })
   }
 
+  // Uložení hodnoty
   const saveCell = (ck: CellKey) => {
     if (!chargeFlags[ck]) return
     const [y, m, ...rest] = ck.split('-')
-    const year = Number(y), month = Number(m), chargeId = rest.join('-')
-    const val  = pivotValues[ck] === '' ? 0 : pivotValues[ck]
+    const year = Number(y)
+    const month = Number(m)
+    const chargeId = rest.join('-')
+    const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
     fetch('/api/statement/new', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ leaseId: unitId, year, month, chargeId, overrideVal: val })
     })
   }
-
-  const rowSum = (row: MatrixRow) =>
-    row.values.reduce<number>((sum, v) => sum + (typeof v === 'number' ? v : 0), 0)
 
   return (
     <div className="overflow-x-auto border rounded-lg">
@@ -127,19 +142,20 @@ export default function StatementTable({ unitId, from, to, onDataChange }: State
         </thead>
         <tbody>
           {matrix.data.map(row => {
-            const sum = rowSum(row)
+            // Součet se počítá podle aktuálního pivotValues a chargeFlags
+            const sum = matrix.months.reduce((a, m) => {
+              const ck = `${m.year}-${m.month}-${row.id}` as CellKey
+              if (!chargeFlags[ck]) return a
+              const v = pivotValues[ck]
+              return a + (typeof v === 'number' ? v : 0)
+            }, 0)
             return (
               <tr key={row.id}>
-                <td className="border p-2">
-                  <div className="flex items-center space-x-1">
-                    <span className="font-medium">{row.name}</span>
-                    <button className="text-red-500 hover:text-red-700" title="Odebrat sloupec" style={{ lineHeight:1 }}>×</button>
-                  </div>
-                </td>
+                <td className="border p-2 font-medium">{row.name}</td>
                 {matrix.months.map(m => {
                   const ck = `${m.year}-${m.month}-${row.id}` as CellKey
                   const enabled = chargeFlags[ck]
-                  const val     = pivotValues[ck]
+                  const val = pivotValues[ck]
                   return (
                     <td key={ck} className="border p-2 text-right">
                       <div className="flex items-center justify-end space-x-2">
@@ -152,12 +168,16 @@ export default function StatementTable({ unitId, from, to, onDataChange }: State
                             setPivotValues(prev => ({ ...prev, [ck]: num }))
                           }}
                           onBlur={() => saveCell(ck)}
-                          className={`w-16 text-right text-xs border rounded px-1 py-0 ${!enabled ? 'opacity-50' : ''}`}
+                          className={`w-16 text-right text-xs border rounded px-1 py-0 ${
+                            !enabled ? 'opacity-50' : ''
+                          }`}
                           min={0}
                         />
                         <span
-                          className={`inline-block w-2 h-2 rounded-full ${enabled ? 'bg-green-500' : 'bg-gray-400'}`}
-                          title={enabled ? 'Účtovat' : 'Neúčtovat'}
+                          className={`inline-block w-3 h-3 rounded-full cursor-pointer transition ${
+                            enabled ? 'bg-green-500' : 'bg-gray-400'
+                          }`}
+                          title={enabled ? 'Účtuje se' : 'Neúčtuje se'}
                           onClick={() => toggleCharge(ck)}
                         />
                       </div>
