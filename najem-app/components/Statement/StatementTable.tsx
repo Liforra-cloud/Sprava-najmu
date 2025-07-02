@@ -1,4 +1,3 @@
-
 'use client'
 
 import React, { useEffect, useState } from 'react'
@@ -7,7 +6,6 @@ export type MatrixRow = {
   id: string
   name: string
   values: (number | '')[]
-  total: number
 }
 
 export type PaymentsMatrix = {
@@ -27,26 +25,28 @@ type OverrideEntry = {
   note:         string | null
 }
 
-export default function StatementTable({
-  unitId,
-  from,
-  to,
-  onDataChange
-}: {
+interface StatementTableProps {
   unitId: string
   from:   string
   to:     string
   onDataChange?: (
     matrix: PaymentsMatrix,
-    pivotValues: Record<string, number | ''>,
-    chargeFlags: Record<string, boolean>
+    pivotValues: Record<CellKey, number | ''>,
+    chargeFlags: Record<CellKey, boolean>
   ) => void
-}) {
-  const [matrix, setMatrix] = useState<PaymentsMatrix | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [pivotValues, setPivotValues] = useState<Record<string, number | ''>>({})
-  const [chargeFlags, setChargeFlags] = useState<Record<string, boolean>>({})
+}
+
+export default function StatementTable({
+  unitId,
+  from,
+  to,
+  onDataChange
+}: StatementTableProps) {
+  const [matrix, setMatrix]           = useState<PaymentsMatrix | null>(null)
+  const [loading, setLoading]         = useState(false)
+  const [error, setError]             = useState<string | null>(null)
+  const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
+  const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({})
 
   // Načtení dat z API + overrides
   useEffect(() => {
@@ -63,8 +63,8 @@ export default function StatementTable({
       })
       .then(({ paymentsMatrix: pm, overrides }) => {
         setMatrix(pm)
-        const pv: Record<string, number | ''> = {}
-        const cf: Record<string, boolean> = {}
+        const pv: Record<CellKey, number | ''> = {}
+        const cf: Record<CellKey, boolean>     = {}
         pm.data.forEach(row => {
           pm.months.forEach(({ year, month }, idx) => {
             const ck = `${year}-${month}-${row.id}` as CellKey
@@ -88,18 +88,18 @@ export default function StatementTable({
   }, [unitId, from, to, onDataChange])
 
   if (loading) return <div>Načítám…</div>
-  if (error) return <div className="text-red-600">Chyba: {error}</div>
+  if (error)   return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix) return <div>Vyberte jednotku a období.</div>
 
-  // Přepnutí účtovat/neúčtovat
+  // Toggle účtovat/neúčtovat pro buňku
   const toggleCharge = (ck: CellKey) => {
     setChargeFlags(prev => {
       const next = { ...prev, [ck]: !prev[ck] }
       const [y, m, ...rest] = ck.split('-')
-      const year = Number(y)
-      const month = Number(m)
+      const year     = Number(y)
+      const month    = Number(m)
       const chargeId = rest.join('-')
-      const val = next[ck] ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
+      const val      = next[ck] ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
       fetch('/api/statement/new', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -110,20 +110,24 @@ export default function StatementTable({
     })
   }
 
-  // Uložení hodnoty
+  // Uložení upravené hodnoty buňky
   const saveCell = (ck: CellKey) => {
     if (!chargeFlags[ck]) return
     const [y, m, ...rest] = ck.split('-')
-    const year = Number(y)
-    const month = Number(m)
+    const year     = Number(y)
+    const month    = Number(m)
     const chargeId = rest.join('-')
-    const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
+    const val      = pivotValues[ck] === '' ? 0 : pivotValues[ck]
     fetch('/api/statement/new', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ leaseId: unitId, year, month, chargeId, overrideVal: val })
     })
   }
+
+  // Vypočítat součet řádku
+  const rowSum = (row: MatrixRow) =>
+    row.values.reduce<number>((acc, v) => acc + (typeof v === 'number' ? v : 0), 0)
 
   return (
     <div className="overflow-x-auto border rounded-lg">
@@ -141,28 +145,24 @@ export default function StatementTable({
         </thead>
         <tbody>
           {matrix.data.map(row => {
-            const sum = row.values.reduce<number>((a, v) => a + (typeof v === 'number' ? v : 0), 0) => a + (typeof v === 'number' ? v : 0), 0)
+            const sum = rowSum(row)
             return (
               <tr key={row.id}>
                 <td className="border p-2">
                   <div className="flex items-center space-x-1">
                     <span className="font-medium">{row.name}</span>
                     <button
-                      onClick={() => {
-                        /* implement removeColumn if needed */
-                      }}
+                      onClick={() => {/* implement removeColumn */}}
                       className="text-red-500 hover:text-red-700"
                       title="Odebrat sloupec"
                       style={{ lineHeight: 1 }}
-                    >
-                      ×
-                    </button>
+                    >×</button>
                   </div>
                 </td>
-                {matrix.months.map((m) => {
-                  const ck = `${m.year}-${m.month}-${row.id}` as CellKey
+                {matrix.months.map(m => {
+                  const ck      = `${m.year}-${m.month}-${row.id}` as CellKey
                   const enabled = chargeFlags[ck]
-                  const val = pivotValues[ck]
+                  const val     = pivotValues[ck]
                   return (
                     <td key={ck} className="border p-2 text-right">
                       <div className="flex items-center justify-end space-x-2">
