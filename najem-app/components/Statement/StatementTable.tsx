@@ -40,11 +40,10 @@ export default function StatementTable({ unitId, from, to, onDataChange }: State
   const [matrix, setMatrix] = useState<PaymentsMatrix | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Typové assertion pro prázdné počáteční stavy
+  // Explicitní typová assertion pro pivotValues a chargeFlags
   const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({} as Record<CellKey, number | ''>)
   const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({} as Record<CellKey, boolean>)
 
-  // Načtení dat z API + overrides
   useEffect(() => {
     if (!unitId) { setMatrix(null); return }
     setLoading(true); setError(null)
@@ -53,8 +52,8 @@ export default function StatementTable({ unitId, from, to, onDataChange }: State
       .then((data: { paymentsMatrix: PaymentsMatrix; overrides: OverrideEntry[] }) => {
         const pm = data.paymentsMatrix
         setMatrix(pm)
-        const pv: Record<CellKey, number | ''> = {}
-        const cf: Record<CellKey, boolean>     = {}
+        const pv: Record<CellKey, number | ''> = {} as Record<CellKey, number | ''>
+        const cf: Record<CellKey, boolean>     = {} as Record<CellKey, boolean>
         pm.data.forEach(row => {
           pm.months.forEach(({ year, month }, idx) => {
             const ck = `${year}-${month}-${row.id}` as CellKey
@@ -81,15 +80,15 @@ export default function StatementTable({ unitId, from, to, onDataChange }: State
   if (error)   return <div className="text-red-600">Chyba: {error}</div>
   if (!matrix) return <div>Vyberte jednotku a období.</div>
 
-  // Toggle účtovat/neúčtovat pro buňku
   const toggleCharge = (ck: CellKey) => {
     setChargeFlags(prev => {
       const next = { ...prev, [ck]: !prev[ck] }
       const [y, m, ...rest] = ck.split('-')
       const year = Number(y), month = Number(m), chargeId = rest.join('-')
-      const val = next[ck] ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
+      const val   = next[ck] ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
       fetch('/api/statement/new', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leaseId: unitId, year, month, chargeId, overrideVal: val })
       })
       onDataChange?.(matrix, pivotValues, next)
@@ -97,19 +96,18 @@ export default function StatementTable({ unitId, from, to, onDataChange }: State
     })
   }
 
-  // Uložení hodnoty buňky
   const saveCell = (ck: CellKey) => {
     if (!chargeFlags[ck]) return
     const [y, m, ...rest] = ck.split('-')
     const year = Number(y), month = Number(m), chargeId = rest.join('-')
-    const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
+    const val  = pivotValues[ck] === '' ? 0 : pivotValues[ck]
     fetch('/api/statement/new', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ leaseId: unitId, year, month, chargeId, overrideVal: val })
     })
   }
 
-  // Vypočítat součet řádku
   const rowSum = (row: MatrixRow) =>
     row.values.reduce<number>((sum, v) => sum + (typeof v === 'number' ? v : 0), 0)
 
@@ -135,7 +133,7 @@ export default function StatementTable({ unitId, from, to, onDataChange }: State
                 <td className="border p-2">
                   <div className="flex items-center space-x-1">
                     <span className="font-medium">{row.name}</span>
-                    <button className="text-red-500 hover:text-red-700" title="Odebrat" style={{ lineHeight:1 }}>×</button>
+                    <button className="text-red-500 hover:text-red-700" title="Odebrat sloupec" style={{ lineHeight:1 }}>×</button>
                   </div>
                 </td>
                 {matrix.months.map(m => {
