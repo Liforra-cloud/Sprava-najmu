@@ -36,32 +36,22 @@ interface StatementTableProps {
   ) => void
 }
 
-export default function StatementTable({
-  unitId,
-  from,
-  to,
-  onDataChange
-}: StatementTableProps) {
-  const [matrix, setMatrix]           = useState<PaymentsMatrix | null>(null)
-  const [loading, setLoading]         = useState(false)
-  const [error, setError]             = useState<string | null>(null)
-  const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({})
-  const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({})
+export default function StatementTable({ unitId, from, to, onDataChange }: StatementTableProps) {
+  const [matrix, setMatrix] = useState<PaymentsMatrix | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  // Typové assertion pro prázdné počáteční stavy
+  const [pivotValues, setPivotValues] = useState<Record<CellKey, number | ''>>({} as Record<CellKey, number | ''>)
+  const [chargeFlags, setChargeFlags] = useState<Record<CellKey, boolean>>({} as Record<CellKey, boolean>)
 
   // Načtení dat z API + overrides
   useEffect(() => {
-    if (!unitId) {
-      setMatrix(null)
-      return
-    }
-    setLoading(true)
-    setError(null)
+    if (!unitId) { setMatrix(null); return }
+    setLoading(true); setError(null)
     fetch(`/api/statement?unitId=${unitId}&from=${from}&to=${to}`)
-      .then(res => {
-        if (!res.ok) throw new Error(res.statusText)
-        return res.json() as Promise<{ paymentsMatrix: PaymentsMatrix; overrides: OverrideEntry[] }>
-      })
-      .then(({ paymentsMatrix: pm, overrides }) => {
+      .then(res => { if (!res.ok) throw new Error(res.statusText); return res.json() })
+      .then((data: { paymentsMatrix: PaymentsMatrix; overrides: OverrideEntry[] }) => {
+        const pm = data.paymentsMatrix
         setMatrix(pm)
         const pv: Record<CellKey, number | ''> = {}
         const cf: Record<CellKey, boolean>     = {}
@@ -69,11 +59,11 @@ export default function StatementTable({
           pm.months.forEach(({ year, month }, idx) => {
             const ck = `${year}-${month}-${row.id}` as CellKey
             const base = row.values[idx] ?? 0
-            const ov = overrides.find(o =>
-              o.lease_id === unitId &&
-              o.charge_id === row.id &&
-              o.year === year &&
-              o.month === month
+            const ov = data.overrides.find(o =>
+              o.lease_id  === unitId &&
+              o.charge_id === row.id  &&
+              o.year      === year    &&
+              o.month     === month
             )
             pv[ck] = ov?.override_val ?? base
             cf[ck] = ov != null ? ov.override_val !== null : true
@@ -96,13 +86,10 @@ export default function StatementTable({
     setChargeFlags(prev => {
       const next = { ...prev, [ck]: !prev[ck] }
       const [y, m, ...rest] = ck.split('-')
-      const year     = Number(y)
-      const month    = Number(m)
-      const chargeId = rest.join('-')
-      const val      = next[ck] ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
+      const year = Number(y), month = Number(m), chargeId = rest.join('-')
+      const val = next[ck] ? (pivotValues[ck] === '' ? 0 : pivotValues[ck]) : null
       fetch('/api/statement/new', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leaseId: unitId, year, month, chargeId, overrideVal: val })
       })
       onDataChange?.(matrix, pivotValues, next)
@@ -110,24 +97,21 @@ export default function StatementTable({
     })
   }
 
-  // Uložení upravené hodnoty buňky
+  // Uložení hodnoty buňky
   const saveCell = (ck: CellKey) => {
     if (!chargeFlags[ck]) return
     const [y, m, ...rest] = ck.split('-')
-    const year     = Number(y)
-    const month    = Number(m)
-    const chargeId = rest.join('-')
-    const val      = pivotValues[ck] === '' ? 0 : pivotValues[ck]
+    const year = Number(y), month = Number(m), chargeId = rest.join('-')
+    const val = pivotValues[ck] === '' ? 0 : pivotValues[ck]
     fetch('/api/statement/new', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ leaseId: unitId, year, month, chargeId, overrideVal: val })
     })
   }
 
   // Vypočítat součet řádku
   const rowSum = (row: MatrixRow) =>
-    row.values.reduce<number>((acc, v) => acc + (typeof v === 'number' ? v : 0), 0)
+    row.values.reduce<number>((sum, v) => sum + (typeof v === 'number' ? v : 0), 0)
 
   return (
     <div className="overflow-x-auto border rounded-lg">
@@ -151,16 +135,11 @@ export default function StatementTable({
                 <td className="border p-2">
                   <div className="flex items-center space-x-1">
                     <span className="font-medium">{row.name}</span>
-                    <button
-                      onClick={() => {/* implement removeColumn */}}
-                      className="text-red-500 hover:text-red-700"
-                      title="Odebrat sloupec"
-                      style={{ lineHeight: 1 }}
-                    >×</button>
+                    <button className="text-red-500 hover:text-red-700" title="Odebrat" style={{ lineHeight:1 }}>×</button>
                   </div>
                 </td>
                 {matrix.months.map(m => {
-                  const ck      = `${m.year}-${m.month}-${row.id}` as CellKey
+                  const ck = `${m.year}-${m.month}-${row.id}` as CellKey
                   const enabled = chargeFlags[ck]
                   const val     = pivotValues[ck]
                   return (
@@ -175,15 +154,11 @@ export default function StatementTable({
                             setPivotValues(prev => ({ ...prev, [ck]: num }))
                           }}
                           onBlur={() => saveCell(ck)}
-                          className={`w-16 text-right text-xs border rounded px-1 py-0 ${
-                            !enabled ? 'opacity-50' : ''
-                          }`}
+                          className={`w-16 text-right text-xs border rounded px-1 py-0 ${!enabled ? 'opacity-50' : ''}`}
                           min={0}
                         />
                         <span
-                          className={`inline-block w-2 h-2 rounded-full ${
-                            enabled ? 'bg-green-500' : 'bg-gray-400'
-                          }`}
+                          className={`inline-block w-2 h-2 rounded-full ${enabled ? 'bg-green-500' : 'bg-gray-400'}`}
                           title={enabled ? 'Účtovat' : 'Neúčtovat'}
                           onClick={() => toggleCharge(ck)}
                         />
