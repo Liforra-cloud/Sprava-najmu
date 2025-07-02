@@ -159,7 +159,7 @@ export default function StatementTable({
                     </button>
                   </div>
                 </td>
-                {matrix.months.map((m, idx) => {
+                {matrix.months.map(($1) => {
                   const ck = `${m.year}-${m.month}-${row.id}` as CellKey
                   const enabled = chargeFlags[ck]
                   const val = pivotValues[ck]
